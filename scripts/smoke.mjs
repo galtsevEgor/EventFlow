@@ -4,6 +4,8 @@ import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
+const probeOptions = { headers: { connection: 'close' } };
+
 async function availablePort() {
   const server = createServer();
   await new Promise((done, reject) => {
@@ -37,7 +39,10 @@ async function checkProcess(name, directory, args, route, verify) {
       if (child.exitCode !== null) throw new Error(`${name} exited early: ${output}`);
       let response;
       try {
-        response = await fetch(origin + route, { signal: AbortSignal.timeout(1000) });
+        response = await fetch(origin + route, {
+          ...probeOptions,
+          signal: AbortSignal.timeout(1000),
+        });
       } catch {
         await delay(250);
         continue;
@@ -50,7 +55,12 @@ async function checkProcess(name, directory, args, route, verify) {
     throw new Error(`${name} did not become ready: ${output}`);
   } finally {
     child.kill('SIGTERM');
-    await closed;
+    const deadline = setTimeout(() => child.kill('SIGKILL'), 5000);
+    try {
+      await closed;
+    } finally {
+      clearTimeout(deadline);
+    }
   }
 }
 
@@ -86,7 +96,9 @@ await checkProcess(
     assert.match(html, /EventFlow/);
     assert.match(html, /<html lang="ru"/);
     const asset = html.match(/href="([^"]+\.css[^"]*)"/)[1];
-    assert.equal((await fetch(origin + asset)).status, 200);
+    const responseAsset = await fetch(origin + asset, probeOptions);
+    assert.equal(responseAsset.status, 200);
+    await responseAsset.body.cancel();
   },
 );
 
@@ -108,6 +120,8 @@ await checkProcess(
     assert.match(html, /EventFlow/);
     const asset = html.match(/src="([^"]+\.js)"/)[1];
     assert.match(asset, /^\/organizer\/assets\//);
-    assert.equal((await fetch(origin + asset)).status, 200);
+    const responseAsset = await fetch(origin + asset, probeOptions);
+    assert.equal(responseAsset.status, 200);
+    await responseAsset.body.cancel();
   },
 );

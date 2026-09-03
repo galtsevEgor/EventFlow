@@ -26,11 +26,15 @@ test('boots a real Nest server with isolated service identity and closes its lis
     await app.listen(0, '127.0.0.1');
     const origin = await app.getUrl();
     for (const route of ['live', 'ready']) {
-      const response = await fetch(`${origin}/health/${route}`);
+      const response = await fetch(`${origin}/health/${route}`, {
+        headers: { connection: 'close' },
+      });
       assert.equal(response.status, 200);
       assert.deepEqual(await response.json(), { status: 'ok', service: 'runtime-test' });
     }
-    assert.equal((await fetch(`${origin}/does-not-exist`)).status, 404);
+    const missing = await fetch(`${origin}/does-not-exist`, { headers: { connection: 'close' } });
+    assert.equal(missing.status, 404);
+    await missing.body.cancel();
   } finally {
     await app.close();
   }

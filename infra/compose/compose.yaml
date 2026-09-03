@@ -83,7 +83,7 @@ services:
         '-dir=/data',
         '-ip=localhost',
         '-ip.bind=0.0.0.0',
-        '-volume.max=4',
+        '-volume.max=16',
         '-master.volumeSizeLimitMB=64',
         '-s3',
         '-s3.config=/etc/seaweedfs/s3.json',
@@ -92,6 +92,7 @@ services:
     volumes:
       - s3-data:/data
       - ./work/local/s3.json:/etc/seaweedfs/s3.json:ro
+      - ./infra/compose/seaweedfs-master.toml:/etc/seaweedfs/master.toml:ro
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:9333/cluster/status']
       interval: 5s
