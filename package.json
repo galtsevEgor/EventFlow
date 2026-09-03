@@ -28,7 +28,10 @@
     "infra:down": "node scripts/compose.mjs down",
     "infra:status": "node scripts/compose.mjs status",
     "infra:check": "node scripts/compose.mjs config",
-    "test:infra": "node --env-file=.env --test --test-timeout=45000 infra/tests/*.test.mjs"
+    "test:infra": "node --env-file=.env --test --test-timeout=45000 infra/tests/*.test.mjs",
+    "tools:setup": "node scripts/quality-tools.mjs",
+    "check:secrets": "node scripts/scan-secrets.mjs",
+    "check:workflow": "node scripts/check-workflow.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",
