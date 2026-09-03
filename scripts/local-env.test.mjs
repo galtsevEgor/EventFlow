@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { parseEnv } from 'node:util';
+import test from 'node:test';
+import { initializeEnvironment } from './local-env.mjs';
+
+test('initialization generates distinct secrets and preserves them on repeated runs', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'eventflow-env-'));
+  try {
+    initializeEnvironment(directory);
+    const original = readFileSync(join(directory, '.env'), 'utf8');
+    const env = parseEnv(original);
+    assert.notEqual(env.CATALOG_DB_PASSWORD, env.BOOKING_DB_PASSWORD);
+    assert.equal(new URL(env.BOOKING_DATABASE_URL).password, env.BOOKING_DB_PASSWORD);
+    initializeEnvironment(directory);
+    assert.equal(readFileSync(join(directory, '.env'), 'utf8'), original);
+    const s3 = JSON.parse(readFileSync(join(directory, 'work/local/s3.json'), 'utf8'));
+    assert.equal(s3.identities[0].credentials[0].secretKey, env.S3_SECRET_KEY);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('an incomplete existing env fails without overwriting user settings', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'eventflow-env-'));
+  try {
+    const original = 'CUSTOM_SETTING=keep-me\n';
+    writeFileSync(join(directory, '.env'), original);
+    assert.throws(() => initializeEnvironment(directory), /preserved/);
+    assert.equal(readFileSync(join(directory, '.env'), 'utf8'), original);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

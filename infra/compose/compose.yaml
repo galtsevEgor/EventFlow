@@ -1,0 +1,114 @@
+name: eventflow-local
+
+services:
+  postgres:
+    image: postgres:18-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+    environment:
+      POSTGRES_USER: eventflow_admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Run pnpm env:init}
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?Run pnpm env:init}
+      BOOKING_DB_PASSWORD: ${BOOKING_DB_PASSWORD:?Run pnpm env:init}
+      PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:?Run pnpm env:init}
+      TICKETS_DB_PASSWORD: ${TICKETS_DB_PASSWORD:?Run pnpm env:init}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Run pnpm env:init}
+    ports: ['127.0.0.1:15432:5432']
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./infra/compose/postgres-init.sh:/docker-entrypoint-initdb.d/01-databases.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U eventflow_admin -d eventflow_admin']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8.10.3-alpine@sha256:896f241f438ab6a210cfb24f573b84bea721a4cbe67f1b4fd07eb638b3b02a7b
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Run pnpm env:init}
+    command: ['sh', '-c', 'exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"']
+    ports: ['127.0.0.1:16379:6379']
+    volumes: ['redis-data:/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4.4.0-management-alpine@sha256:0452ee3fd3b9a74160b251e693338616b464f22df4d4ba43304c101bebdca292
+    environment:
+      RABBITMQ_DEFAULT_USER: eventflow
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Run pnpm env:init}
+    ports: ['127.0.0.1:15673:5672', '127.0.0.1:15672:15672']
+    volumes: ['rabbitmq-data:/var/lib/rabbitmq']
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 10s
+      retries: 18
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b
+    command: ['start-dev']
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Run pnpm env:init}
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Run pnpm env:init}
+      KC_HEALTH_ENABLED: 'true'
+      KC_METRICS_ENABLED: 'true'
+    ports: ['127.0.0.1:18080:8080']
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'bash',
+          '-c',
+          "{ printf 'HEAD /health/ready HTTP/1.0\\r\\n\\r\\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 18
+
+  s3:
+    image: chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8
+    command:
+      [
+        'server',
+        '-dir=/data',
+        '-ip=localhost',
+        '-ip.bind=0.0.0.0',
+        '-volume.max=4',
+        '-master.volumeSizeLimitMB=64',
+        '-s3',
+        '-s3.config=/etc/seaweedfs/s3.json',
+      ]
+    ports: ['127.0.0.1:18333:8333']
+    volumes:
+      - s3-data:/data
+      - ./work/local/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:9333/cluster/status']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.32.0@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+    ports: ['127.0.0.1:11025:1025', '127.0.0.1:18025:8025']
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+  s3-data:
