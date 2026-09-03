@@ -1,10 +1,36 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import test from 'node:test';
 import { chromium, expect } from '@playwright/test';
 import { fullStack } from './fixture.mjs';
 
 const users = JSON.parse(readFileSync('work/local/demo-users.json', 'utf8'));
+test('browser build artifacts contain no local credentials or server connection strings', () => {
+  const secrets = Object.entries(process.env).filter(
+    ([key, value]) =>
+      /PASSWORD|SECRET|DATABASE_URL|REDIS_URL|AMQP_URL|S3_ACCESS_KEY/.test(key) &&
+      value &&
+      value.length >= 16,
+  );
+  secrets.push(...users.map((user) => [`demo account ${user.username}`, user.password]));
+  let files = 0;
+  function scan(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const file = join(directory, entry.name);
+      if (entry.isDirectory()) scan(file);
+      else if (/\.(js|json|html|css|map)$/.test(file)) {
+        files++;
+        const source = readFileSync(file, 'utf8');
+        for (const [name, value] of secrets)
+          assert.equal(source.includes(value), false, `${file} contains ${name}`);
+      }
+    }
+  }
+  scan('apps/organizer/dist');
+  scan('apps/storefront/.next/static');
+  assert.ok(files > 5, 'Both frontend builds must be present');
+});
 test(
   'real browser journey: shared login, organizations, drafts, invitations, roles, assignments and logout',
   { timeout: 180_000 },
