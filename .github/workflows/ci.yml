@@ -38,7 +38,6 @@ jobs:
       - run: pnpm audit:runtime
       - run: pnpm check
       - run: pnpm build
-      - run: pnpm test:smoke
 
   integration:
     runs-on: ubuntu-24.04
@@ -57,6 +56,10 @@ jobs:
       - run: pnpm infra:check
       - run: pnpm infra:up
       - run: pnpm identity:seed
+      - run: pnpm build
+      - run: pnpm test:smoke
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:identity
       - run: pnpm test:infra
       - run: pnpm test:spikes
       - name: Dependency status on failure

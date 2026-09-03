@@ -1,0 +1,65 @@
+import { z } from 'zod';
+
+export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
+const httpUrl = z.url().refine((value) => ['http:', 'https:'].includes(new URL(value).protocol));
+const schema = z.object({
+  PUBLIC_ORIGIN: httpUrl,
+  OIDC_ISSUER: httpUrl,
+  OIDC_CLIENT_ID: z.string().min(1),
+  OIDC_CLIENT_SECRET: z.string().min(32),
+  REDIS_URL: z.string().startsWith('redis'),
+  SESSION_PREFIX: z
+    .string()
+    .regex(/^[a-zA-Z0-9:_-]+$/)
+    .default('eventflow:bff:'),
+  CATALOG_URL: httpUrl,
+});
+export type AuthConfig = ReturnType<typeof readAuthConfig>;
+export function readAuthConfig(env: NodeJS.ProcessEnv) {
+  const values = schema.parse(env);
+  const origin = new URL(values.PUBLIC_ORIGIN);
+  const issuer = new URL(values.OIDC_ISSUER);
+  if (
+    origin.pathname !== '/' ||
+    origin.search ||
+    origin.hash ||
+    origin.username ||
+    origin.password
+  ) {
+    throw new Error('PUBLIC_ORIGIN must contain only an origin');
+  }
+  const local = (url: URL) => ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
+  if ([origin, issuer].some((url) => url.protocol !== 'https:' && !local(url)))
+    throw new Error('HTTPS is required outside loopback development');
+  if (env.NODE_ENV === 'production' && [origin, issuer].some((url) => url.protocol !== 'https:'))
+    throw new Error('Production identity endpoints require HTTPS');
+  return { ...values, PUBLIC_ORIGIN: origin.origin, secure: origin.protocol === 'https:' };
+}
+
+function unsafeCharacters(value: string) {
+  return (
+    value.includes('\\') ||
+    [...value].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)
+  );
+}
+
+export function safeReturnTo(value: unknown) {
+  if (
+    typeof value !== 'string' ||
+    value.length > 2048 ||
+    !/^\/(?!\/)/.test(value) ||
+    unsafeCharacters(value)
+  )
+    return '/organizer/';
+  try {
+    const decoded = decodeURIComponent(value);
+    if (unsafeCharacters(decoded) || decoded.startsWith('//') || decoded.startsWith('/api/'))
+      return '/organizer/';
+    const url = new URL(value, 'https://eventflow.invalid');
+    return url.origin === 'https://eventflow.invalid' && !url.pathname.startsWith('/api/')
+      ? url.pathname + url.search
+      : '/organizer/';
+  } catch {
+    return '/organizer/';
+  }
+}
