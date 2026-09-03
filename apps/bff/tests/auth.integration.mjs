@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { after, before, test } from 'node:test';
 import { chromium } from '@playwright/test';
-import { createApplication } from '@eventflow/service-runtime';
+import { createApplication, TokenVerifier } from '@eventflow/service-runtime';
 import { AppModule } from '../dist/app.module.js';
 import { readAuthConfig } from '../dist/auth/config.js';
 import { AuthService } from '../dist/auth/auth.service.js';
@@ -12,8 +13,25 @@ import { SessionStore } from '../dist/auth/session-store.js';
 const config = readAuthConfig({ ...process.env, SESSION_PREFIX: `test:${randomUUID()}:` });
 const origin = config.PUBLIC_ORIGIN;
 const users = JSON.parse(readFileSync('work/local/demo-users.json', 'utf8'));
-let app, browser, auth, store;
+process.env.EVENTFLOW_LOG_REQUESTS = '0';
+let app, browser, auth, store, upstream;
+const forwarded = [];
+let upstreamStatus = 200;
 before(async () => {
+  upstream = createServer(async (request, response) => {
+    let body = '';
+    for await (const chunk of request) body += chunk;
+    forwarded.push({ headers: request.headers, method: request.method, body });
+    response.statusCode = upstreamStatus;
+    response.setHeader('content-type', 'application/json');
+    response.end(
+      JSON.stringify(
+        upstreamStatus === 200 ? { organizations: [] } : { stack: 'private upstream details' },
+      ),
+    );
+  });
+  await new Promise((done) => upstream.listen(0, '127.0.0.1', done));
+  config.CATALOG_URL = `http://127.0.0.1:${upstream.address().port}`;
   app = await createApplication(AppModule.configure(config));
   app.useLogger(false);
   await app.listen(Number(new URL(origin).port), '127.0.0.1');
@@ -28,6 +46,7 @@ after(async () => {
       if (keys.length) await store.client.del(keys);
   }
   await app?.close();
+  await new Promise((done) => upstream.close(done));
 });
 
 async function login(context, alias = 'owner') {
@@ -124,6 +143,93 @@ test('concurrent refresh uses one rotated token and logout cannot resurrect a se
   }
 });
 
+test('real machine token carries the required Catalog audience and policy permission', async () => {
+  const response = await fetch(`${config.OIDC_ISSUER}/protocol/openid-connect/token`, {
+    method: 'POST',
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: 'eventflow-policy',
+      client_secret: process.env.POLICY_CLIENT_SECRET,
+    }),
+  });
+  assert.equal(response.status, 200);
+  const { access_token: token } = await response.json();
+  const machine = await new TokenVerifier(config.OIDC_ISSUER, 'eventflow-catalog').machine(
+    `Bearer ${token}`,
+  );
+  assert.ok(machine.subject);
+});
+
+test('proxy permits only public routes and replaces browser identity headers with a verified token', async () => {
+  const context = await browser.newContext();
+  try {
+    const session = await login(context, 'outsider');
+    const requestId = randomUUID();
+    const response = await context.request.get(`${origin}/api/v1/organizations`, {
+      headers: {
+        authorization: 'Bearer forged',
+        'x-user-id': 'owner',
+        'x-role': 'OWNER',
+        'x-request-id': requestId,
+      },
+    });
+    assert.equal(response.status(), 200);
+    const request = forwarded.at(-1);
+    assert.equal(request.headers['x-user-id'], undefined);
+    assert.equal(request.headers['x-role'], undefined);
+    assert.equal(request.headers.cookie, undefined);
+    assert.equal(request.headers['x-request-id'], requestId);
+    const payload = JSON.parse(
+      Buffer.from(
+        request.headers.authorization.split(' ')[1].split('.')[1],
+        'base64url',
+      ).toString(),
+    );
+    assert.ok(
+      [payload.aud].flat().includes('eventflow-catalog'),
+      `Missing Catalog audience; received ${JSON.stringify(payload.aud)}`,
+    );
+    const jwtHeader = JSON.parse(
+      Buffer.from(
+        request.headers.authorization.split(' ')[1].split('.')[0],
+        'base64url',
+      ).toString(),
+    );
+    assert.equal(jwtHeader.alg, 'RS256');
+    assert.equal(payload.iss, config.OIDC_ISSUER);
+    assert.equal(typeof payload.iat, 'number');
+    assert.equal(typeof payload.sub, 'string');
+    assert.ok(payload.exp > Date.now() / 1000, 'Access token has expired');
+    const user = await new TokenVerifier(config.OIDC_ISSUER, 'eventflow-catalog').user(
+      request.headers.authorization,
+    );
+    assert.equal(user.email, 'outsider@eventflow.test');
+    const count = forwarded.length;
+    assert.equal(
+      (
+        await context.request.post(`${origin}/api/v1/organizations`, { data: { name: 'Denied' } })
+      ).status(),
+      403,
+    );
+    assert.equal((await context.request.post(`${origin}/internal/policy/check`)).status(), 404);
+    assert.equal((await context.request.delete(`${origin}/api/v1/organizations`)).status(), 404);
+    assert.equal(forwarded.length, count);
+    const write = await context.request.post(`${origin}/api/v1/organizations`, {
+      headers: { origin, 'x-csrf-token': session.csrfToken },
+      data: { name: 'Allowed' },
+    });
+    assert.equal(write.status(), 200);
+    assert.deepEqual(JSON.parse(forwarded.at(-1).body), { name: 'Allowed' });
+    upstreamStatus = 500;
+    const unavailable = await context.request.get(`${origin}/api/v1/organizations`);
+    assert.equal(unavailable.status(), 503);
+    assert.ok(!(await unavailable.text()).includes('private upstream'));
+  } finally {
+    upstreamStatus = 200;
+    await context.close();
+  }
+});
+
 test('expired server session is rejected; Redis failure returns 503 without identity', async () => {
   const context = await browser.newContext();
   try {
@@ -141,6 +247,8 @@ test('expired server session is rejected; Redis failure returns 503 without iden
     });
     assert.deepEqual(await expired.json(), { user: null });
     store.client.destroy();
+    assert.equal((await context.request.get(`${origin}/health/ready`)).status(), 503);
+    assert.equal((await context.request.get(`${origin}/health/live`)).status(), 200);
     const failed = await context.request.get(`${origin}/api/v1/auth/session`, {
       headers: { cookie: `eventflow_session=${id}` },
     });

@@ -51,6 +51,7 @@ export async function seedKeycloak(env, directory = process.cwd()) {
   }
   const current = await admin(`/${realmName}`, 'GET', undefined, true);
   await admin(current ? `/${realmName}` : '', current ? 'PUT' : 'POST', realmConfiguration());
+  const availableScopes = await admin(`/${realmName}/client-scopes`);
   for (const configuration of clientConfigurations(env)) {
     const [client] = await admin(`/${realmName}/clients?clientId=${configuration.clientId}`);
     await admin(
@@ -58,6 +59,23 @@ export async function seedKeycloak(env, directory = process.cwd()) {
       client ? 'PUT' : 'POST',
       configuration,
     );
+    const [configured] = await admin(`/${realmName}/clients?clientId=${configuration.clientId}`);
+    const assigned = await admin(`/${realmName}/clients/${configured.id}/default-client-scopes`);
+    for (const name of configuration.defaultClientScopes) {
+      const scope = availableScopes.find((scope) => scope.name === name);
+      if (!scope) throw new Error(`Required Keycloak scope is missing: ${name}`);
+      await admin(
+        `/${realmName}/clients/${configured.id}/default-client-scopes/${scope.id}`,
+        'PUT',
+      );
+    }
+    for (const scope of assigned) {
+      if (!configuration.defaultClientScopes.includes(scope.name))
+        await admin(
+          `/${realmName}/clients/${configured.id}/default-client-scopes/${scope.id}`,
+          'DELETE',
+        );
+    }
   }
   let role = await admin(`/${realmName}/roles/policy-check`, 'GET', undefined, true);
   if (!role) {

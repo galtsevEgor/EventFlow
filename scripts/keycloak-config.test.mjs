@@ -15,6 +15,8 @@ test('web client restricts redirects and requires PKCE without password or impli
   assert.equal(web.serviceAccountsEnabled, false);
   assert.equal(machine.standardFlowEnabled, false);
   assert.equal(machine.serviceAccountsEnabled, true);
+  assert.ok(web.defaultClientScopes.includes('basic'));
+  assert.ok(machine.defaultClientScopes.includes('basic'));
   assert.equal(realmConfiguration().verifyEmail, true);
   assert.equal(realmConfiguration().revokeRefreshToken, true);
 });

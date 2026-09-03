@@ -56,7 +56,7 @@ export function clientConfigurations(env) {
         'pkce.code.challenge.method': 'S256',
         'post.logout.redirect.uris': `${env.PUBLIC_ORIGIN}/`,
       },
-      defaultClientScopes: ['profile', 'email'],
+      defaultClientScopes: ['basic', 'profile', 'email'],
       protocolMappers: [audience],
     },
     {
@@ -68,7 +68,7 @@ export function clientConfigurations(env) {
       implicitFlowEnabled: false,
       directAccessGrantsEnabled: false,
       serviceAccountsEnabled: true,
-      defaultClientScopes: ['roles'],
+      defaultClientScopes: ['basic', 'roles'],
       protocolMappers: [audience],
     },
   ];

@@ -16,7 +16,7 @@
     "test:tooling": "node --test scripts/*.test.mjs",
     "test": "pnpm test:tooling && pnpm test:unit",
     "check:repository": "node scripts/repository-policy.mjs",
-    "check": "pnpm check:repository && pnpm check:boundaries && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "check": "pnpm check:repository && pnpm check:boundaries && pnpm check:api && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test:unit": "turbo run test",
@@ -39,7 +39,9 @@
     "identity:seed": "node --env-file=.env scripts/keycloak-seed.mjs",
     "test:identity": "node --env-file=.env --test --test-timeout=45000 apps/bff/tests/auth.integration.mjs",
     "db:migrate": "node --env-file=.env node_modules/prisma/build/index.js migrate deploy --config=services/catalog/prisma.config.ts",
-    "test:catalog": "node --env-file=.env --test --test-timeout=60000 services/catalog/tests/*.integration.mjs"
+    "test:catalog": "node --env-file=.env --test --test-timeout=60000 services/catalog/tests/*.integration.mjs",
+    "api:generate": "node scripts/generate-api.mjs",
+    "check:api": "node scripts/generate-api.mjs --check"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",
@@ -52,6 +54,8 @@
     "amqplib": "2.2.0",
     "eslint": "10.13.0",
     "globals": "16.4.0",
+    "http-proxy-middleware": "4.2.1",
+    "openapi-typescript": "7.13.0",
     "pg": "8.23.1",
     "prettier": "3.9.10",
     "prisma": "7.10.1",

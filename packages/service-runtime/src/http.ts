@@ -26,6 +26,7 @@ export function parseInput<T>(schema: z.ZodType<T>, input: unknown): T {
 }
 
 export function requestContext(request: Request, response: Response, next: NextFunction) {
+  const started = performance.now();
   const incoming = request.header('x-request-id');
   const requestId = incoming && z.uuid().safeParse(incoming).success ? incoming : randomUUID();
   const parent = request.header('traceparent');
@@ -39,7 +40,27 @@ export function requestContext(request: Request, response: Response, next: NextF
   response.setHeader('x-content-type-options', 'nosniff');
   response.setHeader('referrer-policy', 'no-referrer');
   response.setHeader('cache-control', 'no-store');
+  response.once('finish', () => {
+    if (process.env.EVENTFLOW_LOG_REQUESTS !== '0')
+      console.info(JSON.stringify(accessLog(request, response, performance.now() - started)));
+  });
   next();
+}
+
+export function accessLog(
+  request: Pick<Request, 'method'>,
+  response: Pick<Response, 'statusCode' | 'locals'>,
+  duration: number,
+) {
+  // Explicit allowlist: URLs, headers, cookies, bodies and tokens never enter access logs.
+  return {
+    kind: 'http',
+    method: request.method,
+    status: response.statusCode,
+    requestId: response.locals.requestId,
+    traceId: String(response.locals.traceparent).split('-')[1],
+    durationMs: Math.round(duration),
+  };
 }
 
 @Catch()

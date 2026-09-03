@@ -1,5 +1,5 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import { HealthModule, TokenVerifier } from '@eventflow/service-runtime';
+import { HealthModule, Readiness, probeIdentity, TokenVerifier } from '@eventflow/service-runtime';
 import { Database } from './database';
 import type { CatalogConfig } from './config';
 import { OrganizationController } from './organizations/organization.controller';
@@ -26,6 +26,17 @@ export class AppModule {
       ],
       providers: [
         { provide: Database, useFactory: () => new Database(config.CATALOG_DATABASE_URL) },
+        {
+          provide: 'CATALOG_READINESS',
+          inject: [Readiness, Database],
+          useFactory: (readiness: Readiness, db: Database) => {
+            readiness.register('postgres', () =>
+              db.eventDraft.count({ where: { id: '00000000-0000-0000-0000-000000000000' } }),
+            );
+            readiness.register('identity', () => probeIdentity(config.OIDC_ISSUER));
+            return readiness;
+          },
+        },
         {
           provide: TokenVerifier,
           useFactory: () => new TokenVerifier(config.OIDC_ISSUER, 'eventflow-catalog'),
