@@ -37,3 +37,4 @@ playwright-report/
 test-results/
 *.log
 *.tsbuildinfo
+/spikes/booking/generated/

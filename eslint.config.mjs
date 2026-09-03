@@ -11,6 +11,7 @@ export default tseslint.config(
       'work/**',
       'docs/**',
       '**/next-env.d.ts',
+      'spikes/booking/generated/**',
     ],
   },
   js.configs.recommended,

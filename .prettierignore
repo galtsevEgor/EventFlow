@@ -10,3 +10,4 @@ docs/
 *.mdx
 pnpm-lock.yaml
 **/next-env.d.ts
+spikes/booking/generated/
