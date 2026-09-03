@@ -1,0 +1,11 @@
+node_modules/
+.git/
+.next/
+dist/
+.turbo/
+coverage/
+work/
+docs/
+*.md
+*.mdx
+pnpm-lock.yaml

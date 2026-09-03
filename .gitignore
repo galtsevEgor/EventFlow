@@ -1,0 +1,38 @@
+# Local planning and workspace files
+*.md
+*.mdx
+/docs/
+/work/
+.agents/
+.claude/
+.codex/
+.gemini/
+.antigravity/
+.cursor/
+.claude-flow/
+.ruflo/
+.mcp.json
+.claude.json
+.cursorrules
+AGENTS.*
+CLAUDE.*
+GEMINI.*
+**/prompts/
+**/handoffs/
+
+# Secrets and local overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Application/tool output
+node_modules/
+.next/
+dist/
+coverage/
+.turbo/
+playwright-report/
+test-results/
+*.log

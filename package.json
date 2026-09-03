@@ -1,0 +1,32 @@
+{
+  "name": "eventflow",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=24.22.1 <25",
+    "pnpm": "10.34.9"
+  },
+  "scripts": {
+    "help": "node scripts/help.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "test:tooling": "node --test scripts/*.test.mjs",
+    "test": "pnpm test:tooling",
+    "check:repository": "node scripts/repository-policy.mjs",
+    "check": "pnpm check:repository && pnpm format:check && pnpm lint && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "eslint": "10.13.0",
+    "globals": "16.4.0",
+    "prettier": "3.9.10",
+    "turbo": "2.11.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1",
+    "vitest": "5.0.5"
+  }
+}
