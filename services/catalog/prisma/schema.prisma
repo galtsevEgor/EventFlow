@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated"
+  moduleFormat = "cjs"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrganizationRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+model Organization {
+  id          String @id @default(uuid()) @db.Uuid
+  name        String @db.VarChar(100)
+  createdBy   String @db.VarChar(128)
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  memberships Membership[]
+  audit       AuditEntry[]
+
+  @@index([createdBy])
+}
+
+model Membership {
+  organizationId String @db.Uuid
+  userSubject    String @db.VarChar(128)
+  email          String @db.VarChar(254)
+  role           OrganizationRole
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, userSubject])
+  @@index([userSubject])
+}
+
+model AuditEntry {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  actorSubject   String @db.VarChar(128)
+  action         String @db.VarChar(64)
+  targetId       String @db.VarChar(128)
+  details        Json
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+}

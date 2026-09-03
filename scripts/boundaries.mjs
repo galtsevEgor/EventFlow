@@ -50,7 +50,7 @@ export function findBoundaryViolations(files, packages) {
 
 function collect(directory, files) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    if (['node_modules', 'dist', '.next'].includes(entry.name)) continue;
+    if (['node_modules', 'dist', '.next', 'generated'].includes(entry.name)) continue;
     const path = `${directory}/${entry.name}`;
     if (entry.isDirectory()) collect(path, files);
     else if (/\.[cm]?[jt]sx?$/.test(entry.name)) files[path] = readFileSync(path, 'utf8');

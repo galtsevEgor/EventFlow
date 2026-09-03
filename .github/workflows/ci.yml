@@ -56,7 +56,9 @@ jobs:
       - run: pnpm infra:check
       - run: pnpm infra:up
       - run: pnpm identity:seed
+      - run: pnpm db:migrate
       - run: pnpm build
+      - run: pnpm test:catalog
       - run: pnpm test:smoke
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:identity
