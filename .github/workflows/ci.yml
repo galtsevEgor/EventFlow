@@ -56,6 +56,7 @@ jobs:
       - run: pnpm env:init
       - run: pnpm infra:check
       - run: pnpm infra:up
+      - run: pnpm identity:seed
       - run: pnpm test:infra
       - run: pnpm test:spikes
       - name: Dependency status on failure

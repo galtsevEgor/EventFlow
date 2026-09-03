@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -44,6 +44,20 @@ export function initializeEnvironment(directory) {
   for (const key of secretKeys) {
     if (!values[key] || values[key].startsWith('generated-by-')) {
       throw new Error(`Set ${key} in the existing .env; it has been preserved.`);
+    }
+  }
+  const additions = {
+    PUBLIC_ORIGIN: 'http://127.0.0.1:18000',
+    OIDC_ISSUER: `${values.KEYCLOAK_URL}/realms/eventflow`,
+    OIDC_CLIENT_ID: 'eventflow-bff',
+    OIDC_CLIENT_SECRET: randomBytes(32).toString('hex'),
+    POLICY_CLIENT_SECRET: randomBytes(32).toString('hex'),
+    CATALOG_URL: 'http://127.0.0.1:4001',
+  };
+  for (const [key, value] of Object.entries(additions)) {
+    if (!values[key]) {
+      appendFileSync(path, `\n${key}=${value}\n`);
+      values[key] = value;
     }
   }
   mkdirSync(resolve(directory, 'work/local'), { recursive: true });
