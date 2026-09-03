@@ -38,6 +38,7 @@ export function requestContext(request: Request, response: Response, next: NextF
   response.setHeader('traceparent', response.locals.traceparent);
   response.setHeader('x-content-type-options', 'nosniff');
   response.setHeader('referrer-policy', 'no-referrer');
+  response.setHeader('cache-control', 'no-store');
   next();
 }
 

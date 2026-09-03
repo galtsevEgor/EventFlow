@@ -22,6 +22,8 @@ model Organization {
   createdAt   DateTime @default(now()) @db.Timestamptz
   memberships Membership[]
   audit       AuditEntry[]
+  invitations Invitation[]
+  events      EventDraft[]
 
   @@index([createdBy])
 }
@@ -33,6 +35,7 @@ model Membership {
   role           OrganizationRole
   createdAt      DateTime @default(now()) @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments    StaffAssignment[]
 
   @@id([organizationId, userSubject])
   @@index([userSubject])
@@ -49,4 +52,42 @@ model AuditEntry {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
+}
+
+model Invitation {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  email          String @db.VarChar(254)
+  role           OrganizationRole
+  tokenHash      String @unique @db.Char(64)
+  createdBy      String @db.VarChar(128)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  expiresAt      DateTime @db.Timestamptz
+  acceptedAt     DateTime? @db.Timestamptz
+  revokedAt      DateTime? @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, email])
+}
+
+model EventDraft {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid
+  title          String @db.VarChar(160)
+  description    String @default("") @db.VarChar(5000)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments    StaffAssignment[]
+
+  @@unique([organizationId, id])
+}
+
+model StaffAssignment {
+  organizationId String @db.Uuid
+  userSubject    String @db.VarChar(128)
+  eventId        String @db.Uuid
+  membership     Membership @relation(fields: [organizationId, userSubject], references: [organizationId, userSubject], onDelete: Cascade)
+  event          EventDraft @relation(fields: [organizationId, eventId], references: [organizationId, id], onDelete: Cascade)
+
+  @@id([organizationId, userSubject, eventId])
 }
