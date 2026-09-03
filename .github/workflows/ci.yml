@@ -35,6 +35,7 @@ jobs:
       - run: pnpm tools:setup
       - run: pnpm check:workflow
       - run: pnpm check:secrets
+      - run: pnpm audit:runtime
       - run: pnpm check
       - run: pnpm build
       - run: pnpm test:smoke
