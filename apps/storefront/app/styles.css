@@ -4,6 +4,19 @@
   color: #172b29;
   background: #f7f6f1;
 }
+.account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  justify-content: flex-end;
+  padding-top: 18px;
+  font-size: 14px;
+}
+.account a {
+  color: #22654c;
+  text-underline-offset: 4px;
+}
 * {
   box-sizing: border-box;
 }

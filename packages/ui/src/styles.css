@@ -1,0 +1,131 @@
+:root {
+  --ef-ink: #173b32;
+  --ef-green: #22654c;
+  --ef-border: #d6e0d7;
+  --ef-muted: #52685b;
+}
+.ef-button {
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid transparent;
+  padding: 11px 18px;
+  border-radius: 9px;
+  cursor: pointer;
+  background: var(--ef-green);
+  color: white;
+  min-height: 44px;
+}
+.ef-button:hover {
+  filter: brightness(0.94);
+}
+.ef-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.ef-button--secondary {
+  color: var(--ef-ink);
+  background: white;
+  border-color: var(--ef-border);
+}
+.ef-button--danger {
+  color: #8b2424;
+  background: #fff1f0;
+  border-color: #edc6c3;
+}
+.ef-field {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.ef-field input,
+.ef-field select,
+.ef-field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #a4b6aa;
+  border-radius: 8px;
+  font: inherit;
+  background: white;
+  color: var(--ef-ink);
+  min-height: 44px;
+}
+.ef-field input[aria-invalid='true'] {
+  border-color: #a02d2d;
+}
+.ef-field-error {
+  color: #a02d2d;
+  font-size: 13px;
+}
+.ef-alert {
+  color: #842828;
+  background: #fff1ee;
+  padding: 16px;
+  border: 1px solid #edc6c3;
+  border-radius: 9px;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.ef-empty {
+  padding: 30px;
+  border: 1px dashed var(--ef-border);
+  border-radius: 12px;
+  background: #fafcf9;
+}
+.ef-empty h3 {
+  margin-top: 0;
+}
+.ef-empty p {
+  color: var(--ef-muted);
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+.ef-badge {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 30px;
+  background: #e9f0e4;
+  color: var(--ef-ink);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ef-skeleton {
+  padding: 24px;
+  border-radius: 10px;
+  background: #e8eee7;
+  color: var(--ef-muted);
+}
+.ef-overlay {
+  position: fixed;
+  inset: 0;
+  background: #102b23a6;
+  z-index: 20;
+}
+.ef-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(540px, calc(100vw - 32px));
+  max-height: 85dvh;
+  overflow-y: auto;
+  background: white;
+  padding: 28px;
+  border-radius: 16px;
+  z-index: 21;
+  box-shadow: 0 20px 80px #102b2340;
+}
+.ef-dialog h2 {
+  margin-top: 0;
+}
+.ef-dialog > p {
+  color: var(--ef-muted);
+  line-height: 1.5;
+}
+:is(button, input, select, textarea, a):focus-visible {
+  outline: 3px solid #44876b;
+  outline-offset: 3px;
+}

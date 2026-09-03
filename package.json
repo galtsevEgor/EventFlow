@@ -20,7 +20,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test:unit": "turbo run test",
-    "dev": "turbo run dev",
+    "dev": "node --env-file=.env scripts/dev.mjs",
     "check:boundaries": "node scripts/boundaries.mjs",
     "test:smoke": "node --env-file=.env scripts/smoke.mjs",
     "env:init": "node scripts/local-env.mjs",
@@ -35,13 +35,17 @@
     "generate:spikes": "prisma generate --schema=spikes/booking/schema.prisma",
     "test:spikes": "pnpm generate:spikes && tsc -p spikes/tsconfig.json && tsx --env-file=.env --test --test-timeout=30000 spikes/booking/*.test.ts spikes/payments/*.test.ts",
     "audit:runtime": "pnpm audit --prod --audit-level high",
-    "ci:local": "pnpm tools:setup && pnpm check:workflow && pnpm check:secrets && pnpm audit:runtime && pnpm check && pnpm build && pnpm env:init && pnpm infra:check && pnpm infra:up && pnpm identity:seed && pnpm db:migrate && pnpm test:catalog && pnpm test:identity && pnpm test:smoke && pnpm test:infra && pnpm test:spikes",
+    "ci:local": "pnpm tools:setup && pnpm check:workflow && pnpm check:secrets && pnpm audit:runtime && pnpm check && pnpm build && pnpm storybook:build && pnpm env:init && pnpm infra:check && pnpm infra:up && pnpm identity:seed && pnpm db:migrate && pnpm test:catalog && pnpm browser:install && pnpm test:identity && pnpm test:e2e && pnpm test:smoke && pnpm test:infra && pnpm test:spikes",
     "identity:seed": "node --env-file=.env scripts/keycloak-seed.mjs",
     "test:identity": "node --env-file=.env --test --test-timeout=45000 apps/bff/tests/auth.integration.mjs",
     "db:migrate": "node --env-file=.env node_modules/prisma/build/index.js migrate deploy --config=services/catalog/prisma.config.ts",
     "test:catalog": "node --env-file=.env --test --test-timeout=60000 services/catalog/tests/*.integration.mjs",
     "api:generate": "node scripts/generate-api.mjs",
-    "check:api": "node scripts/generate-api.mjs --check"
+    "check:api": "node scripts/generate-api.mjs --check",
+    "test:e2e": "node --env-file=.env --test tests/e2e/*.test.mjs",
+    "storybook": "pnpm --filter @eventflow/ui storybook",
+    "storybook:build": "pnpm --filter @eventflow/ui storybook:build",
+    "browser:install": "playwright install chromium"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",

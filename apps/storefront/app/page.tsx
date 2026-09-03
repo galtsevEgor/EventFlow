@@ -1,9 +1,12 @@
+import { Account } from './account';
+
 export default function Home() {
   return (
     <main>
       <a className="brand" href="/">
         EventFlow<span aria-hidden="true">↗</span>
       </a>
+      <Account />
       <section aria-labelledby="headline">
         <p className="eyebrow">Место для новых впечатлений</p>
         <h1 id="headline">
