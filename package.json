@@ -14,9 +14,15 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "test:tooling": "node --test scripts/*.test.mjs",
-    "test": "pnpm test:tooling",
+    "test": "pnpm test:tooling && pnpm test:unit",
     "check:repository": "node scripts/repository-policy.mjs",
-    "check": "pnpm check:repository && pnpm format:check && pnpm lint && pnpm test"
+    "check": "pnpm check:repository && pnpm check:boundaries && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test:unit": "turbo run test",
+    "dev": "turbo run dev",
+    "check:boundaries": "node scripts/boundaries.mjs",
+    "test:smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

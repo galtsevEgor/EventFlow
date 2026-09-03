@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { Module } from '@nestjs/common';
+import { createApplication, HealthModule, readServiceConfig } from '../dist/index.js';
+
+test('validates ports and rejects malformed environment configuration', () => {
+  const defaults = { name: 'catalog', port: 4001 };
+  assert.deepEqual(readServiceConfig({}, defaults), {
+    name: 'catalog',
+    port: 4001,
+    host: '127.0.0.1',
+  });
+  assert.equal(readServiceConfig({ PORT: '4500' }, defaults).port, 4500);
+  for (const port of ['0', '-1', '65536', 'not-a-port', '', '123.5']) {
+    assert.throws(() => readServiceConfig({ PORT: port }, defaults));
+  }
+  assert.throws(() => readServiceConfig({ HOST: ' ' }, defaults));
+});
+
+test('boots a real Nest server with isolated service identity and closes its listener', async () => {
+  class TestModule {}
+  Module({ imports: [HealthModule.forService('runtime-test')] })(TestModule);
+  const app = await createApplication(TestModule);
+  app.useLogger(false);
+  try {
+    await app.listen(0, '127.0.0.1');
+    const origin = await app.getUrl();
+    for (const route of ['live', 'ready']) {
+      const response = await fetch(`${origin}/health/${route}`);
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { status: 'ok', service: 'runtime-test' });
+    }
+    assert.equal((await fetch(`${origin}/does-not-exist`)).status, 404);
+  } finally {
+    await app.close();
+  }
+});

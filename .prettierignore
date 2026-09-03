@@ -9,3 +9,4 @@ docs/
 *.md
 *.mdx
 pnpm-lock.yaml
+**/next-env.d.ts
