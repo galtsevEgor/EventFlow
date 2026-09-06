@@ -76,6 +76,9 @@ model EventDraft {
   title          String @db.VarChar(160)
   description    String @default("") @db.VarChar(5000)
   configuration  Json?
+  coverId        String? @db.Uuid
+  cover          CoverAsset? @relation("CurrentCover", fields: [coverId], references: [id], onDelete: SetNull)
+  assets         CoverAsset[] @relation("EventAssets")
   revision       Int @default(0)
   createdAt      DateTime @default(now()) @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -92,4 +95,19 @@ model StaffAssignment {
   event          EventDraft @relation(fields: [organizationId, eventId], references: [organizationId, id], onDelete: Cascade)
 
   @@id([organizationId, userSubject, eventId])
+}
+
+model CoverAsset {
+  id        String @id @default(uuid()) @db.Uuid
+  eventId   String @db.Uuid
+  objectKey String @unique @db.VarChar(250)
+  width     Int
+  height    Int
+  bytes     Int
+  isPublic  Boolean @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  event     EventDraft @relation("EventAssets", fields: [eventId], references: [id], onDelete: Cascade)
+  currentFor EventDraft[] @relation("CurrentCover")
+
+  @@index([eventId])
 }

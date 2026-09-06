@@ -12,6 +12,9 @@ import { DraftController } from './events/draft.controller';
 import { DraftService } from './events/draft.service';
 import { PolicyController } from './policy/policy.controller';
 import { PolicyService } from './policy/policy.service';
+import { CoverController, PublicCoverController } from './covers/cover.controller';
+import { CoverService } from './covers/cover.service';
+import { CoverStorage } from './covers/storage';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -23,8 +26,20 @@ export class AppModule {
         MembershipController,
         DraftController,
         PolicyController,
+        CoverController,
+        PublicCoverController,
       ],
       providers: [
+        {
+          provide: CoverStorage,
+          useFactory: () => (config.S3_ENDPOINT ? new CoverStorage(config) : null),
+        },
+        {
+          provide: CoverService,
+          useFactory: (db: Database, storage: CoverStorage | null, drafts: DraftService) =>
+            new CoverService(db, storage, drafts),
+          inject: [Database, CoverStorage, DraftService],
+        },
         { provide: Database, useFactory: () => new Database(config.CATALOG_DATABASE_URL) },
         {
           provide: 'CATALOG_READINESS',

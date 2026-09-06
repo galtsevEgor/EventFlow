@@ -7,7 +7,7 @@ import { createApplication } from '@eventflow/service-runtime';
 import { AppModule } from '../dist/app.module.js';
 import { Database } from '../dist/database.js';
 
-export async function catalogFixture() {
+export async function catalogFixture(overrides = {}) {
   const database = `eventflow_test_${randomUUID().replaceAll('-', '')}`;
   const admin = new pg.Client({
     host: '127.0.0.1',
@@ -45,7 +45,7 @@ export async function catalogFixture() {
     await new Promise((done) => jwks.listen(0, '127.0.0.1', done));
     const issuer = `http://127.0.0.1:${jwks.address().port}`;
     app = await createApplication(
-      AppModule.configure({ OIDC_ISSUER: issuer, CATALOG_DATABASE_URL: url.href }),
+      AppModule.configure({ OIDC_ISSUER: issuer, CATALOG_DATABASE_URL: url.href, ...overrides }),
     );
     app.useLogger(false);
     await app.listen(0, '127.0.0.1');

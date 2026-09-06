@@ -13,6 +13,8 @@ const routes: [string[], RegExp][] = [
   [['GET', 'POST'], new RegExp(`^${org}/events$`)],
   [['GET', 'PATCH'], new RegExp(`^${org}/events/${uuid}$`)],
   [['PUT'], new RegExp(`^${org}/events/${uuid}/configuration$`)],
+  [['GET', 'POST'], new RegExp(`^${org}/events/${uuid}/cover$`)],
+  [['GET'], new RegExp(`^/api/v1/covers/${uuid}$`)],
 ];
 export function isCatalogRoute(method: string, path: string) {
   return routes.some(([methods, pattern]) => methods.includes(method) && pattern.test(path));

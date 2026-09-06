@@ -6,6 +6,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 import pg from 'pg';
 import { createClient } from 'redis';
 import { createGateway } from '../../scripts/gateway.mjs';
+import {
+  S3Client,
+  ListObjectsV2Command,
+  DeleteObjectCommand,
+  DeleteBucketCommand,
+} from '@aws-sdk/client-s3';
 
 async function availablePort() {
   const server = createServer();
@@ -18,6 +24,7 @@ async function availablePort() {
 export async function fullStack() {
   const database = `eventflow_e2e_${randomUUID().replaceAll('-', '')}`;
   const prefix = `e2e:${randomUUID()}:`;
+  const bucket = `eventflow-e2e-${randomUUID()}`;
   const admin = new pg.Client({
     host: '127.0.0.1',
     port: 15432,
@@ -58,6 +65,25 @@ export async function fullStack() {
     }
     await admin.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
     await admin.end();
+    const storage = new S3Client({
+      endpoint: process.env.S3_ENDPOINT,
+      region: 'us-east-1',
+      forcePathStyle: true,
+      credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY,
+        secretAccessKey: process.env.S3_SECRET_KEY,
+      },
+    });
+    try {
+      const objects = await storage.send(new ListObjectsV2Command({ Bucket: bucket }));
+      for (const object of objects.Contents ?? [])
+        await storage.send(new DeleteObjectCommand({ Bucket: bucket, Key: object.Key }));
+      await storage.send(new DeleteBucketCommand({ Bucket: bucket }));
+    } catch (error) {
+      if (!(error instanceof Error) || error.name !== 'NoSuchBucket') throw error;
+    } finally {
+      storage.destroy();
+    }
   }
   try {
     await admin.query(`CREATE DATABASE "${database}" OWNER catalog`);
@@ -66,6 +92,7 @@ export async function fullStack() {
     const env = {
       ...process.env,
       CATALOG_DATABASE_URL: dbUrl.href,
+      S3_COVERS_BUCKET: bucket,
       SESSION_PREFIX: prefix,
       EVENTFLOW_LOG_REQUESTS: '0',
       NEXT_TELEMETRY_DISABLED: '1',

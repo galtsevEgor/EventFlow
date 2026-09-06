@@ -668,6 +668,107 @@
         }
       }
     },
+    "/api/v1/organizations/{id}/events/{eventId}/cover": {
+      "get": {
+        "operationId": "previewCover",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated WebP image",
+            "content": { "image/webp": { "schema": { "type": "string", "format": "binary" } } }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "uploadCover",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": { "file": { "type": "string", "format": "binary" } },
+                "required": ["file"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Draft" } }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/covers/{id}": {
+      "get": {
+        "operationId": "publicCover",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated WebP image",
+            "content": { "image/webp": { "schema": { "type": "string", "format": "binary" } } }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/session": {
       "get": {
         "operationId": "getSession",
@@ -846,7 +947,8 @@
           "revision": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
           "configuration": {
             "anyOf": [{ "$ref": "#/components/schemas/EventConfiguration" }, { "type": "null" }]
-          }
+          },
+          "coverId": { "type": ["string", "null"], "format": "uuid" }
         },
         "required": [
           "id",
@@ -855,7 +957,8 @@
           "description",
           "createdAt",
           "revision",
-          "configuration"
+          "configuration",
+          "coverId"
         ],
         "additionalProperties": false
       },

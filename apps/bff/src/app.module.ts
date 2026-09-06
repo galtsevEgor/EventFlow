@@ -4,6 +4,7 @@ import { AuthModule } from './auth/auth.module';
 import type { AuthConfig } from './auth/config';
 import { CatalogController } from './catalog.controller';
 import { SessionStore } from './auth/session-store';
+import { CoverProxyController, CoverSessionGuard } from './covers.controller';
 
 @Module({ imports: [HealthModule.forService('bff')] })
 export class AppModule {
@@ -11,8 +12,9 @@ export class AppModule {
     return {
       module: AppModule,
       imports: [AuthModule.configure(config)],
-      controllers: [CatalogController],
+      controllers: [CoverProxyController, CatalogController],
       providers: [
+        CoverSessionGuard,
         {
           provide: 'BFF_READINESS',
           inject: [Readiness, SessionStore],

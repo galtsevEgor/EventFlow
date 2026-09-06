@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Badge, Button, Dialog, EmptyState, Field, Loading } from '@eventflow/ui';
 import { api, queryClient, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
+import { EventCover } from './event-cover';
 const EventConfiguration = lazy(() =>
   import('./event-configuration').then((module) => ({ default: module.EventConfiguration })),
 );
@@ -24,6 +25,7 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
   });
   const [editing, setEditing] = useState<Schemas['Draft'] | 'new' | null>(null);
   const [configuring, setConfiguring] = useState<Schemas['Draft'] | null>(null);
+  const [cover, setCover] = useState<Schemas['Draft'] | null>(null);
   const form = useForm({
     resolver: zodResolver(input),
     defaultValues: { title: '', description: '' },
@@ -79,9 +81,22 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
       <div className="event-grid">
         {events.data?.events.map((event) => (
           <article className="event-card" key={event.id}>
+            {event.coverId && (
+              <img
+                className="cover-preview"
+                loading="lazy"
+                src={`/api/v1/organizations/${id}/events/${event.id}/cover?v=${event.coverId}`}
+                alt={`Афиша: ${event.title}`}
+              />
+            )}
             <Badge>Черновик</Badge>
             <h3>{event.title}</h3>
             <p>{event.description || 'Описание ещё не добавлено.'}</p>
+            {canEdit && (
+              <Button variant="secondary" onClick={() => setCover(event)}>
+                Афиша
+              </Button>
+            )}
             {canEdit && (
               <Button variant="secondary" onClick={() => setConfiguring(event)}>
                 Настроить продажи
@@ -119,6 +134,16 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
             Сохранить черновик
           </Button>
         </form>
+      </Dialog>
+      <Dialog
+        open={cover !== null}
+        onOpenChange={(open) => {
+          if (!open) setCover(null);
+        }}
+        title="Афиша мероприятия"
+        description="Статичное изображение JPEG, PNG или WebP, до 5 MiB и 16 мегапикселей."
+      >
+        {cover && <EventCover id={id} event={cover} onSaved={() => setCover(null)} />}
       </Dialog>
       <Dialog
         wide

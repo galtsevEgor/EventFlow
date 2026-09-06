@@ -73,6 +73,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       401: ['UNAUTHENTICATED', 'Войдите в аккаунт.'],
       403: ['FORBIDDEN', 'Недостаточно прав.'],
       404: ['NOT_FOUND', 'Объект не найден.'],
+      413: ['PAYLOAD_TOO_LARGE', 'Файл слишком большой. Максимум 5 MiB.'],
+      415: ['UNSUPPORTED_MEDIA_TYPE', 'Этот тип файла не поддерживается.'],
       429: ['RATE_LIMITED', 'Слишком много запросов. Повторите позже.'],
       503: ['DEPENDENCY_UNAVAILABLE', 'Сервис временно недоступен. Повторите позже.'],
     };

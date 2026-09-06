@@ -6,6 +6,13 @@ export function readCatalogConfig(env: NodeJS.ProcessEnv) {
       CATALOG_DATABASE_URL: z.url().startsWith('postgresql:'),
       OIDC_ISSUER: z.url(),
       MAXIMUM_PRICE_MINOR: z.coerce.number().int().positive().max(100_000_000).default(10_000_000),
+      S3_ENDPOINT: z.url(),
+      S3_ACCESS_KEY: z.string().min(1),
+      S3_SECRET_KEY: z.string().min(1),
+      S3_COVERS_BUCKET: z
+        .string()
+        .regex(/^eventflow-[a-z0-9-]{1,50}$/)
+        .default('eventflow-covers'),
     })
     .parse(env);
 }
