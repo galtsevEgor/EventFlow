@@ -30,9 +30,13 @@ export const provisionSchema = z.strictObject({
 export const provisionResultSchema = z.strictObject({
   snapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
 });
+export const availabilitySchema = z.strictObject({
+  commandVersion: z.number().int().positive().max(2147483647),
+  paused: z.boolean(),
+});
 export const saleRoutes = {
-  booking: ['SaleProvisionRequested.v1'],
-  catalog: ['SaleProvisioned.v1'],
+  booking: ['SaleProvisionRequested.v1', 'SaleAvailabilityRequested.v1'],
+  catalog: ['SaleProvisioned.v1', 'SaleAvailabilityChanged.v1'],
 };
 export function message(
   producer: EventEnvelope['producer'],

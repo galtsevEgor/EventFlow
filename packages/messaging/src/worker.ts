@@ -3,7 +3,7 @@ import { Broker } from './broker';
 import { Outbox } from './outbox';
 
 export class MessageWorker {
-  private stopped = false;
+  private stopped = true;
   private timer: NodeJS.Timeout | undefined;
   private running: Promise<void> = Promise.resolve();
   constructor(
@@ -12,6 +12,11 @@ export class MessageWorker {
     private readonly handle: (event: EventEnvelope) => Promise<void>,
   ) {}
   onModuleInit() {
+    this.start();
+  }
+  start() {
+    if (!this.stopped) return;
+    this.stopped = false;
     this.schedule(0);
   }
   private schedule(delay: number) {
@@ -50,6 +55,9 @@ export class MessageWorker {
     }
   }
   async onModuleDestroy() {
+    await this.stop();
+  }
+  async stop() {
     this.stopped = true;
     clearTimeout(this.timer);
     await this.running;

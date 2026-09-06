@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { chromium, expect } from '@playwright/test';
 import { fullStack } from './fixture.mjs';
+import { MessageWorker } from '../../packages/messaging/dist/index.js';
 
 test(
   'organizer sees durable pending publication and acknowledgment after Booking recovers',
@@ -83,12 +84,30 @@ test(
         (await page.request.get(`${stack.origin}/api/v1/covers/${asset}`)).status(),
         404,
       );
-      await stack.startBooking();
+      const booking = await stack.startBooking();
       await expect(page.getByText('Опубликовано', { exact: true })).toBeVisible({ timeout: 15000 });
       assert.equal(
         (await page.request.get(`${stack.origin}/api/v1/covers/${asset}`)).status(),
         200,
       );
+      const worker = booking.app.get(MessageWorker);
+      await worker.stop();
+      await page.getByRole('button', { name: 'Приостановить продажи' }).click();
+      await expect(page.getByText('Ожидаем подтверждение паузы…')).toBeVisible();
+      await expect(
+        page.getByText('Продажи разрешены по расписанию', { exact: true }),
+      ).toBeVisible();
+      await page.reload();
+      await expect(page.getByText('Ожидаем подтверждение паузы…')).toBeVisible();
+      worker.start();
+      await expect(page.getByText('Продажи на паузе', { exact: true })).toBeVisible({
+        timeout: 15000,
+      });
+      await page.getByRole('button', { name: 'Возобновить продажи' }).click();
+      await expect(page.getByText('Продажи разрешены по расписанию', { exact: true })).toBeVisible({
+        timeout: 15000,
+      });
+      await expect(page.getByText('Ожидаем подтверждение возобновления…')).toHaveCount(0);
     } finally {
       await browser.close();
       await stack.close();

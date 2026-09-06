@@ -1,0 +1,2 @@
+ALTER TABLE "Sale" ADD COLUMN "paused" BOOLEAN NOT NULL DEFAULT false,
+ ADD COLUMN "commandVersion" INTEGER NOT NULL DEFAULT 0 CHECK ("commandVersion" >= 0);

@@ -2,10 +2,13 @@ import { provisionResultSchema, type EventEnvelope } from '@eventflow/event-cont
 import { PermanentMessageError } from '@eventflow/messaging';
 import { Database } from '../database';
 import { lockOrganization } from '../organizations/access';
+import { AvailabilityConsumer } from './availability-consumer';
 
 export class PublicationConsumer {
   constructor(private readonly db: Database) {}
   async handle(event: EventEnvelope) {
+    if (event.eventType === 'SaleAvailabilityChanged.v1')
+      return new AvailabilityConsumer(this.db).handle(event);
     const result = provisionResultSchema.safeParse(event.data);
     if (event.producer !== 'booking' || event.eventType !== 'SaleProvisioned.v1' || !result.success)
       throw new PermanentMessageError('Invalid publication confirmation');

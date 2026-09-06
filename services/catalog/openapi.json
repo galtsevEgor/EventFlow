@@ -1191,6 +1191,74 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{id}/events/{eventId}/availability": {
+      "put": {
+        "operationId": "changeSaleAvailability",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["paused", "expectedVersion"],
+                "properties": {
+                  "paused": {
+                    "type": "boolean"
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Publication requested or existing publication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Publication"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1642,7 +1710,18 @@
       },
       "Publication": {
         "type": "object",
-        "required": ["eventId", "version", "state", "snapshotHash", "requestedAt", "publishedAt"],
+        "required": [
+          "eventId",
+          "version",
+          "state",
+          "snapshotHash",
+          "requestedAt",
+          "publishedAt",
+          "desiredPaused",
+          "acknowledgedPaused",
+          "commandVersion",
+          "acknowledgedVersion"
+        ],
         "properties": {
           "eventId": {
             "type": "string",
@@ -1666,6 +1745,20 @@
           "publishedAt": {
             "type": ["string", "null"],
             "format": "date-time"
+          },
+          "desiredPaused": {
+            "type": "boolean"
+          },
+          "acknowledgedPaused": {
+            "type": "boolean"
+          },
+          "commandVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "acknowledgedVersion": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       }

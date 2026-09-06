@@ -114,6 +114,10 @@ model CoverAsset {
 }
 
 model Publication {
+  desiredPaused Boolean @default(false)
+  acknowledgedPaused Boolean @default(false)
+  commandVersion Int @default(0)
+  acknowledgedVersion Int @default(0)
   eventId String @id @db.Uuid
   version Int @default(1)
   state String @default("PROVISIONING") @db.VarChar(20)

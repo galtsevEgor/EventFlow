@@ -8,6 +8,8 @@ datasource db {
   provider = "postgresql"
 }
 model Sale {
+  paused Boolean @default(false)
+  commandVersion Int @default(0)
   id String @id @db.Uuid
   organizationId String @db.Uuid
   version Int

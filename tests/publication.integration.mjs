@@ -7,7 +7,9 @@ import { catalogFixture } from '../services/catalog/tests/fixture.mjs';
 import { bookingFixture } from './helpers/booking.mjs';
 import { cleanBroker } from './helpers/broker.mjs';
 import { ProvisionSale } from '../services/booking/dist/provision.js';
-import { Broker, Outbox } from '../packages/messaging/dist/index.js';
+import { Broker, Outbox, MessageWorker } from '../packages/messaging/dist/index.js';
+import { ChangeAvailability } from '../services/booking/dist/availability.js';
+import { SaleReader, salesState } from '../services/booking/dist/sale-reader.js';
 import { saleRoutes } from '../packages/event-contracts/dist/index.js';
 
 const namespace = `eventflow-test-${randomUUID()}`;
@@ -271,4 +273,98 @@ test('unroutable publications fail; transient consumer errors retry with a delay
     await broker.close();
     await cleanBroker(isolatedNamespace);
   }
+});
+
+test('pause/resume exposes pending acknowledgment and stale commands cannot undo the latest version', async () => {
+  const change = (paused, expectedVersion) =>
+    catalog.request(eventPath + '/availability', owner, 'PUT', { paused, expectedVersion });
+  assert.equal((await change(true, 0)).status, 200);
+  await eventually(
+    () => catalog.db.publication.findUnique({ where: { eventId } }),
+    (value) => value.acknowledgedVersion === 1,
+  );
+  assert.equal((await booking.db.sale.findUnique({ where: { id: eventId } })).paused, true);
+  const worker = booking.app.get(MessageWorker);
+  await worker.stop();
+  try {
+    assert.equal((await change(false, 1)).status, 200);
+    assert.equal((await change(true, 1)).status, 409);
+    assert.equal((await change(true, 2)).status, 200);
+    const pending = (await catalog.request(eventPath, owner)).body.publication;
+    assert.equal(pending.commandVersion, 3);
+    assert.equal(pending.acknowledgedVersion, 1);
+    const commands = (await catalog.db.outbox.findMany())
+      .map((row) => row.envelope)
+      .filter((event) => event.eventType === 'SaleAvailabilityRequested.v1')
+      .sort((a, b) => b.data.commandVersion - a.data.commandVersion);
+    const handler = new ChangeAvailability(booking.db);
+    for (const event of commands) await handler.handle(event);
+    await handler.handle(commands[0]);
+    const sale = await booking.db.sale.findUnique({ where: { id: eventId } });
+    assert.equal(sale.commandVersion, 3);
+    assert.equal(sale.paused, true);
+    await assert.rejects(
+      handler.handle({
+        ...commands[0],
+        eventId: randomUUID(),
+        data: { commandVersion: 3, paused: false },
+      }),
+      /Conflicting command/,
+    );
+  } finally {
+    worker.start();
+  }
+  await eventually(
+    () => catalog.db.publication.findUnique({ where: { eventId } }),
+    (value) => value.acknowledgedVersion === 3,
+  );
+  const confirmed = (await catalog.request(eventPath, owner)).body.publication;
+  assert.equal(confirmed.acknowledgedPaused, true);
+  assert.equal((await change(false, 3)).status, 200);
+  await eventually(
+    () => catalog.db.publication.findUnique({ where: { eventId } }),
+    (value) => value.acknowledgedVersion === 4,
+  );
+  assert.equal((await new SaleReader(booking.db).read(eventId)).state, 'SCHEDULED');
+});
+test('sales windows use the database clock and start-inclusive/end-exclusive boundaries even after resume', async () => {
+  const start = new Date('2035-06-01T10:00:00Z'),
+    end = new Date('2035-06-01T12:00:00Z');
+  const sale = { salesStartsAt: start, salesEndsAt: end, paused: false };
+  assert.equal(salesState(sale, new Date(start.getTime() - 1)), 'SCHEDULED');
+  assert.equal(salesState(sale, start), 'OPEN');
+  assert.equal(salesState({ ...sale, paused: true }, start), 'PAUSED');
+  assert.equal(salesState(sale, new Date(end.getTime() - 1)), 'OPEN');
+  assert.equal(salesState(sale, end), 'CLOSED');
+  assert.equal(salesState({ ...sale, paused: true }, end), 'CLOSED');
+  const id = randomUUID(),
+    handler = new ProvisionSale(booking.db);
+  await handler.handle({
+    ...envelope,
+    eventId: randomUUID(),
+    aggregateId: id,
+    data: {
+      ...envelope.data,
+      salesStartsAt: '2020-01-01T10:00:00Z',
+      salesEndsAt: '2020-01-01T12:00:00Z',
+    },
+  });
+  const reader = new SaleReader(booking.db);
+  assert.equal((await reader.read(id)).state, 'CLOSED');
+  const availability = new ChangeAvailability(booking.db);
+  for (const [commandVersion, paused] of [
+    [1, true],
+    [2, false],
+  ])
+    await availability.handle({
+      ...envelope,
+      eventId: randomUUID(),
+      aggregateId: id,
+      eventType: 'SaleAvailabilityRequested.v1',
+      data: { commandVersion, paused },
+    });
+  const result = await reader.read(id);
+  assert.equal(result.state, 'CLOSED');
+  assert.equal(result.paused, false);
+  assert.ok(Math.abs(Date.now() - result.serverNow.getTime()) < 5000);
 });

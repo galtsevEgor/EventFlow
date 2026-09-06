@@ -239,6 +239,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/organizations/{id}/events/{eventId}/availability': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations['changeSaleAvailability'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/session': {
     parameters: {
       query?: never;
@@ -450,6 +466,10 @@ export interface components {
       requestedAt: string;
       /** Format: date-time */
       publishedAt: string | null;
+      desiredPaused: boolean;
+      acknowledgedPaused: boolean;
+      commandVersion: number;
+      acknowledgedVersion: number;
     };
     Identity: {
       sub: string;
@@ -1225,6 +1245,45 @@ export interface operations {
     responses: {
       /** @description Publication requested or existing publication */
       201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Publication'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  changeSaleAvailability: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          paused: boolean;
+          expectedVersion: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Publication requested or existing publication */
+      200: {
         headers: {
           [name: string]: unknown;
         };

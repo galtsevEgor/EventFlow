@@ -25,6 +25,22 @@ export function EventPublication({
     },
   });
   const publication = event.publication;
+  const availability = useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.client.PUT('/api/v1/organizations/{id}/events/{eventId}/availability', {
+          params: { path: { id, eventId: event.id } },
+          body: {
+            paused: !publication?.desiredPaused,
+            expectedVersion: publication?.commandVersion ?? 0,
+          },
+        }),
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['events', id] });
+    },
+  });
+  const pending = publication && publication.commandVersion > publication.acknowledgedVersion;
   return (
     <div aria-live="polite">
       <Badge>
@@ -46,6 +62,32 @@ export function EventPublication({
         </Button>
       )}
       <ErrorMessage error={publish.error} />
+      {publication?.state === 'PUBLISHED' && (
+        <>
+          <p>
+            {publication.acknowledgedPaused
+              ? 'Продажи на паузе'
+              : 'Продажи разрешены по расписанию'}
+          </p>
+          {pending && (
+            <p role="status">
+              {publication.desiredPaused
+                ? 'Ожидаем подтверждение паузы…'
+                : 'Ожидаем подтверждение возобновления…'}
+            </p>
+          )}
+          {canEdit && (
+            <Button
+              variant="secondary"
+              disabled={availability.isPending}
+              onClick={() => availability.mutate()}
+            >
+              {publication.desiredPaused ? 'Возобновить продажи' : 'Приостановить продажи'}
+            </Button>
+          )}
+          <ErrorMessage error={availability.error} />
+        </>
+      )}
     </div>
   );
 }

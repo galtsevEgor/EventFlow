@@ -20,6 +20,7 @@ import { saleRoutes } from '@eventflow/event-contracts';
 import { PublicationService } from './publication/publication.service';
 import { PublicationController } from './publication/publication.controller';
 import { PublicationConsumer } from './publication/consumer';
+import { AvailabilityService } from './publication/availability.service';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -36,6 +37,11 @@ export class AppModule {
         PublicationController,
       ],
       providers: [
+        {
+          provide: AvailabilityService,
+          inject: [Database],
+          useFactory: (db: Database) => new AvailabilityService(db),
+        },
         {
           provide: PublicationService,
           inject: [Database],

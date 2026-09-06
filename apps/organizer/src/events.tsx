@@ -20,7 +20,12 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
   const events = useQuery({
     queryKey: ['events', id],
     refetchInterval: (query) =>
-      query.state.data?.events.some((event) => event.publication?.state === 'PROVISIONING')
+      query.state.data?.events.some(
+        (event) =>
+          event.publication?.state === 'PROVISIONING' ||
+          (!!event.publication &&
+            event.publication.commandVersion > event.publication.acknowledgedVersion),
+      )
         ? 1000
         : false,
     queryFn: async () =>
@@ -125,7 +130,11 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
           if (!value) setEditing(null);
         }}
         title={editing === 'new' ? 'Новое мероприятие' : 'Редактировать мероприятие'}
-        description="Черновик виден только вашей команде."
+        description={
+          editing !== 'new' && editing?.publication
+            ? 'Описание будет обновлено на публичной странице мероприятия.'
+            : 'Черновик виден только вашей команде.'
+        }
       >
         <form onSubmit={form.handleSubmit((data) => save.mutate(data))}>
           <Field
@@ -141,7 +150,9 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
           </label>
           <ErrorMessage error={save.error} />
           <Button type="submit" disabled={save.isPending}>
-            Сохранить черновик
+            {editing !== 'new' && editing?.publication
+              ? 'Сохранить описание'
+              : 'Сохранить черновик'}
           </Button>
         </form>
       </Dialog>

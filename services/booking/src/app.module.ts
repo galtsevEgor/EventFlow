@@ -4,6 +4,7 @@ import { Broker, Outbox, MessageWorker } from '@eventflow/messaging';
 import { saleRoutes } from '@eventflow/event-contracts';
 import { Database } from './database';
 import { ProvisionSale } from './provision';
+import { ChangeAvailability } from './availability';
 import type { BookingConfig } from './config';
 
 @Module({ imports: [HealthModule.forService('booking')] })
@@ -30,7 +31,10 @@ export class AppModule {
                 routes: saleRoutes,
               }),
               new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
-              (event) => provision.handle(event),
+              (event) =>
+                event.eventType === 'SaleAvailabilityRequested.v1'
+                  ? new ChangeAvailability(db).handle(event)
+                  : provision.handle(event),
             ),
         },
         {
