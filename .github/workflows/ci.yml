@@ -62,6 +62,8 @@ jobs:
       - run: pnpm test:catalog
       - run: pnpm test:publication
       - run: pnpm test:booking
+      - run: pnpm tools:setup
+      - run: pnpm test:load --smoke
       - run: pnpm test:smoke
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:identity

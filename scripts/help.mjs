@@ -13,6 +13,9 @@ pnpm test:smoke        Launch and check all seven built applications
 pnpm test:infra        Test actual local dependencies and database isolation
 pnpm test:catalog      Test access, schedules, covers and public catalog in isolated databases
 pnpm test:publication  Test RabbitMQ publication, recovery, idempotency and sales windows
+pnpm test:booking      Test reservation races, expiry, cancellation and restart recovery
+pnpm test:load         Run a 10-minute local k6 baseline; synthetic isolated data only
+pnpm test:load --smoke Run a 10-second CI load check; results stay in work/load
 pnpm test:identity     Test real Keycloak login, sessions, CSRF and token validation
 pnpm test:e2e          Run the full browser journey against built applications
 pnpm browser:install   Install the Chromium browser used by identity and E2E tests
@@ -23,7 +26,7 @@ pnpm tools:setup       Install checksum-pinned local quality tools
 pnpm check:workflow    Validate GitHub Actions syntax
 pnpm check:secrets     Scan Git history and tracked working files
 pnpm audit:runtime     Audit production dependencies; reject high/critical findings
-pnpm ci:local          Run the complete E2 gate (Docker required)
+pnpm ci:local          Run the complete E3 gate (Docker required)
 
 Runtime: Node.js 24.22.1, pnpm 10.34.9
 Storefront: http://127.0.0.1:18000

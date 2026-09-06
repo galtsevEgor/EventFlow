@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -53,10 +53,11 @@ async function install() {
     writeFileSync(archive, data);
     const result = spawnSync(
       'tar',
-      ['-xf', archive, '-C', directory, basename(toolPath(tool.tool))],
+      ['-xf', archive, '-C', directory, artifact.entry ?? basename(toolPath(tool.tool))],
       { stdio: 'inherit', windowsHide: true },
     );
     if (result.error || result.status !== 0) throw new Error(`Extraction failed: ${tool.tool}`);
+    if (artifact.entry) copyFileSync(resolve(directory, artifact.entry), toolPath(tool.tool));
     console.log(`${tool.tool} ${tool.version}: checksum verified and installed locally.`);
   }
 }

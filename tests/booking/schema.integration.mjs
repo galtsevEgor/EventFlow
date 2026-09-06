@@ -69,3 +69,14 @@ test('effective expiry includes the exact boundary and never changes terminal st
     'CONFIRMED',
   );
 });
+
+test('database diagnostics observe slow queries and pool usage without SQL or credentials', async () => {
+  fixture.db.resetQueryMetrics();
+  await fixture.db.$executeRaw`SELECT pg_sleep(0.15)`;
+  const snapshot = fixture.db.diagnostics();
+  assert.ok(snapshot.queries.count >= 1);
+  assert.ok(snapshot.queries.slow >= 1);
+  assert.ok(snapshot.queries.maxMs >= 140);
+  assert.ok(snapshot.pool.total >= 1 && snapshot.pool.total <= snapshot.pool.limit);
+  assert.doesNotMatch(JSON.stringify(snapshot), /postgresql|password|pg_sleep|SELECT/);
+});

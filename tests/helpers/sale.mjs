@@ -19,14 +19,16 @@ export async function seedSale(db, { seats = 8, ...overrides } = {}) {
       admissionEndsAt: new Date(now + 90000000),
       ...overrides,
       seats: {
-        create: Array.from({ length: seats }, (_, i) => ({
-          seatId: `r1-s${i + 1}`,
-          row: 1,
-          number: i + 1,
-          categoryId: 'standard',
-          categoryName: 'Standard',
-          priceMinor: 2500 + i,
-        })),
+        createMany: {
+          data: Array.from({ length: seats }, (_, i) => ({
+            seatId: `r${Math.floor(i / 50) + 1}-s${(i % 50) + 1}`,
+            row: Math.floor(i / 50) + 1,
+            number: (i % 50) + 1,
+            categoryId: 'standard',
+            categoryName: 'Standard',
+            priceMinor: 2500 + i,
+          })),
+        },
       },
     },
   });
