@@ -8,8 +8,7 @@ import { seedSale } from '../helpers/sale.mjs';
 import { testIdentity, jsonRequest } from '../helpers/identity.mjs';
 import { ageOrder } from '../helpers/order.mjs';
 import { eventually } from '../helpers/eventually.mjs';
-import { createApplication } from '../../packages/service-runtime/dist/index.js';
-import { AppModule } from '../../services/booking/dist/app.module.js';
+import { bookingReplica } from '../helpers/booking-replica.mjs';
 import { OrderSweeper } from '../../services/booking/dist/orders/sweeper.js';
 import { ChangeAvailability } from '../../services/booking/dist/availability.js';
 import { message } from '../../packages/event-contracts/dist/index.js';
@@ -20,18 +19,9 @@ let fixture, identity, second, secondOrigin;
 const reserve = (origin, token, saleId, seatIds, key = randomUUID()) =>
   jsonRequest(origin, '/api/v1/orders', token, 'POST', { saleId, seatIds }, key);
 async function startReplica() {
-  second = await createApplication(
-    AppModule.configure({
-      BOOKING_DATABASE_URL: fixture.databaseUrl,
-      AMQP_URL: process.env.AMQP_URL,
-      MESSAGE_NAMESPACE: namespace,
-      OIDC_ISSUER: identity.issuer,
-    }),
-  );
-  second.useLogger(false);
-  await second.listen(0, '127.0.0.1');
-  secondOrigin = await second.getUrl();
-  await second.get(OrderSweeper).stop();
+  second = await bookingReplica(fixture.databaseUrl, namespace, identity.issuer);
+  secondOrigin = second.origin;
+  assert.notEqual(second.pid, process.pid);
 }
 before(async () => {
   identity = await testIdentity();
@@ -85,8 +75,10 @@ test('parallel idempotent retries and another process restart return the origina
     assert.equal(response.status, 201);
     assert.deepEqual(response.body, responses[0].body);
   }
-  await second.close();
+  const previousPid = second.pid;
+  await second.close(true);
   await startReplica();
+  assert.notEqual(second.pid, previousPid);
   assert.deepEqual(
     (await reserve(secondOrigin, token, sale.id, ['r1-s1', 'r1-s2'], key)).body,
     responses[0].body,
@@ -120,7 +112,7 @@ test('reversed overlapping sets racing expiry and cancellation never deadlock or
       reserve(fixture.origin, a, sale.id, ['r1-s2', 'r1-s3']),
       reserve(secondOrigin, b, sale.id, ['r1-s3', 'r1-s2']),
       fixture.app.get(OrderSweeper).sweep(),
-      second.get(OrderSweeper).sweep(),
+      second.sweep(),
       jsonRequest(fixture.origin, `/api/v1/orders/${oldA.id}/cancel`, a, 'POST'),
       jsonRequest(secondOrigin, `/api/v1/orders/${oldB.id}/cancel`, b, 'POST'),
     ]);
@@ -239,4 +231,26 @@ test('database serialization conflicts retry at most three times and report a re
     ),
     (error) => error.getStatus?.() === 503,
   );
+});
+
+test('UUID casing cannot split the idempotency lock or change the canonical payload', async () => {
+  const sale = await seedSale(fixture.db);
+  const buyer = await identity.token('uuid-case'),
+    key = randomUUID();
+  const responses = await Promise.all(
+    Array.from({ length: 12 }, (_, i) =>
+      reserve(
+        i % 2 ? fixture.origin : secondOrigin,
+        buyer,
+        i % 2 ? sale.id : sale.id.toUpperCase(),
+        ['r1-s1'],
+        i % 2 ? key : key.toUpperCase(),
+      ),
+    ),
+  );
+  for (const response of responses) {
+    assert.equal(response.status, 201);
+    assert.deepEqual(response.body, responses[0].body);
+  }
+  assert.equal(await fixture.db.order.count({ where: { saleId: sale.id } }), 1);
 });

@@ -16,7 +16,7 @@ import { orderView } from './view';
 import { release } from './release';
 
 export const reserveInput = z.strictObject({
-  saleId: z.uuid(),
+  saleId: z.uuid().transform((value) => value.toLowerCase()),
   seatIds: z
     .array(z.string().regex(/^r\d{1,2}-s\d{1,2}$/))
     .min(1)
@@ -33,7 +33,7 @@ const failure = (status: number, code: string, message: string): Result => ({
 export class Reserve {
   constructor(private readonly db: Database) {}
   async run(buyer: string, keyInput: unknown, input: unknown): Promise<Result> {
-    const key = parseInput(z.uuid(), keyInput);
+    const key = parseInput(z.uuid(), keyInput).toLowerCase();
     const data = parseInput(reserveInput, input);
     const hash = createHash('sha256')
       .update(JSON.stringify({ saleId: data.saleId, seatIds: [...data.seatIds].sort() }))
