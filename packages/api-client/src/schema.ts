@@ -319,6 +319,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/orders': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listMyOrders'];
+    put?: never;
+    post: operations['reserveOrder'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/orders/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getMyOrder'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/session': {
     parameters: {
       query?: never;
@@ -587,6 +619,44 @@ export interface components {
       salesStartsAt: string;
       /** Format: date-time */
       salesEndsAt: string;
+    };
+    Order: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      saleId: string;
+      title: string;
+      /** @enum {string} */
+      currency: 'EUR';
+      totalMinor: number;
+      /** @enum {string} */
+      state: 'HELD' | 'CONFIRMED' | 'EXPIRED' | 'CANCELLED';
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      expiresAt: string;
+      /** Format: date-time */
+      serverNow: string;
+      items: {
+        seatId: string;
+        categoryName: string;
+        row: number;
+        number: number;
+        priceMinor: number;
+      }[];
+    };
+    OrderList: {
+      items: components['schemas']['Order'][];
+      total: number;
+      page: number;
+      pageSize: number;
+      /** Format: date-time */
+      serverNow: string;
+    };
+    ReserveOrder: {
+      /** Format: uuid */
+      saleId: string;
+      seatIds: string[];
     };
     Identity: {
       sub: string;
@@ -1544,6 +1614,104 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['PublicSale'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  listMyOrders: {
+    parameters: {
+      query?: {
+        page?: number;
+        saleId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrderList'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  reserveOrder: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReserveOrder'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Order'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  getMyOrder: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Order'];
         };
       };
       /** @description Request failed */

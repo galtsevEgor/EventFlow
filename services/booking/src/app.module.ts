@@ -1,5 +1,5 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import { HealthModule, Readiness } from '@eventflow/service-runtime';
+import { HealthModule, Readiness, TokenVerifier } from '@eventflow/service-runtime';
 import { Broker, Outbox, MessageWorker } from '@eventflow/messaging';
 import { saleRoutes } from '@eventflow/event-contracts';
 import { Database } from './database';
@@ -8,14 +8,27 @@ import { ChangeAvailability } from './availability';
 import { SaleReader } from './sale-reader';
 import { SaleController } from './sale.controller';
 import type { BookingConfig } from './config';
+import { Reserve } from './orders/reserve';
+import { OrderReader } from './orders/reader';
+import { OrderController } from './orders/controller';
 
 @Module({ imports: [HealthModule.forService('booking')] })
 export class AppModule {
   static configure(config: BookingConfig): DynamicModule {
     return {
       module: AppModule,
-      controllers: [SaleController],
+      controllers: [SaleController, OrderController],
       providers: [
+        {
+          provide: TokenVerifier,
+          useFactory: () => new TokenVerifier(config.OIDC_ISSUER, 'eventflow-booking'),
+        },
+        { provide: Reserve, inject: [Database], useFactory: (db: Database) => new Reserve(db) },
+        {
+          provide: OrderReader,
+          inject: [Database],
+          useFactory: (db: Database) => new OrderReader(db),
+        },
         {
           provide: SaleReader,
           inject: [Database],

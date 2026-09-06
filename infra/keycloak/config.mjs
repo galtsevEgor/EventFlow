@@ -57,7 +57,14 @@ export function clientConfigurations(env) {
         'post.logout.redirect.uris': `${env.PUBLIC_ORIGIN}/`,
       },
       defaultClientScopes: ['basic', 'profile', 'email'],
-      protocolMappers: [audience],
+      protocolMappers: [
+        audience,
+        {
+          ...audience,
+          name: 'booking-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-booking' },
+        },
+      ],
     },
     {
       clientId: 'eventflow-policy',

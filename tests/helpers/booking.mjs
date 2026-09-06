@@ -5,7 +5,7 @@ import { createApplication } from '../../packages/service-runtime/dist/index.js'
 import { AppModule } from '../../services/booking/dist/app.module.js';
 import { Database } from '../../services/booking/dist/database.js';
 
-export async function bookingFixture(namespace, port = 0) {
+export async function bookingFixture(namespace, port = 0, overrides = {}) {
   const database = `eventflow_test_${randomUUID().replaceAll('-', '')}`;
   const admin = new pg.Client({
     host: '127.0.0.1',
@@ -35,6 +35,8 @@ export async function bookingFixture(namespace, port = 0) {
         BOOKING_DATABASE_URL: url.href,
         AMQP_URL: process.env.AMQP_URL,
         MESSAGE_NAMESPACE: namespace,
+        OIDC_ISSUER: process.env.OIDC_ISSUER,
+        ...overrides,
       }),
     );
     app.useLogger(false);
