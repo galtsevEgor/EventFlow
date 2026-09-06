@@ -1,5 +1,17 @@
 [
   {
+    "tool": "stripe",
+    "version": "1.55.3",
+    "windows": {
+      "url": "https://github.com/stripe/stripe-cli/releases/download/v1.55.3/stripe_1.55.3_windows_x86_64.zip",
+      "sha256": "d67487498d6d0c898821d4c16740f9d198270740fca4cdb4a907f8d5065de26f"
+    },
+    "linux": {
+      "url": "https://github.com/stripe/stripe-cli/releases/download/v1.55.3/stripe_1.55.3_linux_x86_64.tar.gz",
+      "sha256": "a894f7891eac5eabb67a5ad5b4820a236626a805b9be544fb4c6e41c5ad91043"
+    }
+  },
+  {
     "tool": "gitleaks",
     "version": "8.30.1",
     "windows": {

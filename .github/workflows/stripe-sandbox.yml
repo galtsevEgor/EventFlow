@@ -1,0 +1,45 @@
+name: Stripe sandbox
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stripe-sandbox
+  cancel-in-progress: false
+
+jobs:
+  sandbox:
+    if: github.ref == 'refs/heads/main'
+    environment: stripe-sandbox
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tools:setup
+      - run: pnpm env:init
+      - run: pnpm infra:up
+      - run: pnpm identity:seed
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Real sandbox payment, signed webhook and compensation
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+        run: pnpm test:stripe
+      - name: Stop dependencies
+        if: always()
+        run: pnpm infra:down

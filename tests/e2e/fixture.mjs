@@ -48,7 +48,11 @@ export async function fullStack({ booking = false, payments = false } = {}) {
   }
   async function startPayments() {
     const booking = await startBooking();
-    paymentsService ??= await paymentService(namespace, booking.origin);
+    paymentsService ??= await paymentService(
+      namespace,
+      booking.origin,
+      typeof payments === 'object' ? payments : {},
+    );
     return paymentsService;
   }
   async function close() {
