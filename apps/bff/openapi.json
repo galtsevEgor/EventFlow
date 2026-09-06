@@ -864,6 +864,98 @@
         }
       }
     },
+    "/api/v1/events": {
+      "get": {
+        "operationId": "listPublicEvents",
+        "security": [],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          { "name": "city", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 1 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 48, "default": 12 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PublicEventPage" } }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{id}": {
+      "get": {
+        "operationId": "getPublicEvent",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PublicEvent" } }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sales/{id}": {
+      "get": {
+        "operationId": "getPublicSale",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PublicSale" } }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/session": {
       "get": {
         "operationId": "getSession",
@@ -1200,6 +1292,89 @@
           "acknowledgedPaused": { "type": "boolean" },
           "commandVersion": { "type": "integer", "minimum": 0 },
           "acknowledgedVersion": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "PublicEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "city",
+          "address",
+          "timeZone",
+          "localDate",
+          "currency",
+          "coverId",
+          "startsAt",
+          "endsAt",
+          "minPriceMinor",
+          "capacity"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "city": { "type": "string" },
+          "address": { "type": "string" },
+          "timeZone": { "type": "string" },
+          "localDate": { "type": "string" },
+          "currency": { "type": "string" },
+          "coverId": { "type": ["string", "null"], "format": "uuid" },
+          "startsAt": { "type": "string", "format": "date-time" },
+          "endsAt": { "type": "string", "format": "date-time" },
+          "minPriceMinor": { "type": "integer", "minimum": 1 },
+          "capacity": { "type": "integer", "minimum": 1, "maximum": 1000 }
+        }
+      },
+      "PublicEventPage": {
+        "type": "object",
+        "required": ["events", "total", "page", "pageSize", "pages"],
+        "properties": {
+          "events": { "type": "array", "items": { "$ref": "#/components/schemas/PublicEvent" } },
+          "total": { "type": "integer", "minimum": 0 },
+          "page": { "type": "integer", "minimum": 0 },
+          "pageSize": { "type": "integer", "minimum": 0 },
+          "pages": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "PublicSale": {
+        "type": "object",
+        "required": [
+          "id",
+          "currency",
+          "state",
+          "paused",
+          "commandVersion",
+          "seats",
+          "serverNow",
+          "salesStartsAt",
+          "salesEndsAt"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "currency": { "type": "string", "enum": ["EUR"] },
+          "state": { "type": "string", "enum": ["SCHEDULED", "OPEN", "PAUSED", "CLOSED"] },
+          "paused": { "type": "boolean" },
+          "commandVersion": { "type": "integer", "minimum": 0 },
+          "seats": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["seatId", "row", "number", "categoryId", "categoryName", "priceMinor"],
+              "properties": {
+                "seatId": { "type": "string" },
+                "categoryId": { "type": "string" },
+                "categoryName": { "type": "string" },
+                "row": { "type": "integer", "minimum": 1 },
+                "number": { "type": "integer", "minimum": 1 },
+                "priceMinor": { "type": "integer", "minimum": 1 }
+              }
+            }
+          },
+          "serverNow": { "type": "string", "format": "date-time" },
+          "salesStartsAt": { "type": "string", "format": "date-time" },
+          "salesEndsAt": { "type": "string", "format": "date-time" }
         }
       },
       "Identity": {

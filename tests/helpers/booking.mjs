@@ -5,7 +5,7 @@ import { createApplication } from '../../packages/service-runtime/dist/index.js'
 import { AppModule } from '../../services/booking/dist/app.module.js';
 import { Database } from '../../services/booking/dist/database.js';
 
-export async function bookingFixture(namespace) {
+export async function bookingFixture(namespace, port = 0) {
   const database = `eventflow_test_${randomUUID().replaceAll('-', '')}`;
   const admin = new pg.Client({
     host: '127.0.0.1',
@@ -38,7 +38,7 @@ export async function bookingFixture(namespace) {
       }),
     );
     app.useLogger(false);
-    await app.listen(0, '127.0.0.1');
+    await app.listen(port, '127.0.0.1');
     return {
       app,
       db: app.get(Database),

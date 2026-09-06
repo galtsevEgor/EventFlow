@@ -3,6 +3,7 @@ import { PermanentMessageError } from '@eventflow/messaging';
 import { Database } from '../database';
 import { lockOrganization } from '../organizations/access';
 import { AvailabilityConsumer } from './availability-consumer';
+import { publicProjection } from '../public-catalog/projection';
 
 export class PublicationConsumer {
   constructor(private readonly db: Database) {}
@@ -27,6 +28,7 @@ export class PublicationConsumer {
       // Read the current cover under the organization lock: it may change during provisioning.
       const current = await tx.eventDraft.findUniqueOrThrow({ where: { id: draft.id } });
       if (publication.state !== 'PUBLISHED') {
+        await tx.publicEvent.create({ data: publicProjection(draft.id, current.configuration) });
         await tx.publication.update({
           where: { eventId: draft.id },
           data: { state: 'PUBLISHED', publishedAt: new Date() },

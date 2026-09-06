@@ -53,6 +53,7 @@ export function initializeEnvironment(directory) {
     OIDC_CLIENT_SECRET: randomBytes(32).toString('hex'),
     POLICY_CLIENT_SECRET: randomBytes(32).toString('hex'),
     CATALOG_URL: 'http://127.0.0.1:4001',
+    BOOKING_URL: 'http://127.0.0.1:4002',
   };
   for (const [key, value] of Object.entries(additions)) {
     if (!values[key]) {

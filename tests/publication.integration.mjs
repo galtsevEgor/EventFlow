@@ -102,6 +102,8 @@ test('Booking outage leaves publication pending; retry cannot change frozen pric
   const first = await catalog.request(eventPath + '/publication', owner, 'POST', { revision: 1 });
   assert.equal(first.status, 201);
   assert.equal(first.body.state, 'PROVISIONING');
+  assert.equal((await catalog.request(`/api/v1/events/${eventId}`)).status, 404);
+  assert.equal((await catalog.request('/api/v1/events')).body.total, 0);
   const second = await catalog.request(eventPath + '/publication', owner, 'POST', { revision: 1 });
   assert.equal(second.body.eventId, first.body.eventId);
   assert.equal(await catalog.db.outbox.count(), 1);
@@ -133,6 +135,7 @@ test('Booking outage leaves publication pending; retry cannot change frozen pric
     (value) => value?.state === 'PUBLISHED',
   );
   assert.equal(await booking.db.sale.count(), 1);
+  assert.equal((await catalog.request(`/api/v1/events/${eventId}`)).status, 200);
   assert.equal(await booking.db.seatInventory.count(), 5);
   assert.equal((await booking.db.seatInventory.findFirst()).priceMinor, 2500);
   assert.equal((await catalog.db.coverAsset.findUnique({ where: { id: coverId } })).isPublic, true);

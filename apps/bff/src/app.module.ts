@@ -5,6 +5,7 @@ import type { AuthConfig } from './auth/config';
 import { CatalogController } from './catalog.controller';
 import { SessionStore } from './auth/session-store';
 import { CoverProxyController, CoverSessionGuard } from './covers.controller';
+import { PublicController } from './public.controller';
 
 @Module({ imports: [HealthModule.forService('bff')] })
 export class AppModule {
@@ -12,7 +13,7 @@ export class AppModule {
     return {
       module: AppModule,
       imports: [AuthModule.configure(config)],
-      controllers: [CoverProxyController, CatalogController],
+      controllers: [CoverProxyController, PublicController, CatalogController],
       providers: [
         CoverSessionGuard,
         {

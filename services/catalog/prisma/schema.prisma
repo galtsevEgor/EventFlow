@@ -79,6 +79,7 @@ model EventDraft {
   coverId        String? @db.Uuid
   cover          CoverAsset? @relation("CurrentCover", fields: [coverId], references: [id], onDelete: SetNull)
   publication    Publication?
+  publicEntry    PublicEvent?
   assets         CoverAsset[] @relation("EventAssets")
   revision       Int @default(0)
   createdAt      DateTime @default(now()) @db.Timestamptz
@@ -126,6 +127,22 @@ model Publication {
   requestedAt DateTime @default(now()) @db.Timestamptz
   publishedAt DateTime? @db.Timestamptz
   event EventDraft @relation(fields: [eventId], references: [id], onDelete: Restrict)
+}
+
+model PublicEvent {
+  eventId String @id @db.Uuid
+  city String @db.VarChar(100)
+  address String @db.VarChar(250)
+  timeZone String @db.VarChar(100)
+  startsAt DateTime @db.Timestamptz
+  endsAt DateTime @db.Timestamptz
+  localDate String @db.Char(10)
+  minPriceMinor Int
+  currency String @db.Char(3)
+  capacity Int
+  event EventDraft @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  @@index([startsAt, eventId])
+  @@index([city, localDate])
 }
 
 model Outbox {

@@ -39,8 +39,9 @@ export async function fullStack({ booking = false } = {}) {
   const children = [];
   let gateway;
   let bookingService;
+  const bookingPort = await availablePort();
   async function startBooking() {
-    bookingService ??= await bookingFixture(namespace);
+    bookingService ??= await bookingFixture(namespace, bookingPort);
     return bookingService;
   }
   async function close() {
@@ -151,6 +152,7 @@ export async function fullStack({ booking = false } = {}) {
     if (booking) await startBooking();
     const bff = await start('apps/bff', () => ['dist/main.js'], '/health/ready', {
       CATALOG_URL: catalog,
+      BOOKING_URL: `http://127.0.0.1:${bookingPort}`,
     });
     const storefront = await start(
       'apps/storefront',
@@ -163,6 +165,7 @@ export async function fullStack({ booking = false } = {}) {
         String(port),
       ],
       '/',
+      { CATALOG_URL: catalog },
     );
     const organizer = await start(
       'apps/organizer',

@@ -255,6 +255,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/events': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['listPublicEvents'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/events/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getPublicEvent'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/sales/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getPublicSale'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/session': {
     parameters: {
       query?: never;
@@ -470,6 +518,56 @@ export interface components {
       acknowledgedPaused: boolean;
       commandVersion: number;
       acknowledgedVersion: number;
+    };
+    PublicEvent: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      description: string;
+      city: string;
+      address: string;
+      timeZone: string;
+      localDate: string;
+      currency: string;
+      /** Format: uuid */
+      coverId: string | null;
+      /** Format: date-time */
+      startsAt: string;
+      /** Format: date-time */
+      endsAt: string;
+      minPriceMinor: number;
+      capacity: number;
+    };
+    PublicEventPage: {
+      events: components['schemas']['PublicEvent'][];
+      total: number;
+      page: number;
+      pageSize: number;
+      pages: number;
+    };
+    PublicSale: {
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      currency: 'EUR';
+      /** @enum {string} */
+      state: 'SCHEDULED' | 'OPEN' | 'PAUSED' | 'CLOSED';
+      paused: boolean;
+      commandVersion: number;
+      seats: {
+        seatId: string;
+        categoryId: string;
+        categoryName: string;
+        row: number;
+        number: number;
+        priceMinor: number;
+      }[];
+      /** Format: date-time */
+      serverNow: string;
+      /** Format: date-time */
+      salesStartsAt: string;
+      /** Format: date-time */
+      salesEndsAt: string;
     };
     Identity: {
       sub: string;
@@ -1289,6 +1387,104 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Publication'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  listPublicEvents: {
+    parameters: {
+      query?: {
+        q?: string;
+        city?: string;
+        from?: string;
+        to?: string;
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PublicEventPage'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  getPublicEvent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PublicEvent'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  getPublicSale: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PublicSale'];
         };
       };
       /** @description Request failed */

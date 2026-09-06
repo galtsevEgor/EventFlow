@@ -21,6 +21,8 @@ import { PublicationService } from './publication/publication.service';
 import { PublicationController } from './publication/publication.controller';
 import { PublicationConsumer } from './publication/consumer';
 import { AvailabilityService } from './publication/availability.service';
+import { PublicCatalog } from './public-catalog/catalog.service';
+import { PublicCatalogController } from './public-catalog/catalog.controller';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -35,8 +37,14 @@ export class AppModule {
         CoverController,
         PublicCoverController,
         PublicationController,
+        PublicCatalogController,
       ],
       providers: [
+        {
+          provide: PublicCatalog,
+          inject: [Database],
+          useFactory: (db: Database) => new PublicCatalog(db),
+        },
         {
           provide: AvailabilityService,
           inject: [Database],

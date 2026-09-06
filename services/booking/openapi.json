@@ -1,0 +1,157 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "EventFlow Booking",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/sales/{id}": {
+      "get": {
+        "operationId": "getPublicSale",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSale"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PublicSale": {
+        "type": "object",
+        "required": [
+          "id",
+          "currency",
+          "state",
+          "paused",
+          "commandVersion",
+          "seats",
+          "serverNow",
+          "salesStartsAt",
+          "salesEndsAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "currency": {
+            "type": "string",
+            "enum": ["EUR"]
+          },
+          "state": {
+            "type": "string",
+            "enum": ["SCHEDULED", "OPEN", "PAUSED", "CLOSED"]
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "commandVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["seatId", "row", "number", "categoryId", "categoryName", "priceMinor"],
+              "properties": {
+                "seatId": {
+                  "type": "string"
+                },
+                "categoryId": {
+                  "type": "string"
+                },
+                "categoryName": {
+                  "type": "string"
+                },
+                "row": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "number": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "priceMinor": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "salesStartsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "salesEndsAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "fieldErrors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": ["code", "message", "requestId", "retryable"],
+        "additionalProperties": false
+      }
+    }
+  }
+}

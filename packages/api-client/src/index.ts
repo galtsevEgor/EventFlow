@@ -18,9 +18,9 @@ export const sessionSchema = z.union([
   }),
 ]) satisfies z.ZodType<Schemas['Session']>;
 
-export function createApiClient() {
+export function createApiClient(baseUrl = '') {
   let csrfToken = '';
-  const client = createClient<paths>({ baseUrl: '', credentials: 'same-origin' });
+  const client = createClient<paths>({ baseUrl, credentials: 'same-origin' });
   client.use({
     onRequest({ request }) {
       if (!['GET', 'HEAD'].includes(request.method)) request.headers.set('x-csrf-token', csrfToken);

@@ -5,6 +5,8 @@ import { saleRoutes } from '@eventflow/event-contracts';
 import { Database } from './database';
 import { ProvisionSale } from './provision';
 import { ChangeAvailability } from './availability';
+import { SaleReader } from './sale-reader';
+import { SaleController } from './sale.controller';
 import type { BookingConfig } from './config';
 
 @Module({ imports: [HealthModule.forService('booking')] })
@@ -12,7 +14,13 @@ export class AppModule {
   static configure(config: BookingConfig): DynamicModule {
     return {
       module: AppModule,
+      controllers: [SaleController],
       providers: [
+        {
+          provide: SaleReader,
+          inject: [Database],
+          useFactory: (db: Database) => new SaleReader(db),
+        },
         { provide: Database, useFactory: () => new Database(config.BOOKING_DATABASE_URL) },
         {
           provide: ProvisionSale,

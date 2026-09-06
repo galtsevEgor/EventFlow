@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import './styles.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.PUBLIC_ORIGIN ?? 'http://127.0.0.1:18000'),
   title: 'EventFlow — события и билеты',
   description: 'Находите мероприятия и сохраняйте билеты в одном месте.',
 };

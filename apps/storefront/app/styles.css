@@ -90,3 +90,228 @@ a:focus-visible {
     padding: 48px 0;
   }
 }
+.catalog-filters {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 38px;
+}
+.catalog-filters label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+}
+input,
+button {
+  font: inherit;
+}
+.catalog-filters input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #bacabe;
+  border-radius: 8px;
+  padding: 12px;
+  color: #172b29;
+  background: white;
+}
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 13px 18px;
+  color: white;
+  background: #22654c;
+  cursor: pointer;
+}
+input:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 3px solid #267353;
+  outline-offset: 3px;
+}
+.filter-hint,
+.muted {
+  font-size: 13px;
+  color: #4d605b;
+  line-height: 1.6;
+}
+.results-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 40px 0 14px;
+}
+.results-heading h2 {
+  font-size: 25px;
+  letter-spacing: -0.03em;
+}
+.results-heading p {
+  color: #4d605b;
+  font-size: 14px;
+}
+.public-event-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.public-event-card {
+  background: white;
+  border: 1px solid #d6ddd5;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.event-link {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+.event-link:hover h3 {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.event-link img {
+  display: block;
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  background: #e5eddd;
+}
+.card-content {
+  padding: 22px;
+}
+.event-city {
+  font-size: 13px;
+  color: #4f6b5c;
+  margin: 0;
+}
+.card-content h3 {
+  margin: 12px 0;
+  font-size: 23px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.card-content time {
+  color: #4d605b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.event-price {
+  font-weight: 700;
+  margin-bottom: 0;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 36px 0 0;
+  align-items: center;
+}
+.pagination a,
+.empty a,
+.back-link {
+  color: #22654c;
+  text-underline-offset: 4px;
+}
+.event-detail {
+  padding-top: 40px;
+}
+.event-detail h1 {
+  max-width: 900px;
+  font-size: clamp(36px, 5vw, 62px);
+  overflow-wrap: anywhere;
+}
+.event-detail .eyebrow {
+  margin-top: 32px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  align-items: start;
+  gap: 36px;
+  margin-top: 32px;
+}
+.detail-cover {
+  width: 100%;
+  height: auto;
+  max-height: 550px;
+  object-fit: contain;
+  border-radius: 16px;
+  background: #e5eddd;
+}
+.event-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 17px;
+  line-height: 1.8;
+}
+.event-info {
+  border: 1px solid #d6ddd5;
+  background: white;
+  border-radius: 16px;
+  padding: 26px;
+}
+.event-info h2 {
+  font-size: 20px;
+}
+.event-info p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.sale-status {
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 600;
+  background: #edf1e8;
+}
+.sale-paused,
+.sale-closed {
+  background: #f9eddf;
+  color: #805324;
+}
+.price-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+.price-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e4e9e0;
+}
+.price-list small {
+  display: block;
+  margin-top: 4px;
+  color: #4d605b;
+}
+.price-list strong {
+  white-space: nowrap;
+}
+@media (max-width: 960px) {
+  .catalog-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .public-event-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .public-event-grid,
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .catalog-filters button {
+    grid-column: 1 / -1;
+  }
+  .pagination {
+    gap: 16px;
+    font-size: 14px;
+  }
+}
