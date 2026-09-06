@@ -11,7 +11,7 @@ import { loginBuyer, publishForBooking } from '../e2e/booking-setup.mjs';
 import { eventually } from '../helpers/eventually.mjs';
 import { ageOrder } from '../helpers/order.mjs';
 
-const { default: Stripe } = createRequire(
+const Stripe = createRequire(
   new URL('../../services/payments/package.json', import.meta.url),
 )('stripe');
 rmSync('work/e4/stripe-sandbox-result.json', { force: true });
