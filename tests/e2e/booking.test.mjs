@@ -53,15 +53,32 @@ test(
       mkdirSync('work/e3', { recursive: true });
       await page.screenshot({ path: 'work/e3/seat-selection-desktop.png', fullPage: true });
       let lostOrder;
+      let attempts = 0;
       await page.route('**/api/v1/orders', async (route) => {
         if (route.request().method() !== 'POST') return route.continue();
         const response = await route.fetch();
         assert.equal(response.status(), 201);
-        lostOrder = (await response.json()).id;
-        await route.abort('failed');
+        const committedId = (await response.json()).id;
+        if (lostOrder) assert.equal(committedId, lostOrder);
+        lostOrder = committedId;
+        if (attempts++ === 0)
+          await route.fulfill({
+            status: 500,
+            json: {
+              code: 'INTERNAL_ERROR',
+              message: 'Synthetic lost response after commit',
+              requestId: randomUUID(),
+              retryable: false,
+            },
+          });
+        else await route.abort('failed');
       });
       await page.getByRole('button', { name: 'Забронировать', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Повторить запрос' })).toBeVisible();
+      await page.getByRole('button', { name: 'Повторить запрос' }).click();
+      await expect(
+        page.getByRole('alert').filter({ hasText: 'Не удалось получить ответ' }),
+      ).toBeVisible();
       await page.unroute('**/api/v1/orders');
       await page.reload();
       await expect(page.getByRole('link', { name: 'Открыть заказ' })).toBeVisible();

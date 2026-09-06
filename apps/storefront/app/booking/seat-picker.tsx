@@ -90,7 +90,11 @@ function Selection({
       location.assign(`/orders/${order.id}`);
     },
     onError: (error) => {
-      if (error instanceof ApiRequestError && !error.problem.retryable) {
+      if (
+        error instanceof ApiRequestError &&
+        !error.problem.retryable &&
+        error.problem.code !== 'INTERNAL_ERROR'
+      ) {
         sessionStorage.removeItem(storageKey);
         setPending(null);
         setSelected([]);

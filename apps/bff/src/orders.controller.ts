@@ -1,7 +1,9 @@
 import { All, Controller, Inject, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { ApiError } from '@eventflow/service-runtime';
+import { ApiError, parseInput } from '@eventflow/service-runtime';
+import { z } from 'zod';
 import { AuthService } from './auth/auth.service';
+import { upstreamUrl } from './upstream-url';
 
 @Controller('api/v1/orders')
 export class OrdersController {
@@ -17,9 +19,14 @@ export class OrdersController {
     const { session } = await this.auth.requireSession(request);
     if (request.method !== 'GET') this.auth.assertCsrf(request, session.csrf);
     await this.auth.store.rateLimit(`orders:${session.user.sub}`, 120);
+    if (request.method === 'POST' && path === '/api/v1/orders') {
+      const { saleId } = parseInput(z.object({ saleId: z.uuid() }), request.body);
+      await this.requirePublished(saleId, response);
+    }
     let upstream: globalThis.Response;
+    let body: unknown;
     try {
-      const url = new URL(request.originalUrl, this.auth.config.BOOKING_URL);
+      const url = upstreamUrl(this.auth.config.BOOKING_URL, path, request.originalUrl);
       const key = request.header('idempotency-key');
       upstream = await fetch(url, {
         method: request.method,
@@ -36,6 +43,7 @@ export class OrdersController {
           ? {}
           : { body: JSON.stringify(request.body) }),
       });
+      body = await upstream.json();
     } catch {
       throw new ApiError(
         503,
@@ -50,6 +58,34 @@ export class OrdersController {
         'Бронирование временно недоступно. Повторите тот же запрос.',
       );
     response.setHeader('cache-control', 'no-store');
-    response.status(upstream.status).json(await upstream.json());
+    response.status(upstream.status).json(body);
+  }
+  private async requirePublished(id: string, response: Response) {
+    let status: number;
+    try {
+      const result = await fetch(new URL(`/api/v1/events/${id}`, this.auth.config.CATALOG_URL), {
+        redirect: 'error',
+        signal: AbortSignal.timeout(5000),
+        headers: {
+          'x-request-id': response.locals.requestId,
+          traceparent: response.locals.traceparent,
+        },
+      });
+      status = result.status;
+      await result.body?.cancel();
+    } catch {
+      throw new ApiError(
+        503,
+        'CATALOG_UNAVAILABLE',
+        'Не удалось проверить публикацию. Повторите тот же запрос.',
+      );
+    }
+    if (status === 404) throw new ApiError(404, 'NOT_FOUND', 'Мероприятие ещё не опубликовано.');
+    if (status !== 200)
+      throw new ApiError(
+        503,
+        'CATALOG_UNAVAILABLE',
+        'Не удалось проверить публикацию. Повторите тот же запрос.',
+      );
   }
 }

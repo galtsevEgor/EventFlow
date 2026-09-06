@@ -3,13 +3,14 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { ApiError, parseInput } from '@eventflow/service-runtime';
 import { AuthService } from './auth/auth.service';
+import { upstreamUrl } from './upstream-url';
 
 @Controller('api/v1')
 export class PublicController {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
   @Get(['events', 'events/:id']) async events(@Req() request: Request, @Res() response: Response) {
     const upstream = await this.request(
-      new URL(request.originalUrl, this.auth.config.CATALOG_URL),
+      upstreamUrl(this.auth.config.CATALOG_URL, request.path, request.originalUrl),
       response,
     );
     response.setHeader('cache-control', upstream.headers.get('cache-control') ?? 'no-store');
