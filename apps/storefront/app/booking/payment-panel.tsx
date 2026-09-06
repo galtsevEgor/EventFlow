@@ -34,7 +34,9 @@ function message(payment: Payment) {
     return 'Уточняем результат платежа. Повторно не оплачивайте.';
   if (payment.state === 'PROCESSING')
     return 'Платёж обрабатывается. Можно закрыть страницу — результат появится в этом заказе.';
-  return payment.canPay ? 'Форма оплаты готова.' : 'Подготавливаем оплату и проверяем бронь…';
+  return payment.canPay
+    ? 'Проверьте данные и подтвердите оплату.'
+    : 'Подготавливаем оплату и проверяем бронь…';
 }
 
 function polling(payment: Payment | null | undefined) {

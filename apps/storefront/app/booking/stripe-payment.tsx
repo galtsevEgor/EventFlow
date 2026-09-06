@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js/pure';
 import { Alert, Button } from '@eventflow/ui';
@@ -9,7 +9,7 @@ const clients = new Map<string, ReturnType<typeof loadStripe>>();
 function client(key: string) {
   let value = clients.get(key);
   if (!value) {
-    value = loadStripe(key);
+    value = loadStripe(key).catch(() => null);
     clients.set(key, value);
   }
   return value;
@@ -46,6 +46,12 @@ function Form({ id, amountMinor, refresh }: Pick<Props, 'id' | 'amountMinor' | '
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [ready, setReady] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  useEffect(() => {
+    if (ready) return;
+    const timer = setTimeout(() => setLoadFailed(true), 15000);
+    return () => clearTimeout(timer);
+  }, [ready]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!stripe || !elements || active.current) return;
@@ -73,13 +79,24 @@ function Form({ id, amountMinor, refresh }: Pick<Props, 'id' | 'amountMinor' | '
     <form className="payment-form" onSubmit={(event) => void submit(event)}>
       <p className="payment-badge">Stripe sandbox · только тестовые карты</p>
       <PaymentElement
-        onReady={() => setReady(true)}
-        onLoadError={() => setNotice('Форма не загрузилась. Обновите страницу и попробуйте снова.')}
+        onReady={() => {
+          setReady(true);
+          setLoadFailed(false);
+        }}
+        onLoadError={() => setLoadFailed(true)}
       />
       <Button type="submit" disabled={!stripe || !elements || !ready || busy}>
         {busy ? 'Проверяем оплату…' : `Оплатить ${money(amountMinor)}`}
       </Button>
       {notice && <Alert>{notice}</Alert>}
+      {loadFailed && (
+        <Alert>
+          Форма Stripe не загрузилась. Обновите страницу или попробуйте другой браузер.{' '}
+          <Button variant="secondary" onClick={() => location.reload()}>
+            Обновить страницу
+          </Button>
+        </Alert>
+      )}
     </form>
   );
 }
