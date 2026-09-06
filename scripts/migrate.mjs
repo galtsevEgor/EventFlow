@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-for (const service of ['catalog', 'booking']) {
+for (const service of ['catalog', 'booking', 'payments']) {
   execFileSync(
     process.execPath,
     [

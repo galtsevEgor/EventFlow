@@ -14,6 +14,7 @@ export default tseslint.config(
       'spikes/booking/generated/**',
       'services/catalog/src/generated/**',
       'services/booking/src/generated/**',
+      'services/payments/src/generated/**',
     ],
   },
   js.configs.recommended,

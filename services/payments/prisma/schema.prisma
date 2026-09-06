@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated"
+  moduleFormat = "cjs"
+  importFileExtension = "js"
+}
+datasource db {
+  provider = "postgresql"
+}
+enum PaymentState {
+  CREATED
+  REQUIRES_ACTION
+  PROCESSING
+  SUCCEEDED
+  CANCELLED
+  NEEDS_RECONCILIATION
+  REQUIRES_REVIEW
+}
+enum RefundState {
+  PENDING
+  UNKNOWN
+  SUCCEEDED
+  REQUIRES_REVIEW
+}
+model PaymentAttempt {
+  id String @id @db.Uuid
+  orderId String @unique @db.Uuid
+  buyerSubject String @db.VarChar(255)
+  amountMinor Int
+  currency String @db.Char(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  provider String @db.VarChar(12)
+  providerPaymentId String? @unique @db.VarChar(255)
+  state PaymentState @default(CREATED)
+  bookingState String @default("PENDING") @db.VarChar(24)
+  reviewCode String? @db.VarChar(60)
+  cancelRequested Boolean @default(false)
+  authorized Boolean @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  nextRunAt DateTime @default(now()) @db.Timestamptz(3)
+  lease String? @db.Uuid
+  leaseUntil DateTime? @db.Timestamptz(3)
+  failures Int @default(0)
+  successPublished Boolean @default(false)
+  @@index([nextRunAt, leaseUntil])
+}
+model PaymentRequest {
+  buyerSubject String @db.VarChar(255)
+  key String @db.Uuid
+  orderId String @db.Uuid
+  attemptId String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([buyerSubject, key])
+}
+model RefundOperation {
+  id String @id @db.Uuid
+  attemptId String @unique @db.Uuid
+  orderId String @db.Uuid
+  providerPaymentId String @db.VarChar(255)
+  amountMinor Int
+  currency String @db.Char(3)
+  reason String @db.VarChar(60)
+  state RefundState @default(PENDING)
+  providerRefundId String? @unique @db.VarChar(255)
+  reviewCode String? @db.VarChar(60)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  nextRunAt DateTime @default(now()) @db.Timestamptz(3)
+  lease String? @db.Uuid
+  leaseUntil DateTime? @db.Timestamptz(3)
+  failures Int @default(0)
+}
+model ProviderWebhook {
+  eventId String @id @db.VarChar(255)
+  objectId String @db.VarChar(255)
+  type String @db.VarChar(100)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  processedAt DateTime? @db.Timestamptz(3)
+  reviewCode String? @db.VarChar(60)
+}
+model ClosedOrder {
+  orderId String @id @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}
+model OperatorAction {
+  key String @id @db.Uuid
+  actor String @db.VarChar(255)
+  targetId String @db.Uuid
+  kind String @db.VarChar(20)
+  reason String @db.VarChar(240)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}
+model FakePayment {
+  id String @id @db.VarChar(255)
+  attemptId String @unique @db.Uuid
+  orderId String @db.Uuid
+  amountMinor Int
+  currency String @db.Char(3)
+  status String @db.VarChar(30)
+}
+model FakeRefund {
+  id String @id @db.VarChar(255)
+  operationId String @unique @db.Uuid
+  paymentId String @unique @db.VarChar(255)
+  amountMinor Int
+  status String @db.VarChar(30)
+}
+model Outbox {
+  id String @id @db.Uuid
+  envelope Json
+  availableAt DateTime @default(now()) @db.Timestamptz
+  sentAt DateTime? @db.Timestamptz
+  lease String? @db.Uuid
+  attempts Int @default(0)
+  @@index([sentAt, availableAt])
+}
+model Inbox {
+  eventId String @id @db.Uuid
+  processedAt DateTime @default(now()) @db.Timestamptz
+}
