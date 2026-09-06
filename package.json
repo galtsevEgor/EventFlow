@@ -49,7 +49,8 @@
     "test:publication": "node --env-file=.env --test --test-timeout=120000 tests/*.integration.mjs",
     "test:booking": "node --env-file=.env --test --test-timeout=120000 tests/booking/*.integration.mjs",
     "test:load": "node --env-file=.env tests/load/run.mjs",
-    "test:payments": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/payments/*.integration.mjs"
+    "test:payments": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/payments/*.integration.mjs",
+    "payments:reconcile": "node --env-file=.env scripts/reconcile-payment.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",

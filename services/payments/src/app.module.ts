@@ -18,13 +18,14 @@ import { StripePaymentProvider } from './providers/stripe';
 import { ReceiveWebhook } from './webhooks/receive';
 import { ProcessWebhooks } from './webhooks/process';
 import { WebhookController } from './webhooks/controller';
+import { PaymentOperator } from './operator';
 
 @Module({ imports: [HealthModule.forService('payments')] })
 export class AppModule {
   static configure(config: PaymentsConfig): DynamicModule {
     return {
       module: AppModule,
-      controllers: [PaymentController, WebhookController],
+      controllers: [PaymentController, WebhookController, PaymentOperator],
       providers: [
         {
           provide: ReceiveWebhook,

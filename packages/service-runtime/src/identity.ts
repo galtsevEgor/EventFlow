@@ -57,7 +57,12 @@ export class TokenVerifier {
   async service(authorization: string | undefined, clientId: string, role: string) {
     const claims = await this.verify(authorization);
     const roles = z.object({ roles: z.array(z.string()) }).safeParse(claims.realm_access);
-    if (claims.azp !== clientId || !roles.success || !roles.data.roles.includes(role))
+    if (
+      !claims.sub ||
+      claims.azp !== clientId ||
+      !roles.success ||
+      !roles.data.roles.includes(role)
+    )
       throw new ApiError(403, 'FORBIDDEN', 'Требуется служебное полномочие.');
     return { subject: claims.sub };
   }

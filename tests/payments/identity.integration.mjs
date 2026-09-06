@@ -32,3 +32,17 @@ test('real Keycloak payments identity has only its Booking audience and cannot i
   const policy = await token('eventflow-policy', process.env.POLICY_CLIENT_SECRET);
   await assert.rejects(verifier.service(policy, 'eventflow-payments', 'booking-payments'));
 });
+
+test('real Keycloak operator identity is scoped to reconciliation in Payments', async () => {
+  const auth = await token('eventflow-operator', process.env.PAYMENTS_OPERATOR_SECRET);
+  const verifier = new TokenVerifier(process.env.OIDC_ISSUER, 'eventflow-payments');
+  assert.ok((await verifier.service(auth, 'eventflow-operator', 'payments-reconcile')).subject);
+  await assert.rejects(verifier.user(auth));
+  await assert.rejects(
+    new TokenVerifier(process.env.OIDC_ISSUER, 'eventflow-booking').service(
+      auth,
+      'eventflow-payments',
+      'booking-payments',
+    ),
+  );
+});

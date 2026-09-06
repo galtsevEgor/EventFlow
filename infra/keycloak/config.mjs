@@ -84,6 +84,27 @@ export function clientConfigurations(env) {
       protocolMappers: [audience],
     },
     {
+      clientId: 'eventflow-operator',
+      protocol: 'openid-connect',
+      publicClient: false,
+      secret: env.PAYMENTS_OPERATOR_SECRET,
+      standardFlowEnabled: false,
+      implicitFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: true,
+      defaultClientScopes: ['basic', 'roles'],
+      protocolMappers: [
+        {
+          ...audience,
+          name: 'payments-audience',
+          config: {
+            ...audience.config,
+            'included.custom.audience': 'eventflow-payments',
+          },
+        },
+      ],
+    },
+    {
       clientId: 'eventflow-payments',
       protocol: 'openid-connect',
       publicClient: false,

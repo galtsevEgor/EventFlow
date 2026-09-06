@@ -164,6 +164,65 @@
           }
         }
       }
+    },
+    "/internal/payments/reconcile": {
+      "post": {
+        "operationId": "reconcilePaymentOperation",
+        "description": "Requires eventflow-operator service identity and payments-reconcile role. Never exposed by BFF.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind", "targetId", "reason"],
+                "properties": {
+                  "kind": {
+                    "enum": ["payment", "refund"]
+                  },
+                  "targetId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 240
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Reconciliation scheduled and audited"
+          }
+        }
+      }
+    },
+    "/internal/payments/review": {
+      "get": {
+        "operationId": "listPaymentReviews",
+        "description": "Operator-only bounded diagnostic list, without buyer identities or credentials.",
+        "responses": {
+          "200": {
+            "description": "Up to 100 entries per operation kind"
+          }
+        }
+      }
     }
   },
   "components": {
