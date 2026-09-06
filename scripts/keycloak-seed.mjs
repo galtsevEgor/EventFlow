@@ -19,6 +19,7 @@ export async function seedKeycloak(env, directory = process.cwd()) {
     'OIDC_CLIENT_ID',
     'OIDC_CLIENT_SECRET',
     'POLICY_CLIENT_SECRET',
+    'PAYMENTS_CLIENT_SECRET',
   ]) {
     if (!env[name]) throw new Error(`Missing ${name}; run pnpm env:init`);
   }
@@ -77,14 +78,19 @@ export async function seedKeycloak(env, directory = process.cwd()) {
         );
     }
   }
-  let role = await admin(`/${realmName}/roles/policy-check`, 'GET', undefined, true);
-  if (!role) {
-    await admin(`/${realmName}/roles`, 'POST', { name: 'policy-check' });
-    role = await admin(`/${realmName}/roles/policy-check`);
+  for (const [clientId, roleName] of [
+    ['eventflow-policy', 'policy-check'],
+    ['eventflow-payments', 'booking-payments'],
+  ]) {
+    let role = await admin(`/${realmName}/roles/${roleName}`, 'GET', undefined, true);
+    if (!role) {
+      await admin(`/${realmName}/roles`, 'POST', { name: roleName });
+      role = await admin(`/${realmName}/roles/${roleName}`);
+    }
+    const [client] = await admin(`/${realmName}/clients?clientId=${clientId}`);
+    const serviceUser = await admin(`/${realmName}/clients/${client.id}/service-account-user`);
+    await admin(`/${realmName}/users/${serviceUser.id}/role-mappings/realm`, 'POST', [role]);
   }
-  const [policyClient] = await admin(`/${realmName}/clients?clientId=eventflow-policy`);
-  const serviceUser = await admin(`/${realmName}/clients/${policyClient.id}/service-account-user`);
-  await admin(`/${realmName}/users/${serviceUser.id}/role-mappings/realm`, 'POST', [role]);
 
   const path = resolve(directory, 'work/local/demo-users.json');
   mkdirSync(resolve(directory, 'work/local'), { recursive: true });

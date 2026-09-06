@@ -64,6 +64,11 @@ export function clientConfigurations(env) {
           name: 'booking-audience',
           config: { ...audience.config, 'included.custom.audience': 'eventflow-booking' },
         },
+        {
+          ...audience,
+          name: 'payments-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-payments' },
+        },
       ],
     },
     {
@@ -77,6 +82,24 @@ export function clientConfigurations(env) {
       serviceAccountsEnabled: true,
       defaultClientScopes: ['basic', 'roles'],
       protocolMappers: [audience],
+    },
+    {
+      clientId: 'eventflow-payments',
+      protocol: 'openid-connect',
+      publicClient: false,
+      secret: env.PAYMENTS_CLIENT_SECRET,
+      standardFlowEnabled: false,
+      implicitFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: true,
+      defaultClientScopes: ['basic', 'roles'],
+      protocolMappers: [
+        {
+          ...audience,
+          name: 'booking-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-booking' },
+        },
+      ],
     },
   ];
 }

@@ -48,7 +48,8 @@
     "browser:install": "playwright install chromium",
     "test:publication": "node --env-file=.env --test --test-timeout=120000 tests/*.integration.mjs",
     "test:booking": "node --env-file=.env --test --test-timeout=120000 tests/booking/*.integration.mjs",
-    "test:load": "node --env-file=.env tests/load/run.mjs"
+    "test:load": "node --env-file=.env tests/load/run.mjs",
+    "test:payments": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/payments/*.integration.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",
