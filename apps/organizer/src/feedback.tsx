@@ -8,6 +8,15 @@ export function ErrorMessage({ error }: { error: unknown }) {
       {error instanceof ApiRequestError ? (
         <>
           {error.message}
+          {error.problem.fieldErrors && (
+            <ul>
+              {Object.values(error.problem.fieldErrors)
+                .flat()
+                .map((message, index) => (
+                  <li key={index}>{message}</li>
+                ))}
+            </ul>
+          )}
           <small className="request-id">Код обращения: {error.problem.requestId}</small>
           {error.problem.code === 'UNAUTHENTICATED' && (
             <a

@@ -89,12 +89,14 @@ export function Dialog({
   open,
   onOpenChange,
   children,
+  wide = false,
 }: {
   title: string;
   description: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: ReactNode;
+  wide?: boolean;
 }) {
   const previousFocus = useRef<HTMLElement | null>(null);
   return (
@@ -102,7 +104,7 @@ export function Dialog({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="ef-overlay" />
         <DialogPrimitive.Content
-          className="ef-dialog"
+          className={`ef-dialog${wide ? ' ef-dialog--wide' : ''}`}
           onOpenAutoFocus={() => {
             previousFocus.current =
               document.activeElement instanceof HTMLElement ? document.activeElement : null;

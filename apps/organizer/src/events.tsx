@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,6 +6,9 @@ import { z } from 'zod';
 import { Badge, Button, Dialog, EmptyState, Field, Loading } from '@eventflow/ui';
 import { api, queryClient, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
+const EventConfiguration = lazy(() =>
+  import('./event-configuration').then((module) => ({ default: module.EventConfiguration })),
+);
 
 const input = z.object({
   title: z.string().trim().min(2, 'Минимум 2 символа').max(160, 'Максимум 160 символов'),
@@ -20,6 +23,7 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
       ),
   });
   const [editing, setEditing] = useState<Schemas['Draft'] | 'new' | null>(null);
+  const [configuring, setConfiguring] = useState<Schemas['Draft'] | null>(null);
   const form = useForm({
     resolver: zodResolver(input),
     defaultValues: { title: '', description: '' },
@@ -79,6 +83,11 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
             <h3>{event.title}</h3>
             <p>{event.description || 'Описание ещё не добавлено.'}</p>
             {canEdit && (
+              <Button variant="secondary" onClick={() => setConfiguring(event)}>
+                Настроить продажи
+              </Button>
+            )}
+            {canEdit && (
               <Button variant="secondary" onClick={() => edit(event)}>
                 Редактировать
               </Button>
@@ -110,6 +119,26 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
             Сохранить черновик
           </Button>
         </form>
+      </Dialog>
+      <Dialog
+        wide
+        open={configuring !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfiguring(null);
+        }}
+        title="Настройки продажи"
+        description="Заполните расписание, цены и схему мест. Настройки сохраняются в черновике."
+      >
+        {configuring && (
+          <Suspense fallback={<Loading />}>
+            <EventConfiguration
+              key={configuring.id}
+              id={id}
+              event={configuring}
+              onSaved={() => setConfiguring(null)}
+            />
+          </Suspense>
+        )}
       </Dialog>
     </>
   );

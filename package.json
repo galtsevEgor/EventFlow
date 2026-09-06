@@ -42,7 +42,7 @@
     "test:catalog": "node --env-file=.env --test --test-timeout=60000 services/catalog/tests/*.integration.mjs",
     "api:generate": "node scripts/generate-api.mjs",
     "check:api": "node scripts/generate-api.mjs --check",
-    "test:e2e": "node --env-file=.env --test tests/e2e/*.test.mjs",
+    "test:e2e": "node --env-file=.env --test --test-concurrency=1 tests/e2e/*.test.mjs",
     "storybook": "pnpm --filter @eventflow/ui storybook",
     "storybook:build": "pnpm --filter @eventflow/ui storybook:build",
     "browser:install": "playwright install chromium"

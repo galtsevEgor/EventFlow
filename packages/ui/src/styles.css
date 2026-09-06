@@ -121,6 +121,9 @@
 .ef-dialog h2 {
   margin-top: 0;
 }
+.ef-dialog--wide {
+  width: min(1000px, calc(100vw - 32px));
+}
 .ef-dialog > p {
   color: var(--ef-muted);
   line-height: 1.5;
