@@ -15,12 +15,14 @@ export class CatalogController {
     if (request.method !== 'GET') this.auth.assertCsrf(request, session.csrf);
     await this.auth.store.rateLimit(`api:${session.user.sub}`, 120);
     let upstream: globalThis.Response;
+    const idempotencyKey = request.header('idempotency-key');
     try {
       upstream = await fetch(new URL(request.path, this.auth.config.CATALOG_URL), {
         method: request.method,
         headers: {
           authorization: `Bearer ${session.accessToken}`,
           'content-type': 'application/json',
+          ...(idempotencyKey ? { 'idempotency-key': idempotencyKey } : {}),
           'x-request-id': response.locals.requestId,
           traceparent: response.locals.traceparent,
         },

@@ -184,12 +184,58 @@ test(
       await visitor.goto(stack.origin + '/');
       assert.ok(await visitor.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       await visitor.screenshot({ path: 'work/e2/catalog-mobile.png', fullPage: true });
+      const edited = await page.request.patch(events[0].path, {
+        headers,
+        data: { title: 'Концерт в саду', description: 'Обновлённая программа концерта.' },
+      });
+      assert.equal(edited.status(), 200);
+      const current = await edited.json();
+      const png = await page.evaluate(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 10;
+        canvas.height = 10;
+        return canvas.toDataURL('image/png').split(',')[1];
+      });
+      const replacement = await page.request.post(events[0].path + '/cover', {
+        headers,
+        multipart: {
+          file: {
+            name: 'replacement.png',
+            mimeType: 'image/png',
+            buffer: Buffer.from(png, 'base64'),
+          },
+        },
+      });
+      assert.equal(replacement.status(), 201);
+      const newCover = (await replacement.json()).coverId;
+      assert.notEqual(newCover, current.coverId);
+      assert.equal(
+        (await visitor.request.get(`${stack.origin}/api/v1/covers/${newCover}`)).status(),
+        200,
+      );
+      await visitor.goto(`${stack.origin}/events/${events[0].id}`);
+      await expect(
+        visitor.getByText('Обновлённая программа концерта.', { exact: true }),
+      ).toBeVisible();
+      await expect(visitor.getByRole('img', { name: 'Афиша: Концерт в саду' })).toHaveAttribute(
+        'src',
+        `/api/v1/covers/${newCover}`,
+      );
       assert.equal(
         (
           await visitor.request.get(stack.origin + '/events/00000000-0000-0000-0000-000000000000')
         ).status(),
         404,
       );
+      await stack.stopCatalog();
+      const unavailable = await visitor.request.get(stack.origin + '/api/v1/events');
+      assert.equal(unavailable.status(), 503);
+      assert.equal(unavailable.headers()['cache-control'], 'no-store');
+      await visitor.goto(stack.origin + '/');
+      await expect(visitor.getByRole('main').getByRole('alert')).toContainText(
+        'Каталог временно недоступен',
+      );
+      await expect(visitor.getByText('Мероприятий не найдено', { exact: true })).toHaveCount(0);
     } finally {
       await browser.close();
       await stack.close();

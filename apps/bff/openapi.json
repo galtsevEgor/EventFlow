@@ -928,6 +928,58 @@
         }
       }
     },
+    "/api/v1/organizations/{id}/events/{eventId}/publication/retry": {
+      "post": {
+        "operationId": "retryPublication",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["expectedAttempt"],
+                "additionalProperties": false,
+                "properties": { "expectedAttempt": { "type": "integer", "minimum": 1 } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Publication requested or existing publication",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Publication" } }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sales/{id}": {
       "get": {
         "operationId": "getPublicSale",
@@ -1279,19 +1331,26 @@
           "desiredPaused",
           "acknowledgedPaused",
           "commandVersion",
-          "acknowledgedVersion"
+          "acknowledgedVersion",
+          "attempt",
+          "failureCode"
         ],
         "properties": {
           "eventId": { "type": "string", "format": "uuid" },
           "version": { "type": "integer", "const": 1 },
-          "state": { "type": "string", "enum": ["PROVISIONING", "PUBLISHED"] },
+          "state": { "type": "string", "enum": ["PROVISIONING", "PUBLISHED", "FAILED"] },
           "snapshotHash": { "type": "string" },
           "requestedAt": { "type": "string", "format": "date-time" },
           "publishedAt": { "type": ["string", "null"], "format": "date-time" },
           "desiredPaused": { "type": "boolean" },
           "acknowledgedPaused": { "type": "boolean" },
           "commandVersion": { "type": "integer", "minimum": 0 },
-          "acknowledgedVersion": { "type": "integer", "minimum": 0 }
+          "acknowledgedVersion": { "type": "integer", "minimum": 0 },
+          "attempt": { "type": "integer", "minimum": 1 },
+          "failureCode": {
+            "type": ["string", "null"],
+            "enum": ["SNAPSHOT_CONFLICT", "INVALID_SNAPSHOT", null]
+          }
         }
       },
       "PublicEvent": {

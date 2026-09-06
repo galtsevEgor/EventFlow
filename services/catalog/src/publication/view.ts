@@ -1,4 +1,6 @@
 export const publicationSelect = {
+  attempt: true,
+  failureCode: true,
   desiredPaused: true,
   acknowledgedPaused: true,
   commandVersion: true,

@@ -45,4 +45,23 @@ export class PublicationController {
       input.revision,
     );
   }
+  @Post('publication/retry') retry(
+    @Req() req: UserRequest,
+    @Param('id') id: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseInput(
+      z.strictObject({ expectedAttempt: z.number().int().positive() }),
+      body,
+    );
+    const key = parseInput(z.uuid(), req.header('idempotency-key'));
+    return this.publications.retry(
+      req.actor,
+      resourceId(id),
+      resourceId(eventId),
+      input.expectedAttempt,
+      key,
+    );
+  }
 }

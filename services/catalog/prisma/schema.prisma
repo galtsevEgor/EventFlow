@@ -115,6 +115,10 @@ model CoverAsset {
 }
 
 model Publication {
+  attempt Int @default(1)
+  requestId String? @db.Uuid
+  failureCode String? @db.VarChar(32)
+  retries PublicationRetry[]
   desiredPaused Boolean @default(false)
   acknowledgedPaused Boolean @default(false)
   commandVersion Int @default(0)
@@ -127,6 +131,14 @@ model Publication {
   requestedAt DateTime @default(now()) @db.Timestamptz
   publishedAt DateTime? @db.Timestamptz
   event EventDraft @relation(fields: [eventId], references: [id], onDelete: Restrict)
+}
+
+model PublicationRetry {
+  idempotencyKey String @id @db.Uuid
+  eventId String @db.Uuid
+  attempt Int
+  publication Publication @relation(fields: [eventId], references: [eventId], onDelete: Restrict)
+  @@unique([eventId, attempt])
 }
 
 model PublicEvent {

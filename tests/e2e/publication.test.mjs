@@ -108,6 +108,51 @@ test(
         timeout: 15000,
       });
       await expect(page.getByText('Ожидаем подтверждение возобновления…')).toHaveCount(0);
+      const recovery = await (
+        await page.request.post(`${stack.origin}/api/v1/organizations/${org.id}/events`, {
+          headers,
+          data: { title: 'Повтор публикации', description: 'Проверка восстановления публикации.' },
+        })
+      ).json();
+      const recoveryPath = `${stack.origin}/api/v1/organizations/${org.id}/events/${recovery.id}`;
+      await page.request.put(recoveryPath + '/configuration', {
+        headers,
+        data: { revision: 0, configuration: (await saved.json()).configuration },
+      });
+      await page.request.post(recoveryPath + '/cover', {
+        headers,
+        multipart: {
+          file: { name: 'poster.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') },
+        },
+      });
+      const sourceSale = await booking.db.sale.findUniqueOrThrow({ where: { id: draft.id } });
+      await booking.db.sale.create({
+        data: {
+          ...sourceSale,
+          id: recovery.id,
+          snapshotHash: '0'.repeat(64),
+          paused: false,
+          commandVersion: 0,
+        },
+      });
+      await page.reload();
+      const card = page
+        .getByRole('article')
+        .filter({ has: page.getByRole('heading', { name: 'Повтор публикации', exact: true }) });
+      await card.getByRole('button', { name: 'Опубликовать', exact: true }).click();
+      await expect(card.getByText('Публикация отклонена', { exact: true })).toBeVisible({
+        timeout: 15000,
+      });
+      await page.reload();
+      await expect(card.getByRole('button', { name: 'Повторить публикацию' })).toBeVisible();
+      await booking.db.sale.delete({ where: { id: recovery.id } });
+      const retryRequest = page.waitForRequest((request) =>
+        request.url().endsWith('/publication/retry'),
+      );
+      await card.getByRole('button', { name: 'Повторить публикацию' }).click();
+      assert.match((await retryRequest).headers()['idempotency-key'], /^[0-9a-f-]{36}$/);
+      await expect(card.getByText('Опубликовано', { exact: true })).toBeVisible({ timeout: 15000 });
+      assert.equal(await booking.db.seatInventory.count({ where: { saleId: recovery.id } }), 6);
     } finally {
       await browser.close();
       await stack.close();

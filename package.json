@@ -46,7 +46,7 @@
     "storybook": "pnpm --filter @eventflow/ui storybook",
     "storybook:build": "pnpm --filter @eventflow/ui storybook:build",
     "browser:install": "playwright install chromium",
-    "test:publication": "node --env-file=.env --test --test-timeout=120000 tests/publication.integration.mjs"
+    "test:publication": "node --env-file=.env --test --test-timeout=120000 tests/*.integration.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, test } from 'node:test';
-import { setTimeout as delay } from 'node:timers/promises';
+import { eventually } from './helpers/eventually.mjs';
 import { connect } from 'amqplib';
 import { catalogFixture } from '../services/catalog/tests/fixture.mjs';
 import { bookingFixture } from './helpers/booking.mjs';
@@ -14,15 +14,6 @@ import { saleRoutes } from '../packages/event-contracts/dist/index.js';
 
 const namespace = `eventflow-test-${randomUUID()}`;
 let catalog, booking, owner, eventPath, eventId, coverId, envelope;
-export async function eventually(read, accept, timeout = 15000) {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    const value = await read();
-    if (accept(value)) return value;
-    await delay(100);
-  }
-  assert.fail('Expected state was not reached before the deadline');
-}
 const configuration = {
   city: 'Chisinau',
   address: 'Music Street 12',
@@ -153,24 +144,27 @@ test('lost publisher confirmations and replayed commands do not duplicate invent
   );
   const handler = new ProvisionSale(booking.db);
   await handler.handle({ ...envelope, eventId: randomUUID() });
-  await assert.rejects(
-    handler.handle({
-      ...envelope,
-      eventId: randomUUID(),
-      data: {
-        ...envelope.data,
-        seats: envelope.data.seats.map((seat) => ({ ...seat, priceMinor: 1 })),
-      },
-    }),
-    /Frozen sale conflict/,
-  );
+  const rejectedId = randomUUID();
+  await handler.handle({
+    ...envelope,
+    eventId: rejectedId,
+    data: {
+      ...envelope.data,
+      seats: envelope.data.seats.map((seat) => ({ ...seat, priceMinor: 1 })),
+    },
+  });
+  const rejection = await booking.db.outbox.findFirst({
+    where: { envelope: { path: ['causationId'], equals: rejectedId } },
+  });
+  assert.equal(rejection.envelope.eventType, 'SaleProvisionFailed.v1');
+  assert.equal(rejection.envelope.data.code, 'SNAPSHOT_CONFLICT');
   await assert.rejects(
     handler.handle({ ...envelope, eventId: randomUUID(), aggregateVersion: 2 }),
     /Invalid sale snapshot/,
   );
   assert.equal(await booking.db.seatInventory.count(), 5);
   assert.equal((await booking.db.seatInventory.findFirst()).priceMinor, 2500);
-  assert.equal(await booking.db.inbox.count(), 2);
+  assert.equal(await booking.db.inbox.count(), 3);
 });
 test('malformed messages are confirmed into a dead-letter queue instead of looping or touching domain data', async () => {
   const connection = await connect(process.env.AMQP_URL);

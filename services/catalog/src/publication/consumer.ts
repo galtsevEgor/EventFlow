@@ -4,10 +4,13 @@ import { Database } from '../database';
 import { lockOrganization } from '../organizations/access';
 import { AvailabilityConsumer } from './availability-consumer';
 import { publicProjection } from '../public-catalog/projection';
+import { FailureConsumer } from './failure-consumer';
 
 export class PublicationConsumer {
   constructor(private readonly db: Database) {}
   async handle(event: EventEnvelope) {
+    if (event.eventType === 'SaleProvisionFailed.v1')
+      return new FailureConsumer(this.db).handle(event);
     if (event.eventType === 'SaleAvailabilityChanged.v1')
       return new AvailabilityConsumer(this.db).handle(event);
     const result = provisionResultSchema.safeParse(event.data);
@@ -31,7 +34,7 @@ export class PublicationConsumer {
         await tx.publicEvent.create({ data: publicProjection(draft.id, current.configuration) });
         await tx.publication.update({
           where: { eventId: draft.id },
-          data: { state: 'PUBLISHED', publishedAt: new Date() },
+          data: { state: 'PUBLISHED', publishedAt: new Date(), failureCode: null },
         });
         if (current.coverId)
           await tx.coverAsset.update({ where: { id: current.coverId }, data: { isPublic: true } });

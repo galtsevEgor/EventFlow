@@ -287,6 +287,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/organizations/{id}/events/{eventId}/publication/retry': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['retryPublication'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/sales/{id}': {
     parameters: {
       query?: never;
@@ -508,7 +524,7 @@ export interface components {
       /** @constant */
       version: 1;
       /** @enum {string} */
-      state: 'PROVISIONING' | 'PUBLISHED';
+      state: 'PROVISIONING' | 'PUBLISHED' | 'FAILED';
       snapshotHash: string;
       /** Format: date-time */
       requestedAt: string;
@@ -518,6 +534,9 @@ export interface components {
       acknowledgedPaused: boolean;
       commandVersion: number;
       acknowledgedVersion: number;
+      attempt: number;
+      /** @enum {string|null} */
+      failureCode: 'SNAPSHOT_CONFLICT' | 'INVALID_SNAPSHOT' | null;
     };
     PublicEvent: {
       /** Format: uuid */
@@ -1454,6 +1473,46 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['PublicEvent'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  retryPublication: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path: {
+        id: string;
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          expectedAttempt: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Publication requested or existing publication */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Publication'];
         };
       };
       /** @description Request failed */

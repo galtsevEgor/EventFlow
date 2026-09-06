@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { Badge, Button } from '@eventflow/ui';
 import { api, queryClient, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
@@ -25,6 +26,26 @@ export function EventPublication({
     },
   });
   const publication = event.publication;
+  const retryKey = useRef<{ attempt: number; key: string } | null>(null);
+  const retry = useMutation({
+    mutationFn: async () => {
+      if (!publication) throw new Error('Публикация не найдена.');
+      if (retryKey.current?.attempt !== publication.attempt)
+        retryKey.current = { attempt: publication.attempt, key: crypto.randomUUID() };
+      return unwrap(
+        await api.client.POST('/api/v1/organizations/{id}/events/{eventId}/publication/retry', {
+          params: {
+            path: { id, eventId: event.id },
+            header: { 'Idempotency-Key': retryKey.current.key },
+          },
+          body: { expectedAttempt: publication.attempt },
+        }),
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['events', id] });
+    },
+  });
   const availability = useMutation({
     mutationFn: async () =>
       unwrap(
@@ -44,11 +65,13 @@ export function EventPublication({
   return (
     <div aria-live="polite">
       <Badge>
-        {publication?.state === 'PUBLISHED'
-          ? 'Опубликовано'
-          : publication
-            ? 'Готовится к публикации'
-            : 'Черновик'}
+        {publication?.state === 'FAILED'
+          ? 'Публикация отклонена'
+          : publication?.state === 'PUBLISHED'
+            ? 'Опубликовано'
+            : publication
+              ? 'Готовится к публикации'
+              : 'Черновик'}
       </Badge>
       {publication?.state === 'PROVISIONING' && (
         <p className="muted">
@@ -62,6 +85,20 @@ export function EventPublication({
         </Button>
       )}
       <ErrorMessage error={publish.error} />
+      {publication?.state === 'FAILED' && (
+        <>
+          <p>
+            Не удалось подготовить продажу. Обратитесь к администратору; после устранения причины
+            можно повторить публикацию.
+          </p>
+          {canEdit && (
+            <Button disabled={retry.isPending} onClick={() => retry.mutate()}>
+              Повторить публикацию
+            </Button>
+          )}
+          <ErrorMessage error={retry.error} />
+        </>
+      )}
       {publication?.state === 'PUBLISHED' && (
         <>
           <p>

@@ -16,6 +16,7 @@ const routes: [string[], RegExp][] = [
   [['GET', 'POST'], new RegExp(`^${org}/events/${uuid}/cover$`)],
   [['GET'], new RegExp(`^/api/v1/covers/${uuid}$`)],
   [['POST'], new RegExp(`^${org}/events/${uuid}/publication$`)],
+  [['POST'], new RegExp(`^${org}/events/${uuid}/publication/retry$`)],
   [['PUT'], new RegExp(`^${org}/events/${uuid}/availability$`)],
   [['GET'], /^\/api\/v1\/events$/],
   [['GET'], new RegExp(`^/api/v1/events/${uuid}$`)],

@@ -128,7 +128,7 @@ export async function fullStack({ booking = false } = {}) {
         windowsHide: true,
       });
       const closed = new Promise((done) => child.once('close', done));
-      children.push({ child, closed });
+      children.push({ child, closed, directory });
       let output = '';
       for (const stream of [child.stdout, child.stderr])
         stream.on('data', (data) => {
@@ -186,7 +186,16 @@ export async function fullStack({ booking = false } = {}) {
       gateway.once('error', reject);
       gateway.listen(Number(origin.port), '127.0.0.1', done);
     });
-    return { origin: origin.origin, close, startBooking };
+    return {
+      origin: origin.origin,
+      close,
+      startBooking,
+      async stopCatalog() {
+        const process = children.find((item) => item.directory === 'services/catalog');
+        process.child.kill('SIGTERM');
+        await process.closed;
+      },
+    };
   } catch (error) {
     await close();
     throw error;

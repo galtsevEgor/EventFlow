@@ -40,11 +40,11 @@ export class PublicationService {
         seats: materializeSeats(config),
       });
       const snapshotHash = createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+      const envelope = message('catalog', 'SaleProvisionRequested.v1', eventId, 1, snapshot);
       const publication = await tx.publication.create({
-        data: { eventId, snapshot, snapshotHash },
+        data: { eventId, snapshot, snapshotHash, requestId: envelope.eventId },
         select: publicationSelect,
       });
-      const envelope = message('catalog', 'SaleProvisionRequested.v1', eventId, 1, snapshot);
       await tx.outbox.create({ data: { id: envelope.eventId, envelope } });
       await tx.auditEntry.create({
         data: {
@@ -56,6 +56,73 @@ export class PublicationService {
         },
       });
       return publication;
+    });
+  }
+  async retry(
+    actor: UserIdentity,
+    organizationId: string,
+    eventId: string,
+    expectedAttempt: number,
+    idempotencyKey: string,
+  ) {
+    return this.db.$transaction(async (tx) => {
+      await lockOrganization(tx, organizationId);
+      await requireMembership(tx, actor, organizationId, ['OWNER', 'MANAGER']);
+      const event = await tx.eventDraft.findFirst({
+        where: { id: eventId, organizationId },
+        include: { publication: true },
+      });
+      if (!event) throw new ApiError(404, 'NOT_FOUND', 'Мероприятие не найдено.');
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`publication-retry:${idempotencyKey}`}, 0))`;
+      const retry = await tx.publicationRetry.findUnique({ where: { idempotencyKey } });
+      if (retry) {
+        if (retry.eventId !== eventId || retry.attempt !== expectedAttempt + 1)
+          throw new ApiError(
+            409,
+            'IDEMPOTENCY_CONFLICT',
+            'Ключ повтора уже использован с другим запросом.',
+          );
+        return tx.publication.findUniqueOrThrow({ where: { eventId }, select: publicationSelect });
+      }
+      const publication = event.publication;
+      if (publication?.state !== 'FAILED' || publication.attempt !== expectedAttempt)
+        throw new ApiError(
+          409,
+          'PUBLICATION_CHANGED',
+          'Состояние публикации изменилось. Обновите страницу.',
+        );
+      const snapshot = provisionSchema.parse(publication.snapshot);
+      const envelope = message(
+        'catalog',
+        'SaleProvisionRequested.v1',
+        eventId,
+        publication.version,
+        snapshot,
+      );
+      await tx.publicationRetry.create({
+        data: { eventId, idempotencyKey, attempt: expectedAttempt + 1 },
+      });
+      const updated = await tx.publication.update({
+        where: { eventId },
+        data: {
+          state: 'PROVISIONING',
+          attempt: { increment: 1 },
+          requestId: envelope.eventId,
+          failureCode: null,
+        },
+        select: publicationSelect,
+      });
+      await tx.outbox.create({ data: { id: envelope.eventId, envelope } });
+      await tx.auditEntry.create({
+        data: {
+          organizationId,
+          actorSubject: actor.subject,
+          action: 'publication.retried',
+          targetId: eventId,
+          details: { attempt: updated.attempt },
+        },
+      });
+      return updated;
     });
   }
 }

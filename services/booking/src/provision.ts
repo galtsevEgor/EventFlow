@@ -21,7 +21,7 @@ export class ProvisionSale {
       salesEnd = Date.parse(sale.salesEndsAt),
       admissionStart = Date.parse(sale.admissionStartsAt),
       admissionEnd = Date.parse(sale.admissionEndsAt);
-    if (
+    let valid = !(
       new Set(seats.map((s) => s.seatId)).size !== seats.length ||
       new Set(seats.map((s) => `${s.row}:${s.number}`)).size !== seats.length ||
       seats.some((s) => s.seatId !== `r${s.row}-s${s.number}`) ||
@@ -31,26 +31,27 @@ export class ProvisionSale {
         start < end &&
         admissionStart < admissionEnd &&
         admissionStart <= start &&
+        admissionEnd >= start &&
         admissionEnd <= end
       )
-    )
-      throw new PermanentMessageError('Invalid sale invariants');
+    );
     try {
       new Intl.DateTimeFormat('en', { timeZone: sale.timeZone });
     } catch {
-      throw new PermanentMessageError('Invalid timezone');
+      valid = false;
     }
     const snapshotHash = createHash('sha256').update(JSON.stringify(parsed.data)).digest('hex');
     await this.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${event.aggregateId}, 0))`;
       if (await tx.inbox.findUnique({ where: { eventId: event.eventId } })) return;
       const existing = await tx.sale.findUnique({ where: { id: event.aggregateId } });
-      if (
-        existing &&
-        (existing.snapshotHash !== snapshotHash || existing.version !== event.aggregateVersion)
-      )
-        throw new PermanentMessageError('Frozen sale conflict');
-      if (!existing) {
+      const failure = !valid
+        ? 'INVALID_SNAPSHOT'
+        : existing &&
+            (existing.snapshotHash !== snapshotHash || existing.version !== event.aggregateVersion)
+          ? 'SNAPSHOT_CONFLICT'
+          : null;
+      if (!existing && !failure) {
         await tx.sale.create({
           data: { id: event.aggregateId, version: event.aggregateVersion, snapshotHash, ...sale },
         });
@@ -60,10 +61,10 @@ export class ProvisionSale {
       }
       const ack = message(
         'booking',
-        'SaleProvisioned.v1',
+        failure ? 'SaleProvisionFailed.v1' : 'SaleProvisioned.v1',
         event.aggregateId,
         event.aggregateVersion,
-        { snapshotHash },
+        failure ? { snapshotHash, code: failure } : { snapshotHash },
         event,
       );
       await tx.outbox.create({ data: { id: ack.eventId, envelope: ack } });
