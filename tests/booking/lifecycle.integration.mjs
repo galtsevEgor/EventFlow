@@ -8,6 +8,8 @@ import { testIdentity, jsonRequest } from '../helpers/identity.mjs';
 import { OrderSweeper } from '../../services/booking/dist/orders/sweeper.js';
 import { ageOrder } from '../helpers/order.mjs';
 import { eventually } from '../helpers/eventually.mjs';
+import { connect } from 'amqplib';
+import { orderClosedSchema } from '../../packages/event-contracts/dist/index.js';
 
 const namespace = `eventflow-test-${randomUUID()}`;
 let fixture, identity, buyer, sweeper;
@@ -45,6 +47,21 @@ test('cancellation releases the whole order, emits one event and never allows an
     ).length,
     1,
   );
+  await eventually(
+    () => fixture.db.outbox.findFirst({ where: { id: events[0].id } }),
+    (event) => event.sentAt !== null,
+  );
+  const connection = await connect(process.env.AMQP_URL);
+  try {
+    const channel = await connection.createChannel();
+    const delivery = await channel.get(`${namespace}.payments`, { noAck: true });
+    assert.ok(delivery);
+    const envelope = JSON.parse(delivery.content);
+    assert.equal(envelope.eventType, 'OrderCancelled.v1');
+    assert.deepEqual(orderClosedSchema.parse(envelope.data), { orderId: held.id, saleId: sale.id });
+  } finally {
+    await connection.close();
+  }
 });
 
 test('inline expiry permits takeover and stale cleanup preserves the new owner', async () => {

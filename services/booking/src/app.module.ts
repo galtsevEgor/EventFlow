@@ -1,7 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { HealthModule, Readiness, TokenVerifier } from '@eventflow/service-runtime';
 import { Broker, Outbox, MessageWorker } from '@eventflow/messaging';
-import { saleRoutes } from '@eventflow/event-contracts';
+import { saleRoutes, orderRoutes } from '@eventflow/event-contracts';
 import { Database } from './database';
 import { ProvisionSale } from './provision';
 import { ChangeAvailability } from './availability';
@@ -61,7 +61,7 @@ export class AppModule {
                 url: config.AMQP_URL,
                 namespace: config.MESSAGE_NAMESPACE,
                 consumer: 'booking',
-                routes: saleRoutes,
+                routes: { ...saleRoutes, ...orderRoutes },
               }),
               new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
               (event) =>
