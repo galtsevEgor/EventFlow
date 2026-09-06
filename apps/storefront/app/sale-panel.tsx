@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { createApiClient, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
+import { SeatPicker } from './booking/seat-picker';
 
 const labels = {
   SCHEDULED: 'Продажи ещё не начались',
@@ -69,7 +70,7 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
           </li>
         ))}
       </ul>
-      <p className="muted">Онлайн-бронирование скоро появится.</p>
+      <SeatPicker sale={data} />
     </div>
   );
 }

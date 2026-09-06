@@ -31,6 +31,7 @@ function AccountControls() {
       ) : session.data?.user ? (
         <>
           <span>{session.data.user.email}</span>
+          <a href="/orders">Мои заказы</a>
           <Button variant="secondary" disabled={logout.isPending} onClick={() => logout.mutate()}>
             Выйти
           </Button>
