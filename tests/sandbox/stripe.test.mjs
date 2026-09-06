@@ -11,17 +11,17 @@ import { loginBuyer, publishForBooking } from '../e2e/booking-setup.mjs';
 import { eventually } from '../helpers/eventually.mjs';
 import { ageOrder } from '../helpers/order.mjs';
 
-const Stripe = createRequire(
-  new URL('../../services/payments/package.json', import.meta.url),
-)('stripe');
+const Stripe = createRequire(new URL('../../services/payments/package.json', import.meta.url))(
+  'stripe',
+);
 rmSync('work/e4/stripe-sandbox-result.json', { force: true });
 const config = sandboxConfiguration(process.env);
 
 test(
-  'real Stripe sandbox: Payment Element loads, API test payment reaches the browser through signed webhooks, late success is refunded',
+  'real Stripe sandbox: browser card payment and signed webhooks confirm the order; late success is refunded',
   { timeout: 240000 },
   async () => {
-    let listener, stack, browser;
+    let listener, stack, browser, page;
     let stage = 'webhook listener';
     try {
       listener = await stripeListener(config);
@@ -42,7 +42,7 @@ test(
         maxNetworkRetries: 0,
       });
       browser = await chromium.launch();
-      const page = await browser.newPage();
+      page = await browser.newPage();
       stage = 'buyer login and publication';
       const headers = await loginBuyer(page, stack.origin);
       const saleId = await publishForBooking(page, stack.origin, headers);
@@ -81,7 +81,28 @@ test(
       }
       stage = 'Payment Element and real test payment';
       const first = await prepare('r1-s1');
-      await pay(first.attempt);
+      stage = 'card number';
+      const cardFrames = [];
+      for (const frame of page.frames()) {
+        if (
+          new URL(frame.url()).hostname.endsWith('.stripe.com') &&
+          (await frame.locator('input[name="number"]').count())
+        )
+          cardFrames.push(frame);
+      }
+      assert.equal(cardFrames.length, 1);
+      const card = cardFrames[0];
+      await card.locator('input[name="number"]').fill('4242424242424242');
+      stage = 'card expiry';
+      await card.locator('input[name="expiry"]').fill('1234');
+      stage = 'card cvc';
+      await card.locator('input[name="cvc"]').fill('123');
+      const postal = card.locator('input[name="postalCode"]');
+      if (await postal.isVisible().catch(() => false)) await postal.fill('10001');
+      await page.getByRole('button', { name: /^Оплатить / }).scrollIntoViewIfNeeded();
+      await page.waitForTimeout(2000);
+      // Stripe may expand its frame after card entry; let the layout settle before clicking.
+      await page.getByRole('button', { name: /^Оплатить / }).click();
       stage = 'signed payment webhook and Booking confirmation';
       await eventually(
         () =>
@@ -162,7 +183,7 @@ test(
             currency: 'EUR',
             paymentElement: 'loaded',
             signedWebhooks: true,
-            cardEntry: 'manual browser acceptance still required',
+            cardEntry: 'browser Payment Element test card submitted',
           },
           null,
           2,
