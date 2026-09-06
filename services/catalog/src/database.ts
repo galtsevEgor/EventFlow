@@ -16,7 +16,7 @@ export class Database extends PrismaClient {
   async onModuleInit() {
     await this.$connect();
   }
-  async onModuleDestroy() {
+  async onApplicationShutdown() {
     await this.$disconnect();
   }
 }

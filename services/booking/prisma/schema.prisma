@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated"
+  moduleFormat = "cjs"
+  importFileExtension = "js"
+}
+datasource db {
+  provider = "postgresql"
+}
+model Sale {
+  id String @id @db.Uuid
+  organizationId String @db.Uuid
+  version Int
+  snapshotHash String @db.Char(64)
+  title String @db.VarChar(160)
+  currency String @db.Char(3)
+  timeZone String @db.VarChar(100)
+  startsAt DateTime @db.Timestamptz
+  endsAt DateTime @db.Timestamptz
+  salesStartsAt DateTime @db.Timestamptz
+  salesEndsAt DateTime @db.Timestamptz
+  admissionStartsAt DateTime @db.Timestamptz
+  admissionEndsAt DateTime @db.Timestamptz
+  createdAt DateTime @default(now()) @db.Timestamptz
+  seats SeatInventory[]
+}
+model SeatInventory {
+  saleId String @db.Uuid
+  seatId String @db.VarChar(20)
+  row Int
+  number Int
+  categoryId String @db.VarChar(32)
+  categoryName String @db.VarChar(60)
+  priceMinor Int
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  @@id([saleId, seatId])
+  @@unique([saleId, row, number])
+}
+
+model Outbox {
+  id String @id @db.Uuid
+  envelope Json
+  availableAt DateTime @default(now()) @db.Timestamptz
+  sentAt DateTime? @db.Timestamptz
+  lease String? @db.Uuid
+  attempts Int @default(0)
+  @@index([sentAt, availableAt])
+}
+model Inbox {
+  eventId String @id @db.Uuid
+  processedAt DateTime @default(now()) @db.Timestamptz
+}

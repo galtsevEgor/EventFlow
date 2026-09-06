@@ -37,7 +37,10 @@ export class CoverService {
       const result = await this.db.$transaction(async (tx) => {
         await lockOrganization(tx, organizationId);
         await requireMembership(tx, actor, organizationId, ['OWNER', 'MANAGER']);
-        const event = await tx.eventDraft.findFirst({ where: { id: eventId, organizationId } });
+        const event = await tx.eventDraft.findFirst({
+          where: { id: eventId, organizationId },
+          include: { publication: true },
+        });
         if (!event) throw new ApiError(404, 'NOT_FOUND', 'Мероприятие не найдено.');
         await tx.coverAsset.create({
           data: {
@@ -47,6 +50,7 @@ export class CoverService {
             width: approved.width,
             height: approved.height,
             bytes: approved.body.length,
+            isPublic: event.publication?.state === 'PUBLISHED',
           },
         });
         const updated = await tx.eventDraft.update({

@@ -223,6 +223,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/organizations/{id}/events/{eventId}/publication': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['publishEvent'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/session': {
     parameters: {
       query?: never;
@@ -358,6 +374,7 @@ export interface components {
       configuration: components['schemas']['EventConfiguration'] | null;
       /** Format: uuid */
       coverId: string | null;
+      publication?: components['schemas']['Publication'] | null;
     };
     DraftInput: {
       title: string;
@@ -420,6 +437,19 @@ export interface components {
           disabled: boolean;
         }[];
       };
+    };
+    Publication: {
+      /** Format: uuid */
+      eventId: string;
+      /** @constant */
+      version: 1;
+      /** @enum {string} */
+      state: 'PROVISIONING' | 'PUBLISHED';
+      snapshotHash: string;
+      /** Format: date-time */
+      requestedAt: string;
+      /** Format: date-time */
+      publishedAt: string | null;
     };
     Identity: {
       sub: string;
@@ -1162,6 +1192,44 @@ export interface operations {
         };
         content: {
           'image/webp': Blob;
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  publishEvent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          revision: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Publication requested or existing publication */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Publication'];
         };
       };
       /** @description Request failed */

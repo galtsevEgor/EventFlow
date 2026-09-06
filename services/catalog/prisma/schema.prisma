@@ -78,6 +78,7 @@ model EventDraft {
   configuration  Json?
   coverId        String? @db.Uuid
   cover          CoverAsset? @relation("CurrentCover", fields: [coverId], references: [id], onDelete: SetNull)
+  publication    Publication?
   assets         CoverAsset[] @relation("EventAssets")
   revision       Int @default(0)
   createdAt      DateTime @default(now()) @db.Timestamptz
@@ -110,4 +111,29 @@ model CoverAsset {
   currentFor EventDraft[] @relation("CurrentCover")
 
   @@index([eventId])
+}
+
+model Publication {
+  eventId String @id @db.Uuid
+  version Int @default(1)
+  state String @default("PROVISIONING") @db.VarChar(20)
+  snapshot Json
+  snapshotHash String @db.Char(64)
+  requestedAt DateTime @default(now()) @db.Timestamptz
+  publishedAt DateTime? @db.Timestamptz
+  event EventDraft @relation(fields: [eventId], references: [id], onDelete: Restrict)
+}
+
+model Outbox {
+  id String @id @db.Uuid
+  envelope Json
+  availableAt DateTime @default(now()) @db.Timestamptz
+  sentAt DateTime? @db.Timestamptz
+  lease String? @db.Uuid
+  attempts Int @default(0)
+  @@index([sentAt, availableAt])
+}
+model Inbox {
+  eventId String @id @db.Uuid
+  processedAt DateTime @default(now()) @db.Timestamptz
 }

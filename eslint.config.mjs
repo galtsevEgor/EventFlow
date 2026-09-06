@@ -13,6 +13,7 @@ export default tseslint.config(
       '**/next-env.d.ts',
       'spikes/booking/generated/**',
       'services/catalog/src/generated/**',
+      'services/booking/src/generated/**',
     ],
   },
   js.configs.recommended,

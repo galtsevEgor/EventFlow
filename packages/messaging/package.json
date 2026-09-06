@@ -1,0 +1,16 @@
+{
+  "name": "@eventflow/messaging",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@eventflow/event-contracts": "workspace:*",
+    "amqplib": "2.2.0"
+  }
+}

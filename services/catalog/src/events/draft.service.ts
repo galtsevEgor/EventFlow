@@ -1,5 +1,6 @@
 import { ApiError, parseInput, type UserIdentity } from '@eventflow/service-runtime';
 import { configurationSchema } from './configuration';
+import { publicationSelect } from '../publication/view';
 import { Database } from '../database';
 import { lockOrganization, requireMembership } from '../organizations/access';
 
@@ -23,8 +24,17 @@ export class DraftService {
     return this.db.$transaction(async (tx) => {
       await lockOrganization(tx, organizationId);
       await requireMembership(tx, actor, organizationId, ['OWNER', 'MANAGER']);
-      const event = await tx.eventDraft.findFirst({ where: { id, organizationId } });
+      const event = await tx.eventDraft.findFirst({
+        where: { id, organizationId },
+        include: { publication: { select: publicationSelect } },
+      });
       if (!event) throw new ApiError(404, 'NOT_FOUND', 'Мероприятие не найдено.');
+      if (event.publication)
+        throw new ApiError(
+          409,
+          'SALE_FROZEN',
+          'Расписание, места и цены зафиксированы при публикации.',
+        );
       if (event.revision !== revision)
         throw new ApiError(
           409,
@@ -57,6 +67,7 @@ export class DraftService {
             ? { assignments: { some: { userSubject: actor.subject } } }
             : {}),
         },
+        include: { publication: { select: publicationSelect } },
         orderBy: { createdAt: 'desc' },
         take: 100,
       }),
@@ -65,6 +76,7 @@ export class DraftService {
   async get(actor: UserIdentity, organizationId: string, id: string) {
     const member = await requireMembership(this.db, actor, organizationId);
     const event = await this.db.eventDraft.findFirst({
+      include: { publication: { select: publicationSelect } },
       where: {
         id,
         organizationId,
@@ -85,8 +97,19 @@ export class DraftService {
     return this.db.$transaction(async (tx) => {
       await lockOrganization(tx, organizationId);
       await requireMembership(tx, actor, organizationId, ['OWNER', 'MANAGER']);
-      if (id && !(await tx.eventDraft.findFirst({ where: { id, organizationId } })))
-        throw new ApiError(404, 'NOT_FOUND', 'Мероприятие не найдено.');
+      if (id) {
+        const current = await tx.eventDraft.findFirst({
+          where: { id, organizationId },
+          include: { publication: { select: publicationSelect } },
+        });
+        if (!current) throw new ApiError(404, 'NOT_FOUND', 'Мероприятие не найдено.');
+        if (current.publication && current.title !== data.title)
+          throw new ApiError(
+            409,
+            'SALE_FROZEN',
+            'Название зафиксировано при публикации. Можно изменить описание и афишу.',
+          );
+      }
       const event = id
         ? await tx.eventDraft.update({
             where: { id },

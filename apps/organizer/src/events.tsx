@@ -3,10 +3,11 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Badge, Button, Dialog, EmptyState, Field, Loading } from '@eventflow/ui';
+import { Button, Dialog, EmptyState, Field, Loading } from '@eventflow/ui';
 import { api, queryClient, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
 import { EventCover } from './event-cover';
+import { EventPublication } from './event-publication';
 const EventConfiguration = lazy(() =>
   import('./event-configuration').then((module) => ({ default: module.EventConfiguration })),
 );
@@ -18,6 +19,10 @@ const input = z.object({
 export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
   const events = useQuery({
     queryKey: ['events', id],
+    refetchInterval: (query) =>
+      query.state.data?.events.some((event) => event.publication?.state === 'PROVISIONING')
+        ? 1000
+        : false,
     queryFn: async () =>
       unwrap(
         await api.client.GET('/api/v1/organizations/{id}/events', { params: { path: { id } } }),
@@ -89,7 +94,7 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
                 alt={`Афиша: ${event.title}`}
               />
             )}
-            <Badge>Черновик</Badge>
+            <EventPublication id={id} event={event} canEdit={canEdit} />
             <h3>{event.title}</h3>
             <p>{event.description || 'Описание ещё не добавлено.'}</p>
             {canEdit && (
@@ -98,7 +103,11 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
               </Button>
             )}
             {canEdit && (
-              <Button variant="secondary" onClick={() => setConfiguring(event)}>
+              <Button
+                variant="secondary"
+                disabled={!!event.publication}
+                onClick={() => setConfiguring(event)}
+              >
                 Настроить продажи
               </Button>
             )}
@@ -121,6 +130,7 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
         <form onSubmit={form.handleSubmit((data) => save.mutate(data))}>
           <Field
             label="Название мероприятия"
+            readOnly={editing !== 'new' && !!editing?.publication}
             maxLength={160}
             error={form.formState.errors.title?.message}
             {...form.register('title')}

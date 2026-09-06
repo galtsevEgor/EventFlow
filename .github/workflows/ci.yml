@@ -60,6 +60,7 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm build
       - run: pnpm test:catalog
+      - run: pnpm test:publication
       - run: pnpm test:smoke
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:identity

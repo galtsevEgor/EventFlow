@@ -15,6 +15,11 @@ import { PolicyService } from './policy/policy.service';
 import { CoverController, PublicCoverController } from './covers/cover.controller';
 import { CoverService } from './covers/cover.service';
 import { CoverStorage } from './covers/storage';
+import { Broker, Outbox, MessageWorker } from '@eventflow/messaging';
+import { saleRoutes } from '@eventflow/event-contracts';
+import { PublicationService } from './publication/publication.service';
+import { PublicationController } from './publication/publication.controller';
+import { PublicationConsumer } from './publication/consumer';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -28,8 +33,38 @@ export class AppModule {
         PolicyController,
         CoverController,
         PublicCoverController,
+        PublicationController,
       ],
       providers: [
+        {
+          provide: PublicationService,
+          inject: [Database],
+          useFactory: (db: Database) => new PublicationService(db),
+        },
+        {
+          provide: PublicationConsumer,
+          inject: [Database],
+          useFactory: (db: Database) => new PublicationConsumer(db),
+        },
+        ...(config.AMQP_URL
+          ? [
+              {
+                provide: MessageWorker,
+                inject: [Database, PublicationConsumer],
+                useFactory: (db: Database, consumer: PublicationConsumer) =>
+                  new MessageWorker(
+                    new Broker({
+                      url: config.AMQP_URL,
+                      namespace: config.MESSAGE_NAMESPACE,
+                      consumer: 'catalog',
+                      routes: saleRoutes,
+                    }),
+                    new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
+                    (event) => consumer.handle(event),
+                  ),
+              },
+            ]
+          : []),
         {
           provide: CoverStorage,
           useFactory: () => (config.S3_ENDPOINT ? new CoverStorage(config) : null),

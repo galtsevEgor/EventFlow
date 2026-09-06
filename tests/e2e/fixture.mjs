@@ -5,6 +5,8 @@ import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import pg from 'pg';
 import { createClient } from 'redis';
+import { cleanBroker } from '../helpers/broker.mjs';
+import { bookingFixture } from '../helpers/booking.mjs';
 import { createGateway } from '../../scripts/gateway.mjs';
 import {
   S3Client,
@@ -21,9 +23,10 @@ async function availablePort() {
   return port;
 }
 
-export async function fullStack() {
+export async function fullStack({ booking = false } = {}) {
   const database = `eventflow_e2e_${randomUUID().replaceAll('-', '')}`;
   const prefix = `e2e:${randomUUID()}:`;
+  const namespace = `eventflow-test-${randomUUID()}`;
   const bucket = `eventflow-e2e-${randomUUID()}`;
   const admin = new pg.Client({
     host: '127.0.0.1',
@@ -35,6 +38,11 @@ export async function fullStack() {
   await admin.connect();
   const children = [];
   let gateway;
+  let bookingService;
+  async function startBooking() {
+    bookingService ??= await bookingFixture(namespace);
+    return bookingService;
+  }
   async function close() {
     if (gateway) {
       gateway.closeAllConnections();
@@ -63,8 +71,10 @@ export async function fullStack() {
     } finally {
       if (redis.isOpen) await redis.quit();
     }
+    await bookingService?.close();
     await admin.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
     await admin.end();
+    await cleanBroker(namespace);
     const storage = new S3Client({
       endpoint: process.env.S3_ENDPOINT,
       region: 'us-east-1',
@@ -93,6 +103,7 @@ export async function fullStack() {
       ...process.env,
       CATALOG_DATABASE_URL: dbUrl.href,
       S3_COVERS_BUCKET: bucket,
+      MESSAGE_NAMESPACE: namespace,
       SESSION_PREFIX: prefix,
       EVENTFLOW_LOG_REQUESTS: '0',
       NEXT_TELEMETRY_DISABLED: '1',
@@ -137,6 +148,7 @@ export async function fullStack() {
       throw new Error(`${directory} startup timed out: ${output}`);
     }
     const catalog = await start('services/catalog', () => ['dist/main.js'], '/health/ready');
+    if (booking) await startBooking();
     const bff = await start('apps/bff', () => ['dist/main.js'], '/health/ready', {
       CATALOG_URL: catalog,
     });
@@ -171,7 +183,7 @@ export async function fullStack() {
       gateway.once('error', reject);
       gateway.listen(Number(origin.port), '127.0.0.1', done);
     });
-    return { origin: origin.origin, close };
+    return { origin: origin.origin, close, startBooking };
   } catch (error) {
     await close();
     throw error;

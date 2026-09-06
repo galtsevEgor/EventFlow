@@ -14,7 +14,8 @@ export const eventEnvelopeSchema = z.strictObject({
     .regex(/^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/)
     .optional(),
   producer: z.enum(['catalog', 'booking', 'payments', 'tickets']),
-  data: z.record(z.string(), z.unknown()),
+  data: z.record(z.string(), z.json()),
 });
 
 export type EventEnvelope = z.infer<typeof eventEnvelopeSchema>;
+export * from './sales.js';

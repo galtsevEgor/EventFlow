@@ -20,7 +20,9 @@
     "zod": "4.6.7",
     "@nestjs/platform-express": "12.3.2",
     "@aws-sdk/client-s3": "3.1158.0",
-    "sharp": "0.35.5"
+    "sharp": "0.35.5",
+    "@eventflow/event-contracts": "workspace:*",
+    "@eventflow/messaging": "workspace:*"
   },
   "devDependencies": {
     "jose": "6.2.13",
