@@ -27,6 +27,10 @@ model Sale {
   seats SeatInventory[]
 }
 model SeatInventory {
+  state SeatState @default(AVAILABLE)
+  currentOrderId String? @db.Uuid
+  expiresAt DateTime? @db.Timestamptz(3)
+  version Int @default(0)
   saleId String @db.Uuid
   seatId String @db.VarChar(20)
   row Int
@@ -37,6 +41,61 @@ model SeatInventory {
   sale Sale @relation(fields: [saleId], references: [id], onDelete: Restrict)
   @@id([saleId, seatId])
   @@unique([saleId, row, number])
+}
+
+enum OrderState {
+  HELD
+  CONFIRMED
+  EXPIRED
+  CANCELLED
+}
+enum SeatState {
+  AVAILABLE
+  HELD
+  SOLD
+}
+model Order {
+  id String @id @db.Uuid
+  saleId String @db.Uuid
+  buyerSubject String @db.VarChar(255)
+  organizationId String @db.Uuid
+  title String @db.VarChar(160)
+  currency String @db.Char(3)
+  totalMinor Int
+  state OrderState @default(HELD)
+  createdAt DateTime @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  items OrderItem[]
+  @@unique([id, saleId])
+  @@unique([id, saleId, buyerSubject])
+  @@index([buyerSubject, createdAt])
+  @@index([state, expiresAt])
+}
+model OrderItem {
+  orderId String @db.Uuid
+  saleId String @db.Uuid
+  seatId String @db.VarChar(20)
+  row Int
+  number Int
+  categoryName String @db.VarChar(60)
+  priceMinor Int
+  order Order @relation(fields: [orderId, saleId], references: [id, saleId], onDelete: Restrict)
+  @@id([orderId, seatId])
+}
+model BuyerSaleSlot {
+  buyerSubject String @db.VarChar(255)
+  saleId String @db.Uuid
+  currentOrderId String? @db.Uuid
+  @@id([buyerSubject, saleId])
+}
+model ReservationRequest {
+  buyerSubject String @db.VarChar(255)
+  key String @db.Uuid
+  payloadHash String @db.Char(64)
+  status Int
+  response Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([buyerSubject, key])
 }
 
 model Outbox {
