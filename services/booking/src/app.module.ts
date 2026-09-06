@@ -16,6 +16,7 @@ import { OrderSweeper } from './orders/sweeper';
 import { PaymentAuthorization } from './payments/authorization';
 import { BookingPaymentsController } from './payments/controller';
 import { ConfirmPayment } from './payments/confirm';
+import { RefundOutcome } from './payments/refund-outcome';
 
 @Module({ imports: [HealthModule.forService('booking')] })
 export class AppModule {
@@ -78,11 +79,13 @@ export class AppModule {
               }),
               new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
               (event) =>
-                event.eventType === 'PaymentSucceeded.v1'
-                  ? new ConfirmPayment(db).handle(event)
-                  : event.eventType === 'SaleAvailabilityRequested.v1'
-                    ? new ChangeAvailability(db).handle(event)
-                    : provision.handle(event),
+                event.eventType.startsWith('Refund')
+                  ? new RefundOutcome(db).handle(event)
+                  : event.eventType === 'PaymentSucceeded.v1'
+                    ? new ConfirmPayment(db).handle(event)
+                    : event.eventType === 'SaleAvailabilityRequested.v1'
+                      ? new ChangeAvailability(db).handle(event)
+                      : provision.handle(event),
             ),
         },
         {

@@ -57,7 +57,13 @@ export const orderConfirmedSchema = z.strictObject({
 });
 export const commerceRoutes = {
   catalog: saleRoutes.catalog,
-  booking: [...saleRoutes.booking, 'PaymentSucceeded.v1'],
+  booking: [
+    ...saleRoutes.booking,
+    'PaymentSucceeded.v1',
+    'RefundSucceeded.v1',
+    'RefundFailed.v1',
+    'RefundReviewRequired.v1',
+  ],
   payments: [
     ...orderRoutes.payments,
     'OrderConfirmed.v1',
@@ -66,3 +72,12 @@ export const commerceRoutes = {
   ],
   tickets: ['OrderConfirmed.v1'],
 };
+export const refundOutcomeSchema = z.strictObject({
+  operationId: z.uuid(),
+  orderId: z.uuid(),
+  attemptId: z.uuid(),
+  providerPaymentId: z.string().min(1).max(255),
+  providerRefundId: z.string().min(1).max(255).nullable(),
+  state: z.enum(['SUCCEEDED', 'REQUIRES_REVIEW']),
+  code: z.string().max(60).nullable(),
+});

@@ -13,6 +13,7 @@ import { ReadPayment } from './attempts/read';
 import { PaymentController } from './controller';
 import { PaymentInbox } from './inbox';
 import { Reconciler } from './reconciler';
+import { ProcessRefund } from './refunds/process';
 
 @Module({ imports: [HealthModule.forService('payments')] })
 export class AppModule {
@@ -21,6 +22,11 @@ export class AppModule {
       module: AppModule,
       controllers: [PaymentController],
       providers: [
+        {
+          provide: ProcessRefund,
+          inject: [Database, 'PAYMENT_PROVIDER'],
+          useFactory: (db: Database, provider: PaymentProvider) => new ProcessRefund(db, provider),
+        },
         { provide: Database, useFactory: () => new Database(config.PAYMENTS_DATABASE_URL) },
         {
           provide: TokenVerifier,
@@ -61,8 +67,9 @@ export class AppModule {
         },
         {
           provide: Reconciler,
-          inject: [ProcessAttempt],
-          useFactory: (processor: ProcessAttempt) => new Reconciler(processor),
+          inject: [ProcessAttempt, ProcessRefund],
+          useFactory: (processor: ProcessAttempt, refunds: ProcessRefund) =>
+            new Reconciler(processor, refunds),
         },
         {
           provide: MessageWorker,

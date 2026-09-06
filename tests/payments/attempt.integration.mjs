@@ -46,7 +46,8 @@ async function create(order, key = randomUUID()) {
 }
 async function run(id) {
   await fixture.processor.wake(id);
-  await fixture.processor.run(id);
+  // A broker consumer may briefly hold this row; the production loop retries skipped claims.
+  await eventually(() => fixture.processor.run(id), Boolean);
 }
 
 test('repeated creation across keys gives one attempt and rejects changed order, price and owner', async () => {
@@ -148,7 +149,7 @@ test('successful fake payment travels through real RabbitMQ to Booking and back'
   const status = (await request(`/api/v1/orders/${order.id}/payment-status`, buyer)).body;
   assert.equal(status.canPay, false);
   assert.equal(status.clientSecret, null);
-  await run(created.attemptId);
+  assert.equal(await fixture.processor.run(created.attemptId), false);
   assert.equal(
     (await fixture.db.outbox.findMany()).filter(
       (e) => e.envelope.aggregateId === order.id && e.envelope.eventType === 'PaymentSucceeded.v1',

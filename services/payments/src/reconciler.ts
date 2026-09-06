@@ -1,10 +1,14 @@
 import type { ProcessAttempt } from './attempts/process';
+import type { ProcessRefund } from './refunds/process';
 
 export class Reconciler {
   private stopped = true;
   private timer: NodeJS.Timeout | undefined;
   private running: Promise<void> = Promise.resolve();
-  constructor(private readonly attempts: ProcessAttempt) {}
+  constructor(
+    private readonly attempts: ProcessAttempt,
+    private readonly refunds: ProcessRefund,
+  ) {}
   onModuleInit() {
     this.start();
   }
@@ -21,6 +25,9 @@ export class Reconciler {
   }
   private async tick() {
     try {
+      for (let i = 0; i < 10 && !this.stopped; i++) {
+        if (!(await this.refunds.run())) break;
+      }
       for (let i = 0; i < 20 && !this.stopped; i++) {
         if (!(await this.attempts.run())) break;
       }

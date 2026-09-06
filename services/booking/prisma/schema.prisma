@@ -116,6 +116,7 @@ model PaymentAuthorization {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
 model PaymentResult {
+  refundState String? @db.VarChar(20)
   providerPaymentId String @id @db.VarChar(255)
   attemptId String @db.Uuid
   orderId String @db.Uuid
