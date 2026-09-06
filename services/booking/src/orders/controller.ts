@@ -4,6 +4,7 @@ import { ApiError, parseInput, TokenVerifier } from '@eventflow/service-runtime'
 import { z } from 'zod';
 import { Reserve } from './reserve';
 import { OrderReader } from './reader';
+import { OrderLifecycle } from './lifecycle';
 
 @Controller('api/v1/orders')
 export class OrderController {
@@ -11,6 +12,7 @@ export class OrderController {
     @Inject(TokenVerifier) private readonly verifier: TokenVerifier,
     @Inject(Reserve) private readonly reserve: Reserve,
     @Inject(OrderReader) private readonly reader: OrderReader,
+    @Inject(OrderLifecycle) private readonly lifecycle: OrderLifecycle,
   ) {}
   private async buyer(authorization: string | undefined) {
     const user = await this.verifier.user(authorization);
@@ -56,5 +58,15 @@ export class OrderController {
     const buyer = await this.buyer(auth);
     response.setHeader('cache-control', 'no-store');
     return this.reader.read(buyer, parseInput(z.uuid(), id));
+  }
+  @Post(':id/cancel')
+  async cancel(
+    @Headers('authorization') auth: string | undefined,
+    @Param('id') id: string,
+    @Res() response: Response,
+  ) {
+    const result = await this.lifecycle.cancel(await this.buyer(auth), parseInput(z.uuid(), id));
+    response.setHeader('cache-control', 'no-store');
+    response.status(200).json(result);
   }
 }

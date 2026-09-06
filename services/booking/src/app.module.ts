@@ -11,6 +11,8 @@ import type { BookingConfig } from './config';
 import { Reserve } from './orders/reserve';
 import { OrderReader } from './orders/reader';
 import { OrderController } from './orders/controller';
+import { OrderLifecycle } from './orders/lifecycle';
+import { OrderSweeper } from './orders/sweeper';
 
 @Module({ imports: [HealthModule.forService('booking')] })
 export class AppModule {
@@ -19,6 +21,16 @@ export class AppModule {
       module: AppModule,
       controllers: [SaleController, OrderController],
       providers: [
+        {
+          provide: OrderLifecycle,
+          inject: [Database],
+          useFactory: (db: Database) => new OrderLifecycle(db),
+        },
+        {
+          provide: OrderSweeper,
+          inject: [Database, OrderLifecycle],
+          useFactory: (db: Database, lifecycle: OrderLifecycle) => new OrderSweeper(db, lifecycle),
+        },
         {
           provide: TokenVerifier,
           useFactory: () => new TokenVerifier(config.OIDC_ISSUER, 'eventflow-booking'),

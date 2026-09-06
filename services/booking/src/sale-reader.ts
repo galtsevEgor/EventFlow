@@ -27,14 +27,17 @@ export class SaleReader {
         salesEndsAt: sale.salesEndsAt,
         paused: sale.paused,
         commandVersion: sale.commandVersion,
-        seats: sale.seats.map(({ seatId, row, number, categoryId, categoryName, priceMinor }) => ({
-          seatId,
-          row,
-          number,
-          categoryId,
-          categoryName,
-          priceMinor,
-        })),
+        seats: sale.seats.map(
+          ({ seatId, row, number, categoryId, categoryName, priceMinor, state, expiresAt }) => ({
+            seatId,
+            row,
+            number,
+            categoryId,
+            categoryName,
+            priceMinor,
+            state: state === 'HELD' && expiresAt && expiresAt <= clock.now ? 'AVAILABLE' : state,
+          }),
+        ),
       };
     });
   }

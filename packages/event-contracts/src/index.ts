@@ -19,3 +19,4 @@ export const eventEnvelopeSchema = z.strictObject({
 
 export type EventEnvelope = z.infer<typeof eventEnvelopeSchema>;
 export * from './sales.js';
+export * from './orders.js';
