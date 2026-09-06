@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { before, after, test } from 'node:test';
 import { createApplication } from '../../packages/service-runtime/dist/index.js';
 import { stripeContract } from '../helpers/stripe-contract.mjs';
@@ -18,6 +19,10 @@ import { CreateAttempt } from '../../services/payments/dist/attempts/create.js';
 import { ReadPayment } from '../../services/payments/dist/attempts/read.js';
 
 let fixture, provider, persistence, app, origin;
+// The recording contains only non-identifying fields observed in the real sandbox.
+const recorded = JSON.parse(
+  readFileSync(new URL('./fixtures/stripe-sandbox-contract.json', import.meta.url), 'utf8'),
+);
 const namespace = `eventflow-test-${randomUUID()}`;
 before(async () => {
   fixture = await stripeContract();
@@ -81,7 +86,7 @@ test('Stripe request contract pins API version, card methods, authoritative pric
   const requests = fixture.state.requests.slice(-2);
   assert.equal(requests[0].key, `eventflow:payment:${fixture.input.attemptId}`);
   assert.equal(requests[1].key, requests[0].key);
-  assert.equal(requests[0].version, '2026-09-30.endive');
+  assert.equal(requests[0].version, recorded.apiVersion);
   assert.equal(requests[0].fields.amount, String(fixture.input.amountMinor));
   assert.equal(requests[0].fields.currency, 'eur');
   assert.deepEqual(
@@ -102,6 +107,20 @@ test('cancel race re-reads provider truth; invalid success, live mode and transp
   await assert.rejects(provider.retrieve(fixture.state.payment.id), ProviderMismatch);
   fixture.state.payment.amount_received = fixture.input.amountMinor;
   assert.equal((await provider.cancel(fixture.state.payment.id)).status, 'succeeded');
+  const payment = fixture.state.payment;
+  assert.deepEqual(
+    {
+      object: payment.object,
+      livemode: payment.livemode,
+      currency: payment.currency,
+      status: payment.status,
+      captureMethod: payment.capture_method,
+      paymentMethodTypes: payment.payment_method_types,
+      amountMatchesReceived: payment.amount === payment.amount_received,
+      metadataKeys: Object.keys(payment.metadata).sort(),
+    },
+    recorded.payment,
+  );
   fixture.state.payment.livemode = true;
   await assert.rejects(provider.retrieve(fixture.state.payment.id), ProviderMismatch);
   fixture.state.payment.livemode = false;
@@ -119,6 +138,16 @@ test('refunds use a stable operation key and discovery refuses unrelated refunds
   assert.equal(await provider.findRefund(input), null);
   const result = await provider.refund(input);
   assert.equal(result.status, 'succeeded');
+  const refund = fixture.state.refunds[0];
+  assert.deepEqual(
+    {
+      object: refund.object,
+      status: refund.status,
+      currency: refund.currency,
+      metadataKeys: Object.keys(refund.metadata).sort(),
+    },
+    recorded.refund,
+  );
   assert.equal(fixture.state.requests.at(-1).key, `eventflow:refund:${input.operationId}`);
   assert.deepEqual(await provider.findRefund(input), result);
   await assert.rejects(

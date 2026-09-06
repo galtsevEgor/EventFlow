@@ -1,0 +1,19 @@
+{
+  "apiVersion": "2026-09-30.endive",
+  "payment": {
+    "object": "payment_intent",
+    "livemode": false,
+    "currency": "eur",
+    "status": "succeeded",
+    "captureMethod": "automatic",
+    "paymentMethodTypes": ["card"],
+    "amountMatchesReceived": true,
+    "metadataKeys": ["application", "attemptId", "orderId"]
+  },
+  "refund": {
+    "object": "refund",
+    "status": "succeeded",
+    "currency": "eur",
+    "metadataKeys": ["application", "operationId"]
+  }
+}
