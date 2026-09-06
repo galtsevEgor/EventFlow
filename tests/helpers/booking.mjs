@@ -44,6 +44,7 @@ export async function bookingFixture(namespace, port = 0, overrides = {}) {
     return {
       app,
       db: app.get(Database),
+      databaseUrl: url.href,
       origin: await app.getUrl(),
       async close() {
         await app.close();

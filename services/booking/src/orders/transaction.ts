@@ -1,8 +1,14 @@
 import { ApiError } from '@eventflow/service-runtime';
 import { Prisma, type Order, type SeatInventory } from '../generated/client';
 import type { Database } from '../database';
+import { z } from 'zod';
 
 export type Transaction = Prisma.TransactionClient;
+const adapterFailure = z.object({
+  driverAdapterError: z.object({ cause: z.object({ originalCode: z.string() }) }),
+});
+const busy = () =>
+  new ApiError(503, 'BOOKING_BUSY', 'Бронирование занято. Повторите тот же запрос.');
 
 export async function transaction<T>(
   db: Database,
@@ -12,12 +18,20 @@ export async function transaction<T>(
     try {
       return await db.$transaction(run);
     } catch (error) {
-      const retryable =
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        (error.code === 'P2034' || ['40001', '40P01'].includes(String(error.meta?.code)));
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError)) throw error;
+      // The pg adapter wraps SQLSTATE; the binary engine exposes it directly in meta.code.
+      const adapter = adapterFailure.safeParse(error.meta);
+      const sqlState = adapter.success
+        ? adapter.data.driverAdapterError.cause.originalCode
+        : String(error.meta?.code);
+      if (
+        ['P2024', 'P2028', 'P1001', 'P1002', 'P1017'].includes(error.code) ||
+        ['57014', '55P03'].includes(sqlState)
+      )
+        throw busy();
+      const retryable = error.code === 'P2034' || ['40001', '40P01'].includes(sqlState);
       if (!retryable) throw error;
-      if (attempt === 2)
-        throw new ApiError(503, 'BOOKING_BUSY', 'Бронирование занято. Повторите тот же запрос.');
+      if (attempt === 2) throw busy();
       await new Promise((resolve) => setTimeout(resolve, 10 * (attempt + 1)));
     }
   }
