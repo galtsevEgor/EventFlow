@@ -75,6 +75,8 @@ model EventDraft {
   organizationId String @db.Uuid
   title          String @db.VarChar(160)
   description    String @default("") @db.VarChar(5000)
+  configuration  Json?
+  revision       Int @default(0)
   createdAt      DateTime @default(now()) @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignments    StaffAssignment[]

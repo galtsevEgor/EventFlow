@@ -175,6 +175,22 @@ export interface paths {
     patch: operations['updateDraft'];
     trace?: never;
   };
+  '/api/v1/organizations/{id}/events/{eventId}/configuration': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations['configureDraft'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/session': {
     parameters: {
       query?: never;
@@ -306,6 +322,8 @@ export interface components {
       description: string;
       /** Format: date-time */
       createdAt: string;
+      revision: number;
+      configuration: components['schemas']['EventConfiguration'] | null;
     };
     DraftInput: {
       title: string;
@@ -333,6 +351,41 @@ export interface components {
       eventId?: string;
       /** @enum {string} */
       action: 'events:read' | 'events:write' | 'members:manage' | 'check-in';
+    };
+    EventConfiguration: {
+      city: string;
+      address: string;
+      timeZone: string;
+      /** Format: date-time */
+      startsAt: string;
+      /** Format: date-time */
+      endsAt: string;
+      /** Format: date-time */
+      salesStartsAt: string;
+      /** Format: date-time */
+      salesEndsAt: string;
+      /** Format: date-time */
+      admissionStartsAt: string;
+      /** Format: date-time */
+      admissionEndsAt: string;
+      /** @enum {string} */
+      currency: 'EUR';
+      categories: {
+        id: string;
+        name: string;
+        priceMinor: number;
+      }[];
+      layout: {
+        rows: number;
+        columns: number;
+        defaultCategoryId: string;
+        overrides: {
+          row: number;
+          number: number;
+          categoryId: string;
+          disabled: boolean;
+        }[];
+      };
     };
     Identity: {
       sub: string;
@@ -924,6 +977,45 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': components['schemas']['DraftInput'];
+      };
+    };
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Draft'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  configureDraft: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          revision: number;
+          configuration: components['schemas']['EventConfiguration'];
+        };
       };
     };
     responses: {

@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { parseInput } from '@eventflow/service-runtime';
 import { UserGuard, type UserRequest } from '../user.guard';
@@ -13,6 +24,24 @@ const draftInput = z.strictObject({
 @UseGuards(UserGuard)
 export class DraftController {
   constructor(@Inject(DraftService) private readonly drafts: DraftService) {}
+  @Put(':eventId/configuration') configure(
+    @Req() req: UserRequest,
+    @Param('id') id: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseInput(
+      z.strictObject({ revision: z.number().int().nonnegative(), configuration: z.unknown() }),
+      body,
+    );
+    return this.drafts.configure(
+      req.actor,
+      resourceId(id),
+      resourceId(eventId),
+      input.revision,
+      input.configuration,
+    );
+  }
   @Get() list(@Req() req: UserRequest, @Param('id') id: string) {
     return this.drafts.list(req.actor, resourceId(id));
   }

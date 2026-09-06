@@ -47,7 +47,12 @@ export class AppModule {
           inject: [Database],
         },
         UserGuard,
-        ...[MembershipService, InvitationService, DraftService, PolicyService].map((service) => ({
+        {
+          provide: DraftService,
+          useFactory: (db: Database) => new DraftService(db, config.MAXIMUM_PRICE_MINOR),
+          inject: [Database],
+        },
+        ...[MembershipService, InvitationService, PolicyService].map((service) => ({
           provide: service,
           useFactory: (db: Database) => new service(db),
           inject: [Database],

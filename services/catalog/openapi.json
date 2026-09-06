@@ -906,6 +906,75 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{id}/events/{eventId}/configuration": {
+      "put": {
+        "operationId": "configureDraft",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647
+                  },
+                  "configuration": {
+                    "$ref": "#/components/schemas/EventConfiguration"
+                  }
+                },
+                "required": ["revision", "configuration"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1100,9 +1169,32 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "configuration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventConfiguration"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
-        "required": ["id", "organizationId", "title", "description", "createdAt"],
+        "required": [
+          "id",
+          "organizationId",
+          "title",
+          "description",
+          "createdAt",
+          "revision",
+          "configuration"
+        ],
         "additionalProperties": false
       },
       "DraftInput": {
@@ -1181,6 +1273,140 @@
           }
         },
         "required": ["actorSubject", "organizationId", "action"],
+        "additionalProperties": false
+      },
+      "EventConfiguration": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 250
+          },
+          "timeZone": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "salesStartsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "salesEndsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "admissionStartsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "admissionEndsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currency": {
+            "type": "string",
+            "enum": ["EUR"]
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                "priceMinor": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100000000
+                }
+              },
+              "required": ["id", "name", "priceMinor"],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 20
+          },
+          "layout": {
+            "type": "object",
+            "properties": {
+              "rows": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "columns": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "defaultCategoryId": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "overrides": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "row": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 50
+                    },
+                    "number": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 50
+                    },
+                    "categoryId": {
+                      "type": "string",
+                      "maxLength": 32
+                    },
+                    "disabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["row", "number", "categoryId", "disabled"],
+                  "additionalProperties": false
+                },
+                "maxItems": 1000
+              }
+            },
+            "required": ["rows", "columns", "defaultCategoryId", "overrides"],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "city",
+          "address",
+          "timeZone",
+          "startsAt",
+          "endsAt",
+          "salesStartsAt",
+          "salesEndsAt",
+          "admissionStartsAt",
+          "admissionEndsAt",
+          "currency",
+          "categories",
+          "layout"
+        ],
         "additionalProperties": false
       }
     },
