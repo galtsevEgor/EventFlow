@@ -1629,6 +1629,27 @@
           }
         }
       },
+      "PaymentOrder": {
+        "type": "object",
+        "required": [
+          "orderId",
+          "buyerSubject",
+          "amountMinor",
+          "currency",
+          "expiresAt",
+          "serverNow",
+          "state"
+        ],
+        "properties": {
+          "orderId": { "type": "string", "format": "uuid" },
+          "buyerSubject": { "type": "string" },
+          "amountMinor": { "type": "integer" },
+          "currency": { "const": "EUR" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "serverNow": { "type": "string", "format": "date-time" },
+          "state": { "enum": ["HELD", "CONFIRMED", "EXPIRED", "CANCELLED"] }
+        }
+      },
       "Identity": {
         "type": "object",
         "properties": {

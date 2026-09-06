@@ -213,6 +213,119 @@
           }
         }
       }
+    },
+    "/internal/buyer/orders/{id}/payment-state": {
+      "get": {
+        "operationId": "getBuyerPaymentState",
+        "description": "Internal endpoint; not forwarded by the public BFF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative order state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentOrder"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/orders/{id}/payment-state": {
+      "get": {
+        "operationId": "getPaymentState",
+        "description": "Internal endpoint; not forwarded by the public BFF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative order state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentOrder"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/orders/{id}/payment-authorization": {
+      "post": {
+        "operationId": "authorizePayment",
+        "description": "Internal endpoint; not forwarded by the public BFF.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Authoritative order state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentOrder"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["attemptId", "buyerSubject", "provider"],
+                "properties": {
+                  "attemptId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "buyerSubject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "provider": {
+                    "enum": ["fake", "stripe"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -456,6 +569,44 @@
               "type": "string",
               "pattern": "^r\\d{1,2}-s\\d{1,2}$"
             }
+          }
+        }
+      },
+      "PaymentOrder": {
+        "type": "object",
+        "required": [
+          "orderId",
+          "buyerSubject",
+          "amountMinor",
+          "currency",
+          "expiresAt",
+          "serverNow",
+          "state"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "buyerSubject": {
+            "type": "string"
+          },
+          "amountMinor": {
+            "type": "integer"
+          },
+          "currency": {
+            "const": "EUR"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "enum": ["HELD", "CONFIRMED", "EXPIRED", "CANCELLED"]
           }
         }
       }

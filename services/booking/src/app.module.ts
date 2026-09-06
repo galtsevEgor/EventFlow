@@ -1,7 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { HealthModule, Readiness, TokenVerifier } from '@eventflow/service-runtime';
 import { Broker, Outbox, MessageWorker } from '@eventflow/messaging';
-import { saleRoutes, orderRoutes } from '@eventflow/event-contracts';
+import { commerceRoutes } from '@eventflow/event-contracts';
 import { Database } from './database';
 import { ProvisionSale } from './provision';
 import { ChangeAvailability } from './availability';
@@ -13,14 +13,27 @@ import { OrderReader } from './orders/reader';
 import { OrderController } from './orders/controller';
 import { OrderLifecycle } from './orders/lifecycle';
 import { OrderSweeper } from './orders/sweeper';
+import { PaymentAuthorization } from './payments/authorization';
+import { BookingPaymentsController } from './payments/controller';
+import { ConfirmPayment } from './payments/confirm';
 
 @Module({ imports: [HealthModule.forService('booking')] })
 export class AppModule {
   static configure(config: BookingConfig): DynamicModule {
     return {
       module: AppModule,
-      controllers: [SaleController, OrderController],
+      controllers: [SaleController, OrderController, BookingPaymentsController],
       providers: [
+        {
+          provide: PaymentAuthorization,
+          inject: [Database],
+          useFactory: (db: Database) => new PaymentAuthorization(db),
+        },
+        {
+          provide: ConfirmPayment,
+          inject: [Database],
+          useFactory: (db: Database) => new ConfirmPayment(db),
+        },
         {
           provide: OrderLifecycle,
           inject: [Database],
@@ -61,13 +74,15 @@ export class AppModule {
                 url: config.AMQP_URL,
                 namespace: config.MESSAGE_NAMESPACE,
                 consumer: 'booking',
-                routes: { ...saleRoutes, ...orderRoutes },
+                routes: commerceRoutes,
               }),
               new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
               (event) =>
-                event.eventType === 'SaleAvailabilityRequested.v1'
-                  ? new ChangeAvailability(db).handle(event)
-                  : provision.handle(event),
+                event.eventType === 'PaymentSucceeded.v1'
+                  ? new ConfirmPayment(db).handle(event)
+                  : event.eventType === 'SaleAvailabilityRequested.v1'
+                    ? new ChangeAvailability(db).handle(event)
+                    : provision.handle(event),
             ),
         },
         {

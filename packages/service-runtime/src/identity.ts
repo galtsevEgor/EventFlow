@@ -52,13 +52,12 @@ export class TokenVerifier {
     };
   }
   async machine(authorization: string | undefined) {
+    return this.service(authorization, 'eventflow-policy', 'policy-check');
+  }
+  async service(authorization: string | undefined, clientId: string, role: string) {
     const claims = await this.verify(authorization);
     const roles = z.object({ roles: z.array(z.string()) }).safeParse(claims.realm_access);
-    if (
-      claims.azp !== 'eventflow-policy' ||
-      !roles.success ||
-      !roles.data.roles.includes('policy-check')
-    )
+    if (claims.azp !== clientId || !roles.success || !roles.data.roles.includes(role))
       throw new ApiError(403, 'FORBIDDEN', 'Требуется служебное полномочие.');
     return { subject: claims.sub };
   }

@@ -676,6 +676,20 @@ export interface components {
       saleId: string;
       seatIds: string[];
     };
+    PaymentOrder: {
+      /** Format: uuid */
+      orderId: string;
+      buyerSubject: string;
+      amountMinor: number;
+      /** @constant */
+      currency: 'EUR';
+      /** Format: date-time */
+      expiresAt: string;
+      /** Format: date-time */
+      serverNow: string;
+      /** @enum {unknown} */
+      state: 'HELD' | 'CONFIRMED' | 'EXPIRED' | 'CANCELLED';
+    };
     Identity: {
       sub: string;
       email: string;

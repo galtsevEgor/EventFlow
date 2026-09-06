@@ -13,7 +13,9 @@ const schema = {
     ...Object.fromEntries(
       Object.entries(catalog.paths).filter(([path]) => path.startsWith('/api/v1/')),
     ),
-    ...booking.paths,
+    ...Object.fromEntries(
+      Object.entries(booking.paths).filter(([path]) => path.startsWith('/api/v1/')),
+    ),
     ...auth.paths,
   },
   components: {

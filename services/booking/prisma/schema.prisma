@@ -55,6 +55,8 @@ enum SeatState {
   SOLD
 }
 model Order {
+  confirmedPaymentId String? @unique @db.VarChar(255)
+  confirmedAt DateTime? @db.Timestamptz(3)
   id String @id @db.Uuid
   saleId String @db.Uuid
   buyerSubject String @db.VarChar(255)
@@ -106,6 +108,22 @@ model Outbox {
   lease String? @db.Uuid
   attempts Int @default(0)
   @@index([sentAt, availableAt])
+}
+model PaymentAuthorization {
+  attemptId String @id @db.Uuid
+  orderId String @unique @db.Uuid
+  provider String @db.VarChar(12)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}
+model PaymentResult {
+  providerPaymentId String @id @db.VarChar(255)
+  attemptId String @db.Uuid
+  orderId String @db.Uuid
+  payloadHash String @db.Char(64)
+  disposition String @db.VarChar(20)
+  operationId String? @unique @db.Uuid
+  reason String? @db.VarChar(60)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
 model Inbox {
   eventId String @id @db.Uuid
