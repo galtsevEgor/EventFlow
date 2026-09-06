@@ -1,5 +1,6 @@
 import type { ProcessAttempt } from './attempts/process';
 import type { ProcessRefund } from './refunds/process';
+import type { ProcessWebhooks } from './webhooks/process';
 
 export class Reconciler {
   private stopped = true;
@@ -8,6 +9,7 @@ export class Reconciler {
   constructor(
     private readonly attempts: ProcessAttempt,
     private readonly refunds: ProcessRefund,
+    private readonly webhooks: ProcessWebhooks,
   ) {}
   onModuleInit() {
     this.start();
@@ -25,6 +27,7 @@ export class Reconciler {
   }
   private async tick() {
     try {
+      await this.webhooks.run();
       for (let i = 0; i < 10 && !this.stopped; i++) {
         if (!(await this.refunds.run())) break;
       }

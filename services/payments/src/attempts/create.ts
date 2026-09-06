@@ -25,6 +25,12 @@ export class CreateAttempt {
     if (existing && existing.buyerSubject !== buyer)
       throw new ApiError(404, 'NOT_FOUND', 'Заказ не найден.');
     const order = existing ? null : await this.booking.buyerOrder(orderId, token);
+    if (order && this.provider.name === 'stripe' && order.amountMinor < 50)
+      throw new ApiError(
+        422,
+        'PAYMENT_AMOUNT_UNSUPPORTED',
+        'Минимальная сумма тестовой оплаты — 0,50 €.',
+      );
     if (order && (order.buyerSubject !== buyer || order.state !== 'HELD'))
       throw new ApiError(409, 'HOLD_EXPIRED', 'Бронь больше не доступна для оплаты.');
     return this.db.$transaction(async (tx) => {

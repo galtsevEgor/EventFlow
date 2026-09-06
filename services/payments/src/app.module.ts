@@ -14,14 +14,29 @@ import { PaymentController } from './controller';
 import { PaymentInbox } from './inbox';
 import { Reconciler } from './reconciler';
 import { ProcessRefund } from './refunds/process';
+import { StripePaymentProvider } from './providers/stripe';
+import { ReceiveWebhook } from './webhooks/receive';
+import { ProcessWebhooks } from './webhooks/process';
+import { WebhookController } from './webhooks/controller';
 
 @Module({ imports: [HealthModule.forService('payments')] })
 export class AppModule {
   static configure(config: PaymentsConfig): DynamicModule {
     return {
       module: AppModule,
-      controllers: [PaymentController],
+      controllers: [PaymentController, WebhookController],
       providers: [
+        {
+          provide: ReceiveWebhook,
+          inject: [Database, 'PAYMENT_PROVIDER'],
+          useFactory: (db: Database, provider: PaymentProvider) => new ReceiveWebhook(db, provider),
+        },
+        {
+          provide: ProcessWebhooks,
+          inject: [Database, 'PAYMENT_PROVIDER'],
+          useFactory: (db: Database, provider: PaymentProvider) =>
+            new ProcessWebhooks(db, provider),
+        },
         {
           provide: ProcessRefund,
           inject: [Database, 'PAYMENT_PROVIDER'],
@@ -36,7 +51,10 @@ export class AppModule {
         {
           provide: 'PAYMENT_PROVIDER',
           inject: [Database],
-          useFactory: (db: Database) => new FakePaymentProvider(db),
+          useFactory: (db: Database) =>
+            config.PAYMENT_PROVIDER === 'stripe'
+              ? new StripePaymentProvider(config.STRIPE_SECRET_KEY!, config.STRIPE_WEBHOOK_SECRET!)
+              : new FakePaymentProvider(db),
         },
         {
           provide: CreateAttempt,
@@ -67,9 +85,12 @@ export class AppModule {
         },
         {
           provide: Reconciler,
-          inject: [ProcessAttempt, ProcessRefund],
-          useFactory: (processor: ProcessAttempt, refunds: ProcessRefund) =>
-            new Reconciler(processor, refunds),
+          inject: [ProcessAttempt, ProcessRefund, ProcessWebhooks],
+          useFactory: (
+            processor: ProcessAttempt,
+            refunds: ProcessRefund,
+            webhooks: ProcessWebhooks,
+          ) => new Reconciler(processor, refunds, webhooks),
         },
         {
           provide: MessageWorker,

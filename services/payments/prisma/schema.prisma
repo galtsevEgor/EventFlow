@@ -71,6 +71,8 @@ model RefundOperation {
   failures Int @default(0)
 }
 model ProviderWebhook {
+  nextRunAt DateTime @default(now()) @db.Timestamptz(3)
+  failures Int @default(0)
   eventId String @id @db.VarChar(255)
   objectId String @db.VarChar(255)
   type String @db.VarChar(100)

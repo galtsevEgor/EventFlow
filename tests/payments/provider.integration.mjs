@@ -81,3 +81,18 @@ test('fake does not accept provider webhooks and a failed request has no side ef
   await assert.rejects(provider.create(request), ProviderUnavailable);
   assert.equal(await fixture.db.fakePayment.count({ where: { attemptId: request.attemptId } }), 0);
 });
+
+test('first concurrent create and refund calls are idempotent before any result exists', async () => {
+  const provider = new FakePaymentProvider(fixture.db);
+  const request = input();
+  const payments = await Promise.all(Array.from({ length: 12 }, () => provider.create(request)));
+  assert.equal(new Set(payments.map((p) => p.id)).size, 1);
+  await provider.confirm(payments[0].id, 'success');
+  const refund = {
+    operationId: randomUUID(),
+    paymentId: payments[0].id,
+    amountMinor: request.amountMinor,
+  };
+  const results = await Promise.all(Array.from({ length: 12 }, () => provider.refund(refund)));
+  assert.equal(new Set(results.map((r) => r.id)).size, 1);
+});

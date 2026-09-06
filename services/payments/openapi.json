@@ -130,6 +130,40 @@
           }
         }
       }
+    },
+    "/api/v1/webhooks/stripe": {
+      "post": {
+        "operationId": "receiveStripeWebhook",
+        "security": [],
+        "parameters": [
+          {
+            "name": "Stripe-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verified event durably recorded"
+          },
+          "400": {
+            "description": "Invalid signature, event or environment"
+          }
+        }
+      }
     }
   },
   "components": {

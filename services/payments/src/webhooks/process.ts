@@ -1,0 +1,67 @@
+import type { Database } from '../database';
+import { ProviderMismatch, type PaymentProvider } from '../providers/provider';
+import { matches } from '../attempts/process';
+import type { ProviderWebhook } from '../generated/client';
+
+export class ProcessWebhooks {
+  constructor(
+    private readonly db: Database,
+    private readonly provider: PaymentProvider,
+  ) {}
+  async run() {
+    const pending = await this.db.$queryRaw<ProviderWebhook[]>`
+      SELECT * FROM "ProviderWebhook" WHERE "processedAt" IS NULL AND "nextRunAt" <= clock_timestamp()
+      ORDER BY "createdAt", "eventId" LIMIT 20`;
+    for (const receipt of pending) {
+      try {
+        let attempt = await this.db.paymentAttempt.findUnique({
+          where: { providerPaymentId: receipt.objectId },
+        });
+        if (!attempt) {
+          const payment = await this.provider.retrieve(receipt.objectId);
+          attempt = await this.db.paymentAttempt.findUnique({ where: { id: payment.attemptId } });
+          if (attempt && !matches(attempt, payment)) throw new ProviderMismatch();
+          if (attempt?.authorized)
+            await this.db.paymentAttempt.updateMany({
+              where: { id: attempt.id, providerPaymentId: null },
+              data: { providerPaymentId: payment.id },
+            });
+        }
+        if (!attempt || attempt.provider !== this.provider.name) throw new ProviderMismatch();
+        await this.db.$transaction(async (tx) => {
+          const claimed = await tx.providerWebhook.updateMany({
+            where: { eventId: receipt.eventId, processedAt: null },
+            data: { processedAt: new Date(), reviewCode: null },
+          });
+          if (!claimed.count) return;
+          await tx.paymentAttempt.update({
+            where: { id: attempt.id },
+            data: { nextRunAt: new Date(0) },
+          });
+          await tx.refundOperation.updateMany({
+            where: { attemptId: attempt.id },
+            data: { nextRunAt: new Date(0) },
+          });
+        });
+      } catch (error) {
+        const review = error instanceof ProviderMismatch || receipt.failures >= 7;
+        await this.db.providerWebhook.updateMany({
+          where: { eventId: receipt.eventId, processedAt: null },
+          data: {
+            failures: { increment: 1 },
+            nextRunAt: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** receipt.failures)),
+            ...(review
+              ? {
+                  processedAt: new Date(),
+                  reviewCode:
+                    error instanceof ProviderMismatch
+                      ? 'UNKNOWN_OR_MISMATCHED_PAYMENT'
+                      : 'RETRY_LIMIT',
+                }
+              : {}),
+          },
+        });
+      }
+    }
+  }
+}

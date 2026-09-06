@@ -5,9 +5,9 @@ import { readPaymentsConfig } from './config';
 
 const config = readServiceConfig(process.env, { name: 'payments', port: 4003 });
 
-startApplication(AppModule.configure(readPaymentsConfig(process.env)), config).catch(
-  (error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  },
-);
+startApplication(AppModule.configure(readPaymentsConfig(process.env)), config, {
+  rawBody: true,
+}).catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

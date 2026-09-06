@@ -43,10 +43,12 @@ export class FakePaymentProvider implements PaymentProvider {
   }
   create(input: PaymentInput) {
     return this.execute('create', async () => {
-      const row = await this.db.fakePayment.upsert({
+      await this.db
+        .$executeRaw`INSERT INTO "FakePayment" (id, "attemptId", "orderId", "amountMinor", currency, status)
+        VALUES (${`fake_pi_${input.attemptId}`}, ${input.attemptId}::uuid, ${input.orderId}::uuid, ${input.amountMinor}, ${input.currency}, 'requires_action')
+        ON CONFLICT DO NOTHING`;
+      const row = await this.db.fakePayment.findUniqueOrThrow({
         where: { attemptId: input.attemptId },
-        update: {},
-        create: { ...input, id: `fake_pi_${input.attemptId}`, status: 'requires_action' },
       });
       if (
         row.orderId !== input.orderId ||
@@ -89,12 +91,12 @@ export class FakePaymentProvider implements PaymentProvider {
       const payment = await this.retrieve(input.paymentId);
       if (payment.status !== 'succeeded' || payment.amountMinor !== input.amountMinor)
         throw new ProviderMismatch();
-      const row = await this.db.fakeRefund.upsert({
-        where: { paymentId: input.paymentId },
-        update: {},
-        create: { ...input, id: `fake_re_${input.operationId}`, status: 'succeeded' },
-      });
-      if (row.operationId !== input.operationId || row.amountMinor !== input.amountMinor)
+      await this.db
+        .$executeRaw`INSERT INTO "FakeRefund" (id, "operationId", "paymentId", "amountMinor", status)
+        VALUES (${`fake_re_${input.operationId}`}, ${input.operationId}::uuid, ${input.paymentId}, ${input.amountMinor}, 'succeeded')
+        ON CONFLICT DO NOTHING`;
+      const row = await this.db.fakeRefund.findUnique({ where: { paymentId: input.paymentId } });
+      if (!row || row.operationId !== input.operationId || row.amountMinor !== input.amountMinor)
         throw new ProviderMismatch();
       return { ...row, status: row.status as ProviderRefund['status'] };
     });
