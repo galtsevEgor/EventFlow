@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { OrdersController } from '../dist/orders.controller.js';
 import { PublicController } from '../dist/public.controller.js';
+import { AuthService } from '../dist/auth/auth.service.js';
 
 async function server(handle) {
   const app = createServer((request, response) => {
@@ -21,7 +22,7 @@ async function server(handle) {
 }
 function auth(origin) {
   return {
-    config: { BOOKING_URL: origin, CATALOG_URL: origin },
+    config: { BOOKING_URL: origin, CATALOG_URL: origin, PAYMENTS_URL: origin },
     store: { rateLimit: async () => {} },
     assertCsrf: () => {},
     requireSession: async () => ({
@@ -55,6 +56,110 @@ const request = (method, path, originalUrl = path, body) => ({
   originalUrl,
   body,
   header: () => randomUUID(),
+});
+
+test('payment routes preserve the original key and cannot forward tokens to an arbitrary origin', async () => {
+  const received = [];
+  const upstream = await server((req, res) => {
+    received.push({
+      path: req.url,
+      key: req.headers['idempotency-key'],
+      auth: req.headers.authorization,
+    });
+    res.setHeader('content-type', 'application/json');
+    res.statusCode = req.method === 'POST' ? 202 : 200;
+    res.end('{}');
+  });
+  let unexpected = 0;
+  const other = await server((_req, res) => {
+    unexpected++;
+    res.end('{}');
+  });
+  try {
+    const authorization = auth(other.origin);
+    authorization.config.PAYMENTS_URL = upstream.origin;
+    const controller = new OrdersController(authorization);
+    const id = randomUUID(),
+      key = randomUUID();
+    for (const [method, suffix] of [
+      ['GET', 'payment-status'],
+      ['POST', 'payment-attempt'],
+      ['POST', 'payment-attempt/fake-confirm'],
+    ]) {
+      const path = `/api/v1/orders/${id}/${suffix}`;
+      const req = request(method, path, other.origin + path, {});
+      req.header = () => key;
+      const res = response();
+      await controller.forward(req, res);
+      assert.equal(res.statusCode, method === 'POST' ? 202 : 200);
+    }
+    assert.equal(unexpected, 0);
+    assert.equal(received.length, 3);
+    assert.ok(
+      received.every((item) => item.key === key && item.auth === 'Bearer synthetic-access-token'),
+    );
+    for (const [method, suffix] of [
+      ['DELETE', 'payment-attempt'],
+      ['POST', 'payment-status'],
+      ['GET', 'payment-attempt'],
+      ['POST', 'refund'],
+      ['POST', 'payment-attempt/refund'],
+    ])
+      await assert.rejects(
+        controller.forward(request(method, `/api/v1/orders/${id}/${suffix}`), response()),
+        (error) => error.getStatus() === 404,
+      );
+    assert.equal(received.length, 3);
+  } finally {
+    await upstream.close();
+    await other.close();
+  }
+});
+
+test('payment mutations enforce the session CSRF token and origin before contacting Payments', async () => {
+  let forwarded = 0;
+  const upstream = await server((_req, res) => {
+    forwarded++;
+    res.end('{}');
+  });
+  try {
+    const authorization = auth(upstream.origin);
+    authorization.config.PUBLIC_ORIGIN = 'https://eventflow.test';
+    authorization.assertCsrf = AuthService.prototype.assertCsrf;
+    const controller = new OrdersController(authorization);
+    for (const [origin, csrf] of [
+      ['https://attacker.test', 'csrf-fixture'],
+      ['https://eventflow.test', 'wrong'],
+    ]) {
+      const req = request('POST', `/api/v1/orders/${randomUUID()}/payment-attempt`, undefined, {});
+      req.header = (name) => (name === 'origin' ? origin : csrf);
+      await assert.rejects(
+        controller.forward(req, response()),
+        (error) => error.getStatus() === 403,
+      );
+    }
+    assert.equal(forwarded, 0);
+  } finally {
+    await upstream.close();
+  }
+});
+
+test('unknown payment responses remain retryable and never imply a successful payment', async () => {
+  const upstream = await server((_req, res) => {
+    res.statusCode = 202;
+    res.end('{');
+  });
+  try {
+    await assert.rejects(
+      new OrdersController(auth(upstream.origin)).forward(
+        request('POST', `/api/v1/orders/${randomUUID()}/payment-attempt`, undefined, {}),
+        response(),
+      ),
+      (error) => error.getStatus() === 503 && error.getResponse().code === 'PAYMENTS_UNAVAILABLE',
+    );
+  } finally {
+    await upstream.close();
+  }
 });
 
 test('absolute-form URLs cannot redirect either proxy or receive the server bearer token', async () => {

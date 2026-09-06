@@ -431,6 +431,70 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/orders/{id}/payment-attempt': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['createPaymentAttempt'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/orders/{id}/payment-status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getPaymentStatus'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/orders/{id}/payment-attempt/fake-confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['confirmFakePayment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/webhooks/stripe': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['receiveStripeWebhook'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -704,6 +768,44 @@ export interface components {
           user: components['schemas']['Identity'];
           csrfToken: string;
         };
+    PaymentAttemptReference: {
+      /** Format: uuid */
+      attemptId: string;
+      /** Format: uuid */
+      orderId: string;
+    };
+    PaymentStatus: {
+      /** Format: uuid */
+      attemptId: string;
+      /** Format: uuid */
+      orderId: string;
+      /** @enum {unknown} */
+      provider: 'fake' | 'stripe';
+      /** @enum {unknown} */
+      state:
+        | 'CREATED'
+        | 'REQUIRES_ACTION'
+        | 'PROCESSING'
+        | 'SUCCEEDED'
+        | 'CANCELLED'
+        | 'NEEDS_RECONCILIATION'
+        | 'REQUIRES_REVIEW';
+      /** @enum {unknown} */
+      bookingState: 'PENDING' | 'CONFIRMED' | 'REFUND_PENDING' | 'REFUNDED' | 'REQUIRES_REVIEW';
+      amountMinor: number;
+      /** @constant */
+      currency: 'EUR';
+      /** @enum {unknown} */
+      refundState: 'PENDING' | 'UNKNOWN' | 'SUCCEEDED' | 'REQUIRES_REVIEW' | null;
+      reviewCode: string | null;
+      canPay: boolean;
+      clientSecret: string | null;
+      publishableKey: string | null;
+    };
+    PaymentAccepted: {
+      /** @constant */
+      accepted: true;
+    };
   };
   responses: never;
   parameters: never;
@@ -1902,6 +2004,116 @@ export interface operations {
         content: {
           'application/json': components['schemas']['ApiError'];
         };
+      };
+    };
+  };
+  createPaymentAttempt: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description Success */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PaymentAttemptReference'];
+        };
+      };
+    };
+  };
+  getPaymentStatus: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PaymentStatus'];
+        };
+      };
+    };
+  };
+  confirmFakePayment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {unknown} */
+          outcome: 'success' | 'decline' | 'processing';
+        };
+      };
+    };
+    responses: {
+      /** @description Success */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PaymentAccepted'];
+        };
+      };
+    };
+  };
+  receiveStripeWebhook: {
+    parameters: {
+      query?: never;
+      header: {
+        'Stripe-Signature': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description Verified event durably recorded */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid signature, event or environment */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

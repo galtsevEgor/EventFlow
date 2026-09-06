@@ -77,7 +77,7 @@ export class AppModule {
             booking: BookingClient,
             provider: PaymentProvider,
             processor: ProcessAttempt,
-          ) => new ReadPayment(db, booking, provider, processor),
+          ) => new ReadPayment(db, booking, provider, processor, config.STRIPE_PUBLISHABLE_KEY),
         },
         {
           provide: PaymentInbox,

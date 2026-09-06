@@ -5,6 +5,7 @@ import ts from 'typescript';
 
 const catalog = JSON.parse(readFileSync('services/catalog/openapi.json', 'utf8'));
 const booking = JSON.parse(readFileSync('services/booking/openapi.json', 'utf8'));
+const payments = JSON.parse(readFileSync('services/payments/openapi.json', 'utf8'));
 const auth = JSON.parse(readFileSync('apps/bff/auth.openapi.json', 'utf8'));
 const schema = {
   openapi: '3.1.0',
@@ -17,12 +18,16 @@ const schema = {
       Object.entries(booking.paths).filter(([path]) => path.startsWith('/api/v1/')),
     ),
     ...auth.paths,
+    ...Object.fromEntries(
+      Object.entries(payments.paths).filter(([path]) => path.startsWith('/api/v1/')),
+    ),
   },
   components: {
     schemas: {
       ...catalog.components.schemas,
       ...booking.components.schemas,
       ...auth.components.schemas,
+      ...payments.components.schemas,
     },
     securitySchemes: { session: { type: 'apiKey', in: 'cookie', name: 'eventflow_session' } },
   },

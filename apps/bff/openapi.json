@@ -1202,6 +1202,118 @@
           }
         }
       }
+    },
+    "/api/v1/orders/{id}/payment-attempt": {
+      "post": {
+        "operationId": "createPaymentAttempt",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "type": "object", "additionalProperties": false } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentAttemptReference" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}/payment-status": {
+      "get": {
+        "operationId": "getPaymentStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PaymentStatus" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}/payment-attempt/fake-confirm": {
+      "post": {
+        "operationId": "confirmFakePayment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["outcome"],
+                "properties": { "outcome": { "enum": ["success", "decline", "processing"] } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PaymentAccepted" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/stripe": {
+      "post": {
+        "operationId": "receiveStripeWebhook",
+        "security": [],
+        "parameters": [
+          {
+            "name": "Stripe-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object" } } }
+        },
+        "responses": {
+          "200": { "description": "Verified event durably recorded" },
+          "400": { "description": "Invalid signature, event or environment" }
+        }
+      }
     }
   },
   "components": {
@@ -1679,6 +1791,62 @@
             "additionalProperties": false
           }
         ]
+      },
+      "PaymentAttemptReference": {
+        "type": "object",
+        "required": ["attemptId", "orderId"],
+        "properties": {
+          "attemptId": { "type": "string", "format": "uuid" },
+          "orderId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "PaymentStatus": {
+        "type": "object",
+        "required": [
+          "attemptId",
+          "orderId",
+          "provider",
+          "state",
+          "bookingState",
+          "amountMinor",
+          "currency",
+          "refundState",
+          "reviewCode",
+          "canPay",
+          "clientSecret",
+          "publishableKey"
+        ],
+        "properties": {
+          "attemptId": { "type": "string", "format": "uuid" },
+          "orderId": { "type": "string", "format": "uuid" },
+          "provider": { "enum": ["fake", "stripe"] },
+          "state": {
+            "enum": [
+              "CREATED",
+              "REQUIRES_ACTION",
+              "PROCESSING",
+              "SUCCEEDED",
+              "CANCELLED",
+              "NEEDS_RECONCILIATION",
+              "REQUIRES_REVIEW"
+            ]
+          },
+          "bookingState": {
+            "enum": ["PENDING", "CONFIRMED", "REFUND_PENDING", "REFUNDED", "REQUIRES_REVIEW"]
+          },
+          "amountMinor": { "type": "integer" },
+          "currency": { "const": "EUR" },
+          "refundState": { "enum": ["PENDING", "UNKNOWN", "SUCCEEDED", "REQUIRES_REVIEW", null] },
+          "reviewCode": { "type": ["string", "null"] },
+          "canPay": { "type": "boolean" },
+          "clientSecret": { "type": ["string", "null"] },
+          "publishableKey": { "type": ["string", "null"] }
+        }
+      },
+      "PaymentAccepted": {
+        "type": "object",
+        "required": ["accepted"],
+        "properties": { "accepted": { "const": true } }
       }
     },
     "securitySchemes": {

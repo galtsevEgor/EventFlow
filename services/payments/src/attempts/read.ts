@@ -10,6 +10,7 @@ export class ReadPayment {
     private readonly booking: BookingClient,
     private readonly provider: PaymentProvider,
     private readonly processor: ProcessAttempt,
+    private readonly publishableKey?: string,
   ) {}
   async owned(orderId: string, buyer: string) {
     const attempt = await this.db.paymentAttempt.findFirst({
@@ -33,6 +34,7 @@ export class ReadPayment {
       reviewCode: refund?.reviewCode ?? attempt.reviewCode,
       canPay: false,
       clientSecret: null as string | null,
+      publishableKey: attempt.provider === 'stripe' ? (this.publishableKey ?? null) : null,
     };
     if (
       attempt.state === 'REQUIRES_ACTION' &&

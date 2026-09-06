@@ -260,7 +260,8 @@
           "refundState",
           "reviewCode",
           "canPay",
-          "clientSecret"
+          "clientSecret",
+          "publishableKey"
         ],
         "properties": {
           "attemptId": {
@@ -304,6 +305,9 @@
             "type": "boolean"
           },
           "clientSecret": {
+            "type": ["string", "null"]
+          },
+          "publishableKey": {
             "type": ["string", "null"]
           }
         }

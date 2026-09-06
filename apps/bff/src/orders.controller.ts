@@ -11,10 +11,17 @@ export class OrdersController {
   @All(['', '{*path}'])
   async forward(@Req() request: Request, @Res() response: Response) {
     const path = request.path;
+    const payment =
+      (request.method === 'GET' &&
+        /^\/api\/v1\/orders\/[a-f0-9-]{36}\/payment-status$/.test(path)) ||
+      (request.method === 'POST' &&
+        /^\/api\/v1\/orders\/[a-f0-9-]{36}\/payment-attempt(?:\/fake-confirm)?$/.test(path));
     const allowed =
-      request.method === 'GET'
+      payment ||
+      (request.method === 'GET'
         ? /^\/api\/v1\/orders(?:\/[a-f0-9-]{36})?$/.test(path)
-        : request.method === 'POST' && /^\/api\/v1\/orders(?:\/[a-f0-9-]{36}\/cancel)?$/.test(path);
+        : request.method === 'POST' &&
+          /^\/api\/v1\/orders(?:\/[a-f0-9-]{36}\/cancel)?$/.test(path));
     if (!allowed) throw new ApiError(404, 'NOT_FOUND', 'Маршрут не найден.');
     const { session } = await this.auth.requireSession(request);
     if (request.method !== 'GET') this.auth.assertCsrf(request, session.csrf);
@@ -26,7 +33,11 @@ export class OrdersController {
     let upstream: globalThis.Response;
     let body: unknown;
     try {
-      const url = upstreamUrl(this.auth.config.BOOKING_URL, path, request.originalUrl);
+      const url = upstreamUrl(
+        payment ? this.auth.config.PAYMENTS_URL : this.auth.config.BOOKING_URL,
+        path,
+        request.originalUrl,
+      );
       const key = request.header('idempotency-key');
       upstream = await fetch(url, {
         method: request.method,
@@ -45,20 +56,20 @@ export class OrdersController {
       });
       body = await upstream.json();
     } catch {
-      throw new ApiError(
-        503,
-        'BOOKING_UNAVAILABLE',
-        'Бронирование временно недоступно. Повторите тот же запрос.',
-      );
+      throw this.unavailable(payment);
     }
-    if (upstream.status >= 500)
-      throw new ApiError(
-        503,
-        'BOOKING_UNAVAILABLE',
-        'Бронирование временно недоступно. Повторите тот же запрос.',
-      );
+    if (upstream.status >= 500) throw this.unavailable(payment);
     response.setHeader('cache-control', 'no-store');
     response.status(upstream.status).json(body);
+  }
+  private unavailable(payment: boolean) {
+    return new ApiError(
+      503,
+      payment ? 'PAYMENTS_UNAVAILABLE' : 'BOOKING_UNAVAILABLE',
+      payment
+        ? 'Проверяем состояние платежа. Не оплачивайте повторно.'
+        : 'Бронирование временно недоступно. Повторите тот же запрос.',
+    );
   }
   private async requirePublished(id: string, response: Response) {
     let status: number;

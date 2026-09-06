@@ -14,6 +14,7 @@ const schema = z.object({
     .default('eventflow:bff:'),
   CATALOG_URL: httpUrl,
   BOOKING_URL: httpUrl.default('http://127.0.0.1:4002'),
+  PAYMENTS_URL: httpUrl.default('http://127.0.0.1:4003'),
 });
 export type AuthConfig = ReturnType<typeof readAuthConfig>;
 export function readAuthConfig(env: NodeJS.ProcessEnv) {

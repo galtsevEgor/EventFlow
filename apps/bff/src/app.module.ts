@@ -7,6 +7,7 @@ import { SessionStore } from './auth/session-store';
 import { CoverProxyController, CoverSessionGuard } from './covers.controller';
 import { PublicController } from './public.controller';
 import { OrdersController } from './orders.controller';
+import { PaymentWebhooksController } from './payment-webhooks.controller';
 
 @Module({ imports: [HealthModule.forService('bff')] })
 export class AppModule {
@@ -14,7 +15,13 @@ export class AppModule {
     return {
       module: AppModule,
       imports: [AuthModule.configure(config)],
-      controllers: [CoverProxyController, PublicController, CatalogController, OrdersController],
+      controllers: [
+        CoverProxyController,
+        PublicController,
+        CatalogController,
+        OrdersController,
+        PaymentWebhooksController,
+      ],
       providers: [
         CoverSessionGuard,
         {

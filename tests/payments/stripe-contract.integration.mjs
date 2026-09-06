@@ -15,6 +15,7 @@ import { Reconciler } from '../../services/payments/dist/reconciler.js';
 import { ProcessWebhooks } from '../../services/payments/dist/webhooks/process.js';
 import { readPaymentsConfig } from '../../services/payments/dist/config.js';
 import { CreateAttempt } from '../../services/payments/dist/attempts/create.js';
+import { ReadPayment } from '../../services/payments/dist/attempts/read.js';
 
 let fixture, provider, persistence, app, origin;
 const namespace = `eventflow-test-${randomUUID()}`;
@@ -46,6 +47,31 @@ after(async () => {
   await persistence?.close();
   await fixture?.close();
   await cleanBroker(namespace);
+});
+
+test('buyer payment status exposes only the sandbox publishable key and checks ownership', async (t) => {
+  const attempt = await persistence.db.paymentAttempt.create({
+    data: {
+      id: randomUUID(),
+      orderId: randomUUID(),
+      buyerSubject: 'stripe-buyer',
+      amountMinor: 1500,
+      currency: 'EUR',
+      expiresAt: new Date(Date.now() + 300000),
+      provider: 'stripe',
+    },
+  });
+  t.after(() => persistence.db.paymentAttempt.delete({ where: { id: attempt.id } }));
+  const reader = app.get(ReadPayment);
+  const status = await reader.run(attempt.orderId, 'stripe-buyer');
+  assert.equal(status.publishableKey, 'pk_test_synthetic');
+  assert.equal(status.clientSecret, null);
+  assert.equal(status.canPay, false);
+  assert.equal(JSON.stringify(status).includes(fixture.secret), false);
+  await assert.rejects(
+    reader.run(attempt.orderId, 'other-buyer'),
+    (error) => error.getStatus() === 404,
+  );
 });
 
 test('Stripe request contract pins API version, card methods, authoritative price and stable keys', async () => {

@@ -120,6 +120,7 @@ test('lost create response recovers with same provider key after replacing proce
   await restarted.run(created.attemptId);
   const status = await request(`/api/v1/orders/${order.id}/payment-status`, buyer);
   assert.equal(status.body.canPay, true);
+  assert.equal(status.body.publishableKey, null);
   assert.equal(status.headers.get('cache-control'), 'no-store');
   assert.equal(await fixture.db.fakePayment.count({ where: { attemptId: created.attemptId } }), 1);
 });
