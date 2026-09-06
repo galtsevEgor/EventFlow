@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { ApiRequestError, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { BookingProvider, money, orderLabels, SignIn, useBuyer } from './client';
+import { PaymentPanel } from './payment-panel';
 
 function Countdown({
   expiresAt,
@@ -36,6 +37,14 @@ function Countdown({
 }
 function Details({ id }: { id: string }) {
   const { api, session } = useBuyer();
+  useEffect(() => {
+    // Redirect parameters are not proof of payment; remove client secrets from browser history.
+    const url = new URL(location.href);
+    for (const key of ['payment_intent', 'payment_intent_client_secret', 'redirect_status'])
+      url.searchParams.delete(key);
+    if (url.href !== location.href)
+      history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  }, []);
   const order = useQuery({
     queryKey: ['order', id, session.data?.user?.sub],
     enabled: Boolean(session.data?.user),
@@ -87,7 +96,7 @@ function Details({ id }: { id: string }) {
             serverNow={data.serverNow}
             startedAt={order.data.startedAt}
           />
-          <p>Места удерживаются до истечения срока. Оплата пока недоступна.</p>
+          <p>Места удерживаются до истечения срока брони.</p>
         </>
       )}
       <ul className="price-list">
@@ -102,6 +111,13 @@ function Details({ id }: { id: string }) {
         ))}
       </ul>
       <p className="order-total">Итого: {money(data.totalMinor)}</p>
+      <PaymentPanel
+        key={session.data.user.sub}
+        id={id}
+        buyer={session.data.user.sub}
+        orderState={data.state}
+        api={api}
+      />
       {data.state === 'HELD' && (
         <Button variant="secondary" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
           {cancel.isPending ? 'Отменяем…' : 'Отменить бронь'}
