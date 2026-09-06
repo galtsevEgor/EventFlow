@@ -40,6 +40,7 @@ export async function paymentsFixture() {
     return {
       app,
       db: app.get(Database),
+      databaseUrl: persistence.url,
       provider: app.get('PAYMENT_PROVIDER'),
       processor: app.get(ProcessAttempt),
       booking,
