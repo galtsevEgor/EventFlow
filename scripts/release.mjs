@@ -11,8 +11,15 @@ import {
   prepare,
   rollOut,
   run,
+  startDependencies,
   writeJson,
 } from './release/local.mjs';
+import {
+  assertExpansion,
+  migrationTree,
+  replaceApplication,
+  withEnvironmentLock,
+} from './release/compatibility.mjs';
 
 function build() {
   run('git', ['diff', '--quiet']);
@@ -68,15 +75,65 @@ function build() {
 }
 
 async function deploy(target, id) {
-  const release = manifest(id);
-  prepare(target, release.image);
-  await rollOut(target, release.image);
+  await withEnvironmentLock(target, async () => {
+    const release = manifest(id);
+    const installed = active(target);
+    const previous = installed ? manifest(installed.id) : null;
+    const schemaPath = resolve(target.directory, 'schema.json');
+    const schemaId = existsSync(schemaPath)
+      ? JSON.parse(readFileSync(schemaPath, 'utf8')).id
+      : installed?.id;
+    if (id !== previous?.id) {
+      if (previous && release.createdAt < previous.createdAt)
+        throw new Error('Use rollback for an older release.');
+      if (schemaId) assertExpansion(migrationTree(schemaId), migrationTree(id));
+      // Record intent first because a migration may succeed in one DB before another fails.
+      writeJson(schemaPath, { id });
+      prepare(target, release.image);
+    } else {
+      startDependencies(target, release.image);
+    }
+    await replaceApplication(
+      () => rollOut(target, release.image),
+      async () => {
+        if (previous && previous.id !== id) {
+          await rollOut(target, previous.image);
+          console.warn(`Restored previous application ${previous.id}; expanded schema retained.`);
+        } else compose(target, ['stop', 'app'], { image: release.image });
+      },
+    );
+    recordDeployment(target, release, previous?.id === id ? installed.previous : previous?.id);
+  });
+}
+
+function recordDeployment(target, release, previous) {
   writeJson(resolve(target.directory, 'deployment.json'), {
-    id,
+    id: release.id,
     image: release.image,
+    previous: previous ?? null,
     verifiedAt: new Date().toISOString(),
   });
-  console.log(`${target.name}: ${id} is ready at ${target.origin}`);
+  console.log(`${target.name}: ${release.id} is ready at ${target.origin}`);
+}
+
+async function rollback(target) {
+  await withEnvironmentLock(target, async () => {
+    const installed = active(target);
+    if (!installed?.previous) throw new Error('There is no verified previous application.');
+    const current = manifest(installed.id);
+    const previous = manifest(installed.previous);
+    const schemaPath = resolve(target.directory, 'schema.json');
+    const schemaId = existsSync(schemaPath)
+      ? JSON.parse(readFileSync(schemaPath, 'utf8')).id
+      : current.id;
+    assertExpansion(migrationTree(previous.id), migrationTree(schemaId));
+    startDependencies(target, current.image);
+    await replaceApplication(
+      () => rollOut(target, previous.image),
+      () => rollOut(target, current.image),
+    );
+    recordDeployment(target, previous, current.id);
+  });
 }
 
 const [command, first, second, ...extra] = process.argv.slice(2);
@@ -89,9 +146,17 @@ if (!extra.length && command === 'build' && !first) {
   if (active(environment('staging'))?.id !== first)
     throw new Error('Only the verified staging release can be promoted.');
   await deploy(environment('demo'), first);
+} else if (!extra.length && command === 'rollback' && first && !second) {
+  await rollback(environment(first));
 } else if (!extra.length && ['status', 'stop'].includes(command) && first && !second) {
   const target = environment(first);
-  compose(target, command === 'status' ? ['ps'] : ['stop'], { image: active(target)?.image });
+  if (command === 'status') compose(target, ['ps'], { image: active(target)?.image });
+  else
+    await withEnvironmentLock(target, () =>
+      compose(target, ['stop'], { image: active(target)?.image }),
+    );
 } else {
-  throw new Error('Use release build | deploy staging ID | promote ID | status ENV | stop ENV.');
+  throw new Error(
+    'Use release build | deploy staging ID | promote ID | rollback ENV | status ENV | stop ENV.',
+  );
 }

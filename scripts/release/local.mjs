@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -107,11 +108,22 @@ export function active(target) {
 
 export function manifest(id) {
   if (!releaseId.test(id)) throw new Error('Use the 40-character release ID.');
-  const result = JSON.parse(readFileSync(resolve(images, id, 'manifest.json'), 'utf8'));
+  const directory = resolve(images, id);
+  const result = JSON.parse(readFileSync(resolve(directory, 'manifest.json'), 'utf8'));
+  const sbomHash = createHash('sha256')
+    .update(readFileSync(resolve(directory, 'sbom.cdx.json')))
+    .digest('hex');
   if (
     result.id !== id ||
     !imageId.test(result.image) ||
-    output('docker', ['image', 'inspect', '--format', '{{.Id}}', result.image]) !== result.image
+    result.sbomSha256 !== sbomHash ||
+    output('docker', [
+      'image',
+      'inspect',
+      '--format',
+      '{{.Id}} {{index .Config.Labels "org.opencontainers.image.revision"}}',
+      result.image,
+    ]) !== `${result.image} ${id}`
   )
     throw new Error('Release image does not match the manifest.');
   return result;
@@ -132,8 +144,12 @@ export async function waitFor(url, timeoutMs = 60000) {
   throw new Error(`Probe timed out: ${new URL(url).pathname}`);
 }
 
-export function prepare(target, image) {
+export function startDependencies(target, image) {
   compose(target, ['up', '-d', '--wait', '--wait-timeout', '150', ...dependencies], { image });
+}
+
+export function prepare(target, image) {
+  startDependencies(target, image);
   compose(target, ['run', '--rm', '--no-deps', 'migrate'], { image });
 }
 
