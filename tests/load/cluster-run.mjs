@@ -46,6 +46,22 @@ function sample() {
     podRestarts: Object.fromEntries(
       pods.map((pod) => [pod.metadata.name, pod.status.containerStatuses?.[0]?.restartCount ?? 0]),
     ),
+    ready: pods
+      .filter(
+        (pod) =>
+          !pod.metadata.deletionTimestamp &&
+          pod.status.conditions?.some(({ type, status }) => type === 'Ready' && status === 'True'),
+      )
+      .map((pod) => pod.metadata.name),
+    ...(mode === 'autoscale'
+      ? {
+          hpa: Object.fromEntries(
+            JSON.parse(kubeOutput(['get', 'hpa', '-o', 'json'])).items.map(
+              ({ metadata, status }) => [metadata.name, status.desiredReplicas],
+            ),
+          ),
+        }
+      : {}),
     postgres: JSON.parse(db),
     resources: kubeOutput(['top', 'pods', '--no-headers'])
       .split(/\r?\n/)
@@ -56,12 +72,12 @@ function sample() {
   };
 }
 
-async function run(label, { smoke = false } = {}) {
+async function run(label, profile = 'comparison', injectFailure) {
   const summary = resolve(directory, label + '.k6.json');
   const child = spawn(toolPath('k6'), ['run', '--quiet', 'tests/load/cluster-catalog.k6.js'], {
     env: {
       ...process.env,
-      PROFILE: smoke ? 'smoke' : 'comparison',
+      PROFILE: profile,
       RESULT: summary,
       K6_NO_USAGE_REPORT: 'true',
     },
@@ -79,24 +95,31 @@ async function run(label, { smoke = false } = {}) {
     },
   );
   const samples = [];
+  const started = Date.now();
+  let injected = false;
   try {
     while (!done) {
-      if (!smoke) samples.push(sample());
+      if (profile !== 'smoke') samples.push(sample());
+      if (injectFailure && !injected && Date.now() - started >= 5000) {
+        injectFailure();
+        injected = true;
+      }
       await Promise.race([delay(5000, undefined, { ref: false }), finished]);
     }
   } finally {
     if (!done) child.kill();
   }
   const [code, signal] = await finished;
+  writeFileSync(resolve(directory, label + '.samples.json'), JSON.stringify(samples, null, 2));
   assert.equal(code, 0, `k6 failed (${code ?? signal})`);
+  if (injectFailure) assert.ok(injected, 'The load stopped before the fault could be injected');
   const { metrics } = JSON.parse(readFileSync(summary, 'utf8'));
   assert.ok(metrics.http_reqs.values.count >= 50, 'Too few requests for comparison');
-  writeFileSync(resolve(directory, label + '.samples.json'), JSON.stringify(samples, null, 2));
-  return metrics;
+  return samples;
 }
 
 if (mode === 'smoke') {
-  await run('smoke', { smoke: true });
+  await run('smoke', 'smoke');
 } else if (mode === 'compare') {
   assert.equal(kubeOutput(['get', 'hpa', '-o', 'name']), '', 'Use a fixed cluster profile');
   const original = applications.map((app) => {
@@ -107,7 +130,7 @@ if (mode === 'smoke') {
   try {
     for (const profile of profiles) {
       configure(profile);
-      await run('warmup', { smoke: true });
+      await run('warmup', 'smoke');
       await run(profile.name);
     }
   } finally {
@@ -127,4 +150,48 @@ if (mode === 'smoke') {
       kubectl(['rollout', 'status', app, '--timeout=2m']);
     }
   }
-} else throw new Error('Use smoke or compare.');
+} else if (mode === 'fault') {
+  const list = () =>
+    JSON.parse(
+      kubeOutput(['get', 'pods', '-l', 'app.kubernetes.io/name=bff', '-o', 'json']),
+    ).items.filter((pod) => !pod.metadata.deletionTimestamp);
+  const before = list();
+  assert.equal(before.length, 3, 'Use the fixed three-replica profile');
+  const victim = before[0].metadata.name;
+  let faultAt;
+  const samples = await run('bff-loss', 'fault', () => {
+    faultAt = Date.now();
+    kubectl(['delete', 'pod', victim, '--grace-period=0', '--force', '--wait=false']);
+  });
+  kubectl(['rollout', 'status', 'deployment/bff', '--timeout=2m']);
+  const after = list();
+  assert.equal(after.length, 3);
+  assert.ok(!after.some((pod) => pod.metadata.name === victim));
+  const replacements = after.filter(
+    (pod) => !before.some((old) => old.metadata.uid === pod.metadata.uid),
+  );
+  assert.equal(replacements.length, 1);
+  const replacement = replacements[0].metadata.name;
+  const ready = samples.find((sample) => sample.ready.includes(replacement));
+  writeFileSync(
+    resolve(directory, 'bff-recovery.json'),
+    JSON.stringify(
+      {
+        victim,
+        replacement,
+        recoveryObservedMs: (ready ? Date.parse(ready.at) : Date.now()) - faultAt,
+      },
+      null,
+      2,
+    ),
+  );
+} else if (mode === 'autoscale') {
+  const samples = await run('http-autoscale');
+  for (const name of ['bff', 'storefront']) {
+    assert.ok(
+      samples.some((sample) => sample.hpa[name] > 1),
+      name + ' HPA did not request more replicas',
+    );
+  }
+  console.log('BFF and storefront HPA scaled up under HTTP load');
+} else throw new Error('Use smoke, compare, fault or autoscale.');

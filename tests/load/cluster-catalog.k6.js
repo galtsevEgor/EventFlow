@@ -3,10 +3,12 @@ import { check } from 'k6';
 
 /* global __ENV */
 const smoke = __ENV.PROFILE === 'smoke';
+const fault = __ENV.PROFILE === 'fault';
+const bounded = smoke || fault;
 const stages = (rates) =>
-  (smoke ? rates.slice(0, 1) : rates).map((target) => ({
+  (bounded ? rates.slice(0, 1) : rates).map((target) => ({
     target,
-    duration: smoke ? '8s' : '20s',
+    duration: smoke ? '8s' : fault ? '30s' : '20s',
   }));
 
 export const options = {
@@ -35,10 +37,10 @@ export const options = {
   thresholds: {
     'http_req_duration{scenario:catalog}': [],
     'http_req_duration{scenario:storefront}': [],
-    'http_req_failed{scenario:catalog}': smoke ? ['rate<0.02'] : [],
-    'http_req_failed{scenario:storefront}': smoke ? ['rate<0.02'] : [],
-    checks: smoke ? ['rate>0.98'] : [],
-    dropped_iterations: smoke ? ['count<2'] : [],
+    'http_req_failed{scenario:catalog}': bounded ? ['rate<0.02'] : [],
+    'http_req_failed{scenario:storefront}': bounded ? ['rate<0.02'] : [],
+    checks: bounded ? ['rate>0.98'] : [],
+    dropped_iterations: bounded ? ['count<2'] : [],
   },
 };
 

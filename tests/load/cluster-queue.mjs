@@ -5,10 +5,13 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { kubeOutput, kubectl } from '../../scripts/cluster/local.mjs';
 
 const [mode] = process.argv.slice(2);
-assert.ok(['compare', 'autoscale', 'smoke'].includes(mode), 'Use compare, autoscale or smoke');
+assert.ok(
+  ['compare', 'autoscale', 'smoke', 'fault'].includes(mode),
+  'Use compare, autoscale, smoke or fault',
+);
 const worker = 'deployment/tickets-worker';
 const scaledObject = 'scaledobject/tickets-worker';
-const count = mode === 'smoke' ? 10 : 1000;
+const count = { smoke: 10, fault: 1, autoscale: 2000 }[mode] ?? 1000;
 const seats = 6;
 const queue = 'eventflow.tickets';
 const directory = 'work/e7/load';
@@ -62,6 +65,7 @@ function state(buyer, started) {
     try {
       const { rows: [result] } = await client.query(
         'SELECT count(*)::int AS tickets, count(DISTINCT "orderId")::int AS orders, ' +
+        'md5(string_agg(id::text || "qrHash", chr(44) ORDER BY id)) AS digest, ' +
         'percentile_cont(ARRAY[0.5, 0.95, 0.99]) WITHIN GROUP (ORDER BY ' +
         'EXTRACT(EPOCH FROM ("issuedAt" - $2::timestamptz)) * 1000) AS "ageMs" ' +
         'FROM "Ticket" WHERE "buyerSubject" = $1',
@@ -168,10 +172,89 @@ async function measure(label, replicas) {
   );
 }
 
+async function failAfterCommit() {
+  const name = 'tickets-fault-' + randomUUID().slice(0, 8);
+  const image = kubeOutput([
+    'get',
+    worker,
+    '-o',
+    'jsonpath={.spec.template.spec.containers[0].image}',
+  ]);
+  assert.match(image, /^eventflow-release:[a-f0-9]{40}$/);
+  const buyer = 'eventflow-fault-' + randomUUID();
+  const started = new Date().toISOString();
+  scale(0);
+  await waitFor(() => queueDepth().consumers === 0);
+  assert.equal(queueDepth().messages_ready, 0);
+  kubectl(['create', '-f', '-'], {
+    input: JSON.stringify({
+      apiVersion: 'v1',
+      kind: 'Pod',
+      metadata: {
+        name,
+        labels: { 'app.kubernetes.io/name': 'tickets', 'app.kubernetes.io/component': 'fault' },
+      },
+      spec: {
+        restartPolicy: 'Never',
+        enableServiceLinks: false,
+        automountServiceAccountToken: false,
+        containers: [
+          {
+            name: 'consumer',
+            image,
+            imagePullPolicy: 'Never',
+            command: [
+              'node',
+              '-e',
+              `const { fork } = require('node:child_process');
+            const child = fork('/app/tests/helpers/tickets-child.mjs', {execArgv: []});
+            child.on('exit', code => process.exit(code ?? 1));`,
+            ],
+            env: [
+              { name: 'MESSAGE_NAMESPACE', value: 'eventflow' },
+              { name: 'TICKETS_TEST_CRASH', value: '1' },
+              ...['TICKETS_DATABASE_URL', 'TICKET_QR_KEYS', 'AMQP_URL'].map((key) => ({
+                name: key,
+                valueFrom: { secretKeyRef: { name: 'eventflow-runtime', key } },
+              })),
+            ],
+          },
+        ],
+      },
+    }),
+    stdio: ['pipe', 'inherit', 'inherit'],
+  });
+  try {
+    await waitFor(() => queueDepth().consumers === 1);
+    publish(buyer);
+    const before = await waitFor(() => {
+      const data = state(buyer, started);
+      return data.tickets === seats && queueDepth().messages_unacknowledged === 1 ? data : null;
+    });
+    kubectl(['delete', 'pod', name, '--grace-period=0', '--force', '--wait=false']);
+    scale(1);
+    await waitFor(() => {
+      const data = queueDepth();
+      return data.consumers === 1 && data.messages_ready + data.messages_unacknowledged === 0;
+    });
+    const after = state(buyer, started);
+    assert.deepEqual(after, before);
+    writeFileSync(
+      directory + '/queue-fault.json',
+      JSON.stringify({ before, after, recovered: true }, null, 2),
+    );
+    console.log('RabbitMQ redelivered an unacknowledged order without changing its issued tickets');
+  } finally {
+    kubectl(['delete', 'pod', name, '--ignore-not-found', '--wait=false']);
+  }
+}
+
 try {
   if (mode === 'compare') {
     await measure('queue-single', 1);
     await measure('queue-replicas', 3);
+  } else if (mode === 'fault') {
+    await failAfterCommit();
   } else await measure('queue-' + mode, 1);
 } finally {
   if (mode === 'autoscale') {
