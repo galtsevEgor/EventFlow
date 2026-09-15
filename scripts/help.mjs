@@ -20,6 +20,7 @@ pnpm test:stripe       Verify the real Stripe sandbox (test keys and network acc
 pnpm payments:reconcile --list  List payments and refunds that require operator review
 pnpm test:load         Run a 10-minute local k6 baseline; synthetic isolated data only
 pnpm test:load --smoke Run a 10-second CI load check; results stay in work/load
+pnpm test:load --peak | --peak-replicas  Compare one and three Booking instances
 pnpm test:identity     Test real Keycloak login, sessions, CSRF and token validation
 pnpm test:e2e          Run the full browser journey against built applications
 pnpm browser:install   Install the Chromium browser used by identity and E2E tests
@@ -34,7 +35,9 @@ pnpm ci:local          Run all local gates, including fake payments (Docker requ
 pnpm release build    Build the staged Git snapshot and save its local image manifest
 pnpm release deploy staging ID | promote ID | rollback ENV
 pnpm release backup ENV | restore ID | monitor ENV | status ENV | stop ENV
-pnpm test:release seed staging | mark staging | verify staging|recovery
+pnpm test:release seed staging|cluster | mark staging | verify staging|recovery|cluster
+pnpm cluster check | status
+pnpm cluster up ID [single|replicas|autoscale]  Deploy an image to the isolated local k3d cluster
 
 Runtime: Node.js 24.22.1, pnpm 10.34.9
 Storefront: http://127.0.0.1:18000

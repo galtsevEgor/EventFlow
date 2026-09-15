@@ -5,6 +5,7 @@ import { parseEnv } from 'node:util';
 import { initializeEnvironment } from '../local-env.mjs';
 import { manifest, output, run } from '../release/local.mjs';
 import { withEnvironmentLock } from '../release/compatibility.mjs';
+import { toolPath } from '../quality-tools.mjs';
 
 export const name = 'eventflow-scale';
 export const directory = resolve('work/e7');
@@ -38,6 +39,7 @@ const infraKeys = [
 ];
 
 function tool(binary) {
+  if (binary === 'helm') return toolPath('helm');
   const local = resolve(directory, 'tools', binary + (process.platform === 'win32' ? '.exe' : ''));
   return existsSync(local) ? local : binary;
 }
@@ -170,6 +172,17 @@ export async function up(releaseId, profile = 'single') {
   mkdirSync(directory, { recursive: true });
   return withEnvironmentLock({ directory, name }, async () => {
     const release = manifest(releaseId);
+    const splitWorkers = Boolean(
+      output('git', [
+        'ls-tree',
+        '--name-only',
+        release.id,
+        '--',
+        'packages/service-runtime/src/workload.ts',
+      ]),
+    );
+    if (profile === 'autoscale' && !splitWorkers)
+      throw new Error('Autoscale requires an image with dedicated worker mode.');
     ensureCluster();
     initialize();
     const image = `eventflow-release:${release.id}`;
@@ -238,7 +251,7 @@ export async function up(releaseId, profile = 'single') {
       '--set-string',
       `retained.deploymentId=${retained.split(':')[1] ?? ''}`,
       '--set',
-      'splitWorkers=true',
+      `splitWorkers=${splitWorkers}`,
       ...(profile !== 'single' ? ['-f', chart + '/values.' + profile + '.yaml'] : []),
       '--wait',
       '--timeout',

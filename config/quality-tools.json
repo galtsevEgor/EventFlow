@@ -36,6 +36,20 @@
     }
   },
   {
+    "tool": "helm",
+    "version": "3.19.0",
+    "windows": {
+      "url": "https://get.helm.sh/helm-v3.19.0-windows-amd64.zip",
+      "sha256": "6488630c2e5d5945ed990fa02fd9e99f9c6792cdbcd79eb264b6cfb90179d2d1",
+      "entry": "windows-amd64/helm.exe"
+    },
+    "linux": {
+      "url": "https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz",
+      "sha256": "a7f81ce08007091b86d8bd696eb4d86b8d0f2e1b9f6c714be62f82f96a594496",
+      "entry": "linux-amd64/helm"
+    }
+  },
+  {
     "tool": "k6",
     "version": "2.3.0",
     "windows": {
