@@ -9,6 +9,7 @@ docs/
 *.md
 *.mdx
 pnpm-lock.yaml
+infra/kubernetes/eventflow/templates/
 **/next-env.d.ts
 spikes/booking/generated/
 services/catalog/src/generated/

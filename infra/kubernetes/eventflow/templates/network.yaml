@@ -20,6 +20,7 @@ spec:
   "payments" (list (dict "port" 4003 "from" (list "bff")))
   "tickets" (list (dict "port" 4004 "from" (list "bff")))
   "storefront" (list (dict "port" 3000 "from" (list "gateway")))
+  "storefront-retained" (list (dict "port" 3000 "from" (list "gateway")))
   "organizer" (list (dict "port" 3001 "from" (list "gateway")))
 }}
 {{- range $name, $rules := $rules }}

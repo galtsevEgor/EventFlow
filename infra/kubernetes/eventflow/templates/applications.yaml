@@ -1,5 +1,9 @@
 {{- if eq .Values.mode "applications" }}
-{{- range $name, $app := .Values.applications }}
+{{- $applications := deepCopy .Values.applications }}
+{{- if .Values.retained.image }}
+{{- $_ := set $applications "storefront-retained" .Values.applications.storefront }}
+{{- end }}
+{{- range $name, $app := $applications }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -17,6 +21,10 @@ spec:
       app.kubernetes.io/component: http
   template:
     metadata:
+      {{- if eq $name "gateway" }}
+      annotations:
+        checksum/gateway: {{ $.Files.Get "files/gateway.mjs" | sha256sum | quote }}
+      {{- end }}
       labels:
         {{- include "eventflow.labels" $name | nindent 8 }}
         app.kubernetes.io/component: http
@@ -34,7 +42,7 @@ spec:
       {{- end }}
       containers:
         - name: http
-          image: {{ required "image is required" $.Values.image | quote }}
+          image: {{ if eq $name "storefront-retained" }}{{ $.Values.retained.image | quote }}{{ else }}{{ required "image is required" $.Values.image | quote }}{{ end }}
           imagePullPolicy: Never
           workingDir: {{ default "/app" $app.directory }}
           command: {{ default (list "node" "dist/main.js") $app.command | toJson }}
@@ -43,6 +51,10 @@ spec:
             {{- include "eventflow.secrets" $app.secrets | nindent 12 }}
             - { name: HOST, value: '0.0.0.0' }
             - { name: PORT, value: {{ $app.port | quote }} }
+            {{- if eq $name "gateway" }}
+            - { name: EVENTFLOW_DEPLOYMENT, value: {{ $.Values.deploymentId | quote }} }
+            - { name: EVENTFLOW_RETAINED_DEPLOYMENT, value: {{ $.Values.retained.deploymentId | quote }} }
+            {{- end }}
           ports: [{ name: http, containerPort: {{ $app.port }} }]
           resources:
             requests: { cpu: {{ $app.cpu }}, memory: 64Mi }

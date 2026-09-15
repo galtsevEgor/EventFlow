@@ -42,6 +42,8 @@ function build() {
       'build',
       '--label',
       `org.opencontainers.image.revision=${id}`,
+      '--build-arg',
+      `EVENTFLOW_BUILD_ID=${id}`,
       '-f',
       'infra/release/Dockerfile',
       '-t',

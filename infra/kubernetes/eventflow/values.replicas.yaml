@@ -1,0 +1,4 @@
+replicas:
+  storefront: 3
+  bff: 3
+  booking: 3

@@ -150,7 +150,19 @@ function initialize() {
   });
 }
 
-export async function up(releaseId) {
+function deploymentImage(service) {
+  return kubeOutput([
+    'get',
+    'deployment',
+    service,
+    '--ignore-not-found',
+    '-o',
+    'jsonpath={.spec.template.spec.containers[0].image}',
+  ]);
+}
+
+export async function up(releaseId, profile = 'single') {
+  if (!['single', 'replicas'].includes(profile)) throw new Error('Unknown cluster profile.');
   mkdirSync(directory, { recursive: true });
   return withEnvironmentLock({ directory, name }, async () => {
     const release = manifest(releaseId);
@@ -170,7 +182,21 @@ export async function up(releaseId) {
       '--timeout',
       '5m',
     ]);
-    run(tool('k3d'), ['image', 'import', image, '-c', name]);
+    const images = output('docker', [
+      'exec',
+      'k3d-' + name + '-server-0',
+      'k3s',
+      'ctr',
+      'images',
+      'ls',
+      '-q',
+    ]);
+    if (!images.split(/\r?\n/).includes('docker.io/library/' + image)) {
+      run(tool('k3d'), ['image', 'import', image, '-c', name]);
+    }
+    const previous = deploymentImage('storefront');
+    const retained =
+      previous && previous !== image ? previous : deploymentImage('storefront-retained');
     helm([
       'upgrade',
       '--install',
@@ -178,6 +204,13 @@ export async function up(releaseId) {
       chart,
       '--set-string',
       `image=${image}`,
+      '--set-string',
+      `deploymentId=${release.id}`,
+      '--set-string',
+      `retained.image=${retained}`,
+      '--set-string',
+      `retained.deploymentId=${retained.split(':')[1] ?? ''}`,
+      ...(profile === 'replicas' ? ['-f', chart + '/values.replicas.yaml'] : []),
       '--wait',
       '--timeout',
       '6m',
@@ -189,5 +222,13 @@ export async function up(releaseId) {
 
 export function check() {
   run(tool('helm'), ['lint', chart, '--set-string', 'image=eventflow-release:fixture']);
+  run(tool('helm'), [
+    'lint',
+    chart,
+    '-f',
+    chart + '/values.replicas.yaml',
+    '--set-string',
+    'image=eventflow-release:fixture,retained.image=eventflow-release:previous',
+  ]);
   run(tool('helm'), ['lint', chart, '--set', 'mode=infrastructure']);
 }

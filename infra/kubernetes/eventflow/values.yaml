@@ -1,5 +1,7 @@
 mode: applications
 image: ''
+deploymentId: ''
+retained: { image: '', deploymentId: '' }
 replicas: {}
 publicOrigin: http://127.0.0.1:58000
 identityOrigin: http://127.0.0.1:58080
