@@ -57,6 +57,8 @@ export function initializeEnvironment(directory) {
     CATALOG_URL: 'http://127.0.0.1:4001',
     BOOKING_URL: 'http://127.0.0.1:4002',
     PAYMENTS_URL: 'http://127.0.0.1:4003',
+    TICKETS_URL: 'http://127.0.0.1:4004',
+    TICKET_QR_KEYS: `v1:${randomBytes(32).toString('hex')}`,
     PAYMENT_PROVIDER: 'fake',
   };
   for (const [key, value] of Object.entries(additions)) {

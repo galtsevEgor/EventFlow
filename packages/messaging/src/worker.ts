@@ -8,7 +8,7 @@ export class MessageWorker {
   private running: Promise<void> = Promise.resolve();
   constructor(
     readonly broker: Broker,
-    private readonly outbox: Outbox,
+    private readonly outbox: Outbox | undefined,
     private readonly handle: (event: EventEnvelope) => Promise<void>,
   ) {}
   onModuleInit() {
@@ -32,6 +32,10 @@ export class MessageWorker {
         await this.broker.close();
         if (this.stopped) return;
         await this.broker.open(this.handle);
+      }
+      if (!this.outbox) {
+        delay = 2000;
+        return;
       }
       for (let count = 0; count < 20 && !this.stopped; count++) {
         const item = await this.outbox.claim();

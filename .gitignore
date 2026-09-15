@@ -43,3 +43,4 @@ test-results/
 
 services/booking/src/generated/
 services/payments/src/generated/
+services/tickets/src/generated/

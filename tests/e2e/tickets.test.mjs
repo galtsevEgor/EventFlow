@@ -1,0 +1,108 @@
+import assert from 'node:assert/strict';
+import { createHash, randomUUID } from 'node:crypto';
+import test from 'node:test';
+import { chromium, expect } from '@playwright/test';
+import jsQR from 'jsqr';
+import { PNG } from 'pngjs';
+import { loginBuyer, publishForBooking } from './booking-setup.mjs';
+import { fullStack } from './fixture.mjs';
+
+async function readQr(response) {
+  assert.equal(response.status(), 200);
+  assert.equal(response.headers()['content-type'], 'image/png');
+  assert.equal(response.headers()['cache-control'], 'no-store');
+  assert.equal(response.headers()['cross-origin-resource-policy'], 'same-origin');
+  const png = PNG.sync.read(await response.body());
+  const decoded = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
+  assert.ok(decoded && /^[A-Za-z0-9_-]{32}$/.test(decoded.data), 'QR must carry an opaque code');
+  return decoded.data;
+}
+
+test(
+  'a verified buyer gets a private, scannable QR for each seat once Booking confirms the order',
+  { timeout: 120000 },
+  async () => {
+    const stack = await fullStack({ payments: true, tickets: true });
+    let browser;
+    try {
+      await stack.tickets.worker.stop();
+      browser = await chromium.launch();
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      const headers = await loginBuyer(page, stack.origin);
+      const saleId = await publishForBooking(page, stack.origin, headers);
+      const reservation = await page.request.post(stack.origin + '/api/v1/orders', {
+        headers: { ...headers, 'idempotency-key': randomUUID() },
+        data: { saleId, seatIds: ['r1-s2', 'r1-s1'] },
+      });
+      assert.equal(reservation.status(), 201);
+      const order = await reservation.json();
+      const pageUrl = `${stack.origin}/orders/${order.id}`;
+      const listUrl = `${stack.origin}/api/v1/orders/${order.id}/tickets`;
+      assert.equal((await page.request.get(listUrl)).status(), 404);
+      await page.goto(pageUrl);
+      await expect(page.getByRole('heading', { name: 'Билеты', exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Перейти к оплате', exact: true }).click();
+      await page.getByRole('button', { name: /^Оплатить .* в демо$/ }).click();
+      await expect(page.getByText('Готовим билеты…')).toBeVisible({ timeout: 20000 });
+      assert.equal(await stack.tickets.db.ticket.count(), 0);
+      await expect(page.getByText('Кишинёв, Улица Музыки, 12')).toBeVisible();
+
+      stack.tickets.worker.start();
+      const panel = page.getByRole('region', { name: 'Билеты' });
+      const show = panel.getByRole('button', { name: /^Показать QR/ });
+      await expect(show).toHaveCount(2, { timeout: 20000 });
+      await expect(panel).toHaveCount(1);
+      await expect(page.getByRole('region', { name: 'Оплата заказа' })).toHaveCount(1);
+      await expect(panel.getByRole('heading', { level: 3 })).toHaveText([
+        'Ряд 1, место 1',
+        'Ряд 1, место 2',
+      ]);
+      const list = await page.request.get(listUrl);
+      assert.equal(list.status(), 200);
+      assert.equal(list.headers()['cache-control'], 'no-store');
+      const { tickets } = await list.json();
+      assert.deepEqual(
+        tickets.map((ticket) => Object.keys(ticket).sort()),
+        [
+          ['categoryName', 'id', 'number', 'row'],
+          ['categoryName', 'id', 'number', 'row'],
+        ],
+      );
+      const qrUrl = `${listUrl}/${tickets[0].id}/qr`;
+      const qrResponse = page.waitForResponse(qrUrl);
+      await show.first().click();
+      const credential = await readQr(await qrResponse);
+      const image = panel.getByRole('img', { name: 'QR для входа. Ряд 1, место 1' });
+      await expect(image).toBeVisible();
+      await expect.poll(() => image.evaluate((element) => element.naturalWidth)).toBeGreaterThan(0);
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+        false,
+      );
+      const stored = await stack.tickets.db.ticket.findUnique({ where: { id: tickets[0].id } });
+      assert.ok(stored.qrHash === createHash('sha256').update(credential).digest('hex'));
+      assert.ok(!Buffer.from(stored.qrEncrypted).includes(Buffer.from(credential)));
+      assert.ok(!(await page.content()).includes(credential));
+      assert.ok(
+        (await readQr(await page.request.get(`${listUrl}/${tickets[1].id}/qr`))) !== credential,
+      );
+      await page.reload();
+      await expect(show).toHaveCount(2);
+      assert.ok(
+        (await readQr(await page.request.get(qrUrl))) === credential,
+        'QR must survive reload',
+      );
+
+      const guest = await browser.newPage();
+      assert.equal((await guest.request.get(qrUrl)).status(), 401);
+      await loginBuyer(guest, stack.origin, 'outsider');
+      assert.equal((await guest.request.get(listUrl)).status(), 404);
+      assert.equal((await guest.request.get(qrUrl)).status(), 404);
+      const otherOrder = qrUrl.replace(order.id, randomUUID());
+      assert.equal((await page.request.get(otherOrder)).status(), 404);
+    } finally {
+      await browser?.close();
+      await stack.close();
+    }
+  },
+);

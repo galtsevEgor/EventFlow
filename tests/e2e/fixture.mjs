@@ -8,6 +8,7 @@ import { createClient } from 'redis';
 import { cleanBroker } from '../helpers/broker.mjs';
 import { bookingFixture } from '../helpers/booking.mjs';
 import { paymentService } from '../helpers/payment-service.mjs';
+import { ticketsService } from '../helpers/tickets-service.mjs';
 import { createGateway } from '../../scripts/gateway.mjs';
 import {
   S3Client,
@@ -24,7 +25,7 @@ async function availablePort() {
   return port;
 }
 
-export async function fullStack({ booking = false, payments = false } = {}) {
+export async function fullStack({ booking = false, payments = false, tickets = false } = {}) {
   const database = `eventflow_e2e_${randomUUID().replaceAll('-', '')}`;
   const prefix = `e2e:${randomUUID()}:`;
   const namespace = `eventflow-test-${randomUUID()}`;
@@ -41,6 +42,7 @@ export async function fullStack({ booking = false, payments = false } = {}) {
   let gateway;
   let bookingService;
   let paymentsService;
+  let ticketsApp;
   const bookingPort = await availablePort();
   async function startBooking() {
     bookingService ??= await bookingFixture(namespace, bookingPort);
@@ -83,6 +85,7 @@ export async function fullStack({ booking = false, payments = false } = {}) {
     } finally {
       if (redis.isOpen) await redis.quit();
     }
+    await ticketsApp?.close();
     await paymentsService?.close();
     await bookingService?.close();
     await admin.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
@@ -163,10 +166,12 @@ export async function fullStack({ booking = false, payments = false } = {}) {
     const catalog = await start('services/catalog', () => ['dist/main.js'], '/health/ready');
     if (booking) await startBooking();
     if (payments) await startPayments();
+    if (tickets) ticketsApp = await ticketsService(namespace);
     const bff = await start('apps/bff', () => ['dist/main.js'], '/health/ready', {
       CATALOG_URL: catalog,
       BOOKING_URL: `http://127.0.0.1:${bookingPort}`,
       PAYMENTS_URL: paymentsService?.origin ?? 'http://127.0.0.1:1',
+      TICKETS_URL: ticketsApp?.origin ?? 'http://127.0.0.1:1',
     });
     const storefront = await start(
       'apps/storefront',
@@ -205,6 +210,7 @@ export async function fullStack({ booking = false, payments = false } = {}) {
       close,
       startBooking,
       startPayments,
+      tickets: ticketsApp,
       async stopCatalog() {
         const process = children.find((item) => item.directory === 'services/catalog');
         process.child.kill('SIGTERM');

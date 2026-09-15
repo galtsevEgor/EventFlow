@@ -14,6 +14,7 @@ test('initialization generates distinct secrets and preserves them on repeated r
     const env = parseEnv(original);
     assert.notEqual(env.CATALOG_DB_PASSWORD, env.BOOKING_DB_PASSWORD);
     assert.equal(new URL(env.BOOKING_DATABASE_URL).password, env.BOOKING_DB_PASSWORD);
+    assert.match(env.TICKET_QR_KEYS, /^v1:[0-9a-f]{64}$/);
     initializeEnvironment(directory);
     assert.equal(readFileSync(join(directory, '.env'), 'utf8'), original);
     const s3 = JSON.parse(readFileSync(join(directory, 'work/local/s3.json'), 'utf8'));

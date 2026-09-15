@@ -162,6 +162,52 @@ test('unknown payment responses remain retryable and never imply a successful pa
   }
 });
 
+test('ticket QR proxy requires the approved route, trusted origin and PNG response', async () => {
+  const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const received = [];
+  let contentType = 'image/png';
+  const upstream = await server((req, res) => {
+    received.push({ path: req.url, auth: req.headers.authorization });
+    res.setHeader('content-type', contentType);
+    res.end(png);
+  });
+  try {
+    const authService = auth('http://127.0.0.1:1');
+    authService.config.TICKETS_URL = upstream.origin;
+    const controller = new OrdersController(authService);
+    const path = `/api/v1/orders/${randomUUID()}/tickets/${randomUUID()}/qr`;
+    const res = response();
+    const headers = {};
+    res.setHeader = (name, value) => {
+      headers[name] = value;
+    };
+    res.end = (body) => {
+      res.body = body;
+    };
+    await controller.forward(request('GET', path, 'http://127.0.0.1:1' + path), res);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, png);
+    assert.equal(headers['cache-control'], 'no-store');
+    assert.equal(headers['cross-origin-resource-policy'], 'same-origin');
+    await assert.rejects(
+      controller.forward(request('POST', path), response()),
+      (error) => error.getStatus() === 404,
+    );
+    await assert.rejects(
+      controller.forward(request('GET', path + '/secret'), response()),
+      (error) => error.getStatus() === 404,
+    );
+    assert.deepEqual(received, [{ path, auth: 'Bearer synthetic-access-token' }]);
+    contentType = 'text/html';
+    await assert.rejects(
+      controller.forward(request('GET', path), response()),
+      (error) => error.getStatus() === 503 && error.getResponse().code === 'TICKETS_UNAVAILABLE',
+    );
+  } finally {
+    await upstream.close();
+  }
+});
+
 test('absolute-form URLs cannot redirect either proxy or receive the server bearer token', async () => {
   const received = [];
   let leaked = 0;

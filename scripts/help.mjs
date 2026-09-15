@@ -5,7 +5,7 @@ pnpm infra:up          Start local dependencies and wait for health checks
 pnpm infra:down        Stop dependencies; preserve project data volumes
 pnpm infra:status      Show dependency status
 pnpm identity:seed     Configure local Keycloak and demo accounts
-pnpm db:migrate        Apply Catalog, Booking and Payments migrations
+pnpm db:migrate        Apply service database migrations
 pnpm dev               Start applications behind the shared local origin
 pnpm check             Repository policy, boundaries, format, lint, types and unit tests
 pnpm build             Build every workspace
@@ -15,6 +15,7 @@ pnpm test:catalog      Test access, schedules, covers and public catalog in isol
 pnpm test:publication  Test RabbitMQ publication, recovery, idempotency and sales windows
 pnpm test:booking      Test reservation races, expiry, cancellation and restart recovery
 pnpm test:payments     Test payments, refunds, identity, webhooks and crash recovery locally
+pnpm test:tickets      Test ticket issuance and RabbitMQ redelivery locally
 pnpm test:stripe       Verify the real Stripe sandbox (test keys and network access required)
 pnpm payments:reconcile --list  List payments and refunds that require operator review
 pnpm test:load         Run a 10-minute local k6 baseline; synthetic isolated data only

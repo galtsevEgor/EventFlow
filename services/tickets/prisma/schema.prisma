@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated"
+  moduleFormat = "cjs"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Ticket {
+  id             String   @id @db.Uuid
+  orderId        String   @db.Uuid
+  seatId         String   @db.VarChar(20)
+  saleId         String   @db.Uuid
+  organizationId String   @db.Uuid
+  buyerSubject   String   @db.VarChar(255)
+  row            Int
+  number         Int
+  categoryName   String   @db.VarChar(60)
+  qrHash         String   @unique @db.Char(64)
+  qrKeyId        String   @db.VarChar(32)
+  qrEncrypted    Bytes
+  issuedAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([orderId, seatId])
+}
+
+model Inbox {
+  eventId String   @id @db.Uuid
+  seenAt  DateTime @default(now()) @db.Timestamptz(3)
+}

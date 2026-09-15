@@ -1314,6 +1314,54 @@
           "400": { "description": "Invalid signature, event or environment" }
         }
       }
+    },
+    "/api/v1/orders/{id}/tickets": {
+      "get": {
+        "operationId": "listOrderTickets",
+        "parameters": [{ "$ref": "#/components/parameters/TicketOrderId" }],
+        "responses": {
+          "200": {
+            "description": "Issued tickets for the authenticated buyer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["tickets"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "tickets": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/OrderTicket" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "No tickets available to this buyer" }
+        }
+      }
+    },
+    "/api/v1/orders/{id}/tickets/{ticketId}/qr": {
+      "get": {
+        "operationId": "getOrderTicketQr",
+        "parameters": [
+          { "$ref": "#/components/parameters/TicketOrderId" },
+          {
+            "name": "ticketId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private, non-cacheable ticket QR image",
+            "content": { "image/png": { "schema": { "type": "string", "format": "binary" } } }
+          },
+          "404": { "description": "No matching ticket available to this buyer" }
+        }
+      }
     }
   },
   "components": {
@@ -1847,6 +1895,25 @@
         "type": "object",
         "required": ["accepted"],
         "properties": { "accepted": { "const": true } }
+      },
+      "OrderTicket": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "row", "number", "categoryName"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "row": { "type": "integer" },
+          "number": { "type": "integer" },
+          "categoryName": { "type": "string" }
+        }
+      }
+    },
+    "parameters": {
+      "TicketOrderId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
       }
     },
     "securitySchemes": {

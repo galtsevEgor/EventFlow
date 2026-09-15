@@ -11,12 +11,18 @@ export class OrdersController {
   @All(['', '{*path}'])
   async forward(@Req() request: Request, @Res() response: Response) {
     const path = request.path;
+    const qr =
+      request.method === 'GET' &&
+      /^\/api\/v1\/orders\/[a-f0-9-]{36}\/tickets\/[a-f0-9-]{36}\/qr$/.test(path);
+    const tickets =
+      qr || (request.method === 'GET' && /^\/api\/v1\/orders\/[a-f0-9-]{36}\/tickets$/.test(path));
     const payment =
       (request.method === 'GET' &&
         /^\/api\/v1\/orders\/[a-f0-9-]{36}\/payment-status$/.test(path)) ||
       (request.method === 'POST' &&
         /^\/api\/v1\/orders\/[a-f0-9-]{36}\/payment-attempt(?:\/fake-confirm)?$/.test(path));
     const allowed =
+      tickets ||
       payment ||
       (request.method === 'GET'
         ? /^\/api\/v1\/orders(?:\/[a-f0-9-]{36})?$/.test(path)
@@ -32,12 +38,9 @@ export class OrdersController {
     }
     let upstream: globalThis.Response;
     let body: unknown;
+    const service = tickets ? 'TICKETS' : payment ? 'PAYMENTS' : 'BOOKING';
     try {
-      const url = upstreamUrl(
-        payment ? this.auth.config.PAYMENTS_URL : this.auth.config.BOOKING_URL,
-        path,
-        request.originalUrl,
-      );
+      const url = upstreamUrl(this.auth.config[`${service}_URL`], path, request.originalUrl);
       const key = request.header('idempotency-key');
       upstream = await fetch(url, {
         method: request.method,
@@ -54,22 +57,36 @@ export class OrdersController {
           ? {}
           : { body: JSON.stringify(request.body) }),
       });
+      if (upstream.status >= 500) {
+        await upstream.body?.cancel();
+        throw this.unavailable(service);
+      }
+      if (qr && upstream.ok) {
+        if (upstream.status !== 200 || upstream.headers.get('content-type') !== 'image/png') {
+          await upstream.body?.cancel();
+          throw this.unavailable(service);
+        }
+        const png = Buffer.from(await upstream.arrayBuffer());
+        response.setHeader('cache-control', 'no-store');
+        response.setHeader('content-type', 'image/png');
+        response.setHeader('cross-origin-resource-policy', 'same-origin');
+        response.status(200).end(png);
+        return;
+      }
       body = await upstream.json();
     } catch {
-      throw this.unavailable(payment);
+      throw this.unavailable(service);
     }
-    if (upstream.status >= 500) throw this.unavailable(payment);
     response.setHeader('cache-control', 'no-store');
     response.status(upstream.status).json(body);
   }
-  private unavailable(payment: boolean) {
-    return new ApiError(
-      503,
-      payment ? 'PAYMENTS_UNAVAILABLE' : 'BOOKING_UNAVAILABLE',
-      payment
-        ? 'Проверяем состояние платежа. Не оплачивайте повторно.'
-        : 'Бронирование временно недоступно. Повторите тот же запрос.',
-    );
+  private unavailable(service: 'BOOKING' | 'PAYMENTS' | 'TICKETS') {
+    const messages = {
+      BOOKING: 'Бронирование временно недоступно. Повторите тот же запрос.',
+      PAYMENTS: 'Проверяем состояние платежа. Не оплачивайте повторно.',
+      TICKETS: 'Билеты временно недоступны. Попробуйте ещё раз.',
+    };
+    return new ApiError(503, `${service}_UNAVAILABLE`, messages[service]);
   }
   private async requirePublished(id: string, response: Response) {
     let status: number;

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { cleanBroker } from '../tests/helpers/broker.mjs';
 
 const probeOptions = { headers: { connection: 'close' } };
 
@@ -17,11 +19,17 @@ async function availablePort() {
   return port;
 }
 
-async function checkProcess(name, directory, args, route, verify) {
+async function checkProcess(name, directory, args, route, verify, overrides = {}) {
   const port = await availablePort();
   const child = spawn(process.execPath, args(port), {
     cwd: resolve(directory),
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', NEXT_TELEMETRY_DISABLED: '1' },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      HOST: '127.0.0.1',
+      NEXT_TELEMETRY_DISABLED: '1',
+      ...overrides,
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
@@ -64,19 +72,25 @@ async function checkProcess(name, directory, args, route, verify) {
   }
 }
 
-for (const [name, group] of [
-  ['bff', 'apps'],
-  ...['catalog', 'booking', 'payments', 'tickets'].map((name) => [name, 'services']),
-]) {
-  await checkProcess(
-    name,
-    `${group}/${name}`,
-    () => ['dist/main.js'],
-    '/health/ready',
-    async (response) => {
-      assert.deepEqual(await response.json(), { status: 'ok', service: name });
-    },
-  );
+const smokeNamespace = `eventflow-test-${randomUUID()}`;
+try {
+  for (const [name, group] of [
+    ['bff', 'apps'],
+    ...['catalog', 'booking', 'payments', 'tickets'].map((name) => [name, 'services']),
+  ]) {
+    await checkProcess(
+      name,
+      `${group}/${name}`,
+      () => ['dist/main.js'],
+      '/health/ready',
+      async (response) => {
+        assert.deepEqual(await response.json(), { status: 'ok', service: name });
+      },
+      name === 'tickets' ? { MESSAGE_NAMESPACE: smokeNamespace } : {},
+    );
+  }
+} finally {
+  await cleanBroker(smokeNamespace);
 }
 
 await checkProcess(

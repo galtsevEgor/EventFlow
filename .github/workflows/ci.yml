@@ -63,6 +63,7 @@ jobs:
       - run: pnpm test:publication
       - run: pnpm test:booking
       - run: pnpm test:payments
+      - run: pnpm test:tickets
       - run: pnpm tools:setup
       - run: pnpm test:load --smoke
       - run: pnpm test:smoke

@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { expect } from '@playwright/test';
 
-export async function loginBuyer(page, origin) {
+export async function loginBuyer(page, origin, username = 'owner') {
   const user = JSON.parse(readFileSync('work/local/demo-users.json', 'utf8')).find(
-    (user) => user.username === 'owner',
+    (user) => user.username === username,
   );
   await page.goto(origin + '/api/v1/auth/login?returnTo=%2Forders');
   await page.locator('input[name=username]').fill(user.email);

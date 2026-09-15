@@ -69,6 +69,11 @@ export function clientConfigurations(env) {
           name: 'payments-audience',
           config: { ...audience.config, 'included.custom.audience': 'eventflow-payments' },
         },
+        {
+          ...audience,
+          name: 'tickets-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-tickets' },
+        },
       ],
     },
     {

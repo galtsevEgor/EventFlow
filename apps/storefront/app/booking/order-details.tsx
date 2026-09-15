@@ -5,6 +5,7 @@ import { ApiRequestError, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { BookingProvider, money, orderLabels, SignIn, useBuyer } from './client';
 import { PaymentPanel } from './payment-panel';
+import { TicketsPanel } from './tickets-panel';
 
 function Countdown({
   expiresAt,
@@ -112,12 +113,20 @@ function Details({ id }: { id: string }) {
       </ul>
       <p className="order-total">Итого: {money(data.totalMinor)}</p>
       <PaymentPanel
-        key={session.data.user.sub}
+        key={`payment:${session.data.user.sub}`}
         id={id}
         buyer={session.data.user.sub}
         orderState={data.state}
         api={api}
       />
+      {data.state === 'CONFIRMED' && (
+        <TicketsPanel
+          key={`tickets:${session.data.user.sub}`}
+          order={data}
+          buyer={session.data.user.sub}
+          api={api}
+        />
+      )}
       {data.state === 'HELD' && (
         <Button variant="secondary" disabled={cancel.isPending} onClick={() => cancel.mutate()}>
           {cancel.isPending ? 'Отменяем…' : 'Отменить бронь'}
