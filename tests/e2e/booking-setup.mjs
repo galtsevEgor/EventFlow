@@ -15,20 +15,27 @@ export async function loginBuyer(page, origin, username = 'owner') {
   return { origin, 'x-csrf-token': session.csrfToken };
 }
 
-export async function publishForBooking(page, origin, headers) {
-  const org = await (
-    await page.request.post(origin + '/api/v1/organizations', {
+export async function publishForBooking(
+  page,
+  origin,
+  headers,
+  { organizationId, title = 'Вечер музыки', schedule = {} } = {},
+) {
+  if (!organizationId) {
+    const created = await page.request.post(origin + '/api/v1/organizations', {
       headers,
       data: { name: 'Booking concert' },
-    })
-  ).json();
+    });
+    assert.equal(created.status(), 201);
+    organizationId = (await created.json()).id;
+  }
   const draft = await (
-    await page.request.post(`${origin}/api/v1/organizations/${org.id}/events`, {
+    await page.request.post(`${origin}/api/v1/organizations/${organizationId}/events`, {
       headers,
-      data: { title: 'Вечер музыки', description: 'Концерт для проверки бронирования.' },
+      data: { title, description: 'Концерт для проверки бронирования.' },
     })
   ).json();
-  const path = `${origin}/api/v1/organizations/${org.id}/events/${draft.id}`;
+  const path = `${origin}/api/v1/organizations/${organizationId}/events/${draft.id}`;
   const response = await page.request.put(path + '/configuration', {
     headers,
     data: {
@@ -43,6 +50,7 @@ export async function publishForBooking(page, origin, headers) {
         salesEndsAt: '2035-06-01T15:30:00Z',
         admissionStartsAt: '2035-06-01T15:00:00Z',
         admissionEndsAt: '2035-06-01T18:00:00Z',
+        ...schedule,
         currency: 'EUR',
         categories: [{ id: 'standard', name: 'Стандарт', priceMinor: 2500 }],
         layout: { rows: 4, columns: 8, defaultCategoryId: 'standard', overrides: [] },
