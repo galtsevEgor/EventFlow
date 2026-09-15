@@ -144,7 +144,11 @@ export class AppModule {
           inject: [Database, MailQueue, SecretBox],
           useFactory: (db: Database, queue: MailQueue, box: SecretBox) => {
             const delivery = new DeliverInvitation(db, config, box);
-            return new MailWorker(queue, (id) => delivery.send(id));
+            return new MailWorker(
+              queue,
+              (id) => delivery.send(id),
+              config.MAIL_DELIVERY_DISABLED !== 'true',
+            );
           },
         },
         ...[MembershipService, PolicyService].map((service) => ({

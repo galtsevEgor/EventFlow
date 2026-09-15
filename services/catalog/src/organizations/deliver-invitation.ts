@@ -10,7 +10,7 @@ export class DeliverInvitation {
     private readonly config: CatalogConfig,
     private readonly box: SecretBox,
   ) {
-    this.mail = new Mailpit(config.MAILPIT_SMTP_PORT, 'catalog');
+    this.mail = new Mailpit(config.MAILPIT_SMTP_PORT, 'catalog', config.MAILPIT_SMTP_HOST);
   }
 
   async send(id: string) {

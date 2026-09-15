@@ -17,6 +17,8 @@ export const mailConfig = {
     return (url.protocol === 'http:' || url.protocol === 'https:') && url.href === url.origin + '/';
   }),
   MAILPIT_SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(11025),
+  MAILPIT_SMTP_HOST: z.enum(['127.0.0.1', 'mailpit']).default('127.0.0.1'),
+  MAIL_DELIVERY_DISABLED: z.enum(['false', 'true']).default('false'),
 };
 
 export class Mailpit {
@@ -25,9 +27,10 @@ export class Mailpit {
   constructor(
     port: number,
     private readonly source: 'tickets' | 'catalog',
+    host = '127.0.0.1',
   ) {
     this.transport = createTransport({
-      host: '127.0.0.1',
+      host,
       port,
       ignoreTLS: true,
       connectionTimeout: 3000,
@@ -125,9 +128,11 @@ export class MailWorker {
   constructor(
     private readonly queue: MailQueue,
     private readonly send: Send,
+    private readonly enabled = true,
   ) {}
 
   onModuleInit() {
+    if (!this.enabled) return;
     this.stopped = false;
     this.schedule();
   }

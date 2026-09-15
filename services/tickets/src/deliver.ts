@@ -14,7 +14,7 @@ export class DeliverTickets {
       'eventflow-ticket-delivery',
       config.TICKET_DELIVERY_CLIENT_SECRET,
     );
-    this.mail = new Mailpit(config.MAILPIT_SMTP_PORT, 'tickets');
+    this.mail = new Mailpit(config.MAILPIT_SMTP_PORT, 'tickets', config.MAILPIT_SMTP_HOST);
   }
 
   async send(id: string) {

@@ -1,0 +1,81 @@
+x-databases: &databases
+  CATALOG_DATABASE_URL: postgresql://catalog:${CATALOG_DB_PASSWORD}@postgres:5432/catalog
+  BOOKING_DATABASE_URL: postgresql://booking:${BOOKING_DB_PASSWORD}@postgres:5432/booking
+  PAYMENTS_DATABASE_URL: postgresql://payments:${PAYMENTS_DB_PASSWORD}@postgres:5432/payments
+  TICKETS_DATABASE_URL: postgresql://tickets:${TICKETS_DB_PASSWORD}@postgres:5432/tickets
+
+services:
+  postgres:
+    ports: !reset []
+    mem_limit: 640m
+  redis:
+    ports: !reset []
+    mem_limit: 192m
+  rabbitmq:
+    ports: !reset []
+    mem_limit: 512m
+  keycloak:
+    ports: !reset []
+    environment:
+      KC_HOSTNAME: http://127.0.0.1:${RELEASE_IDENTITY_PORT}
+    mem_limit: 768m
+  s3:
+    ports: !reset []
+    volumes:
+      - ${RELEASE_DATA_DIR}/local/s3.json:/etc/seaweedfs/s3.json:ro
+    mem_limit: 384m
+  mailpit:
+    ports: !override
+      - 127.0.0.1:${RELEASE_MAIL_PORT}:8025
+    mem_limit: 128m
+  app:
+    image: ${RELEASE_IMAGE:-eventflow-release:unselected}
+    pull_policy: never
+    init: true
+    mem_limit: 1700m
+    cpus: 3.0
+    ports:
+      - 127.0.0.1:${RELEASE_PORT}:${RELEASE_PORT}
+      - 127.0.0.1:${RELEASE_IDENTITY_PORT}:${RELEASE_IDENTITY_PORT}
+    volumes:
+      - ${RELEASE_DATA_DIR}/local:/app/work/local
+    environment:
+      <<: *databases
+      PUBLIC_ORIGIN: http://127.0.0.1:${RELEASE_PORT}
+      KEYCLOAK_URL: http://127.0.0.1:${RELEASE_IDENTITY_PORT}
+      OIDC_ISSUER: http://127.0.0.1:${RELEASE_IDENTITY_PORT}/realms/eventflow
+      OIDC_CLIENT_ID: eventflow-bff
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      POLICY_CLIENT_SECRET: ${POLICY_CLIENT_SECRET}
+      PAYMENTS_CLIENT_SECRET: ${PAYMENTS_CLIENT_SECRET}
+      PAYMENTS_OPERATOR_SECRET: ${PAYMENTS_OPERATOR_SECRET}
+      TICKET_DELIVERY_CLIENT_SECRET: ${TICKET_DELIVERY_CLIENT_SECRET}
+      MAIL_OPERATOR_SECRET: ${MAIL_OPERATOR_SECRET}
+      TICKET_QR_KEYS: ${TICKET_QR_KEYS}
+      BOOKING_CONTACT_KEY: ${BOOKING_CONTACT_KEY}
+      CATALOG_INVITATION_KEY: ${CATALOG_INVITATION_KEY}
+      CATALOG_URL: http://127.0.0.1:4001
+      BOOKING_URL: http://127.0.0.1:4002
+      PAYMENTS_URL: http://127.0.0.1:4003
+      TICKETS_URL: http://127.0.0.1:4004
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      AMQP_URL: amqp://eventflow:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      S3_ENDPOINT: http://s3:8333
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      MAILPIT_SMTP_HOST: mailpit
+      MAILPIT_SMTP_PORT: '1025'
+      MAIL_DELIVERY_DISABLED: ${RELEASE_MAIL_DISABLED:-false}
+      PAYMENT_PROVIDER: fake
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/release/smoke.mjs']
+      interval: 10s
+      timeout: 8s
+      start_period: 45s
+      retries: 6
+  migrate:
+    image: ${RELEASE_IMAGE:-eventflow-release:unselected}
+    pull_policy: never
+    profiles: [maintenance]
+    command: ['node', 'scripts/migrate.mjs']
+    environment: *databases

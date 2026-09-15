@@ -50,7 +50,11 @@ export class AppModule {
           inject: [MailQueue],
           useFactory: (queue: MailQueue) => {
             const delivery = new DeliverTickets(config);
-            return new MailWorker(queue, (id) => delivery.send(id));
+            return new MailWorker(
+              queue,
+              (id) => delivery.send(id),
+              config.MAIL_DELIVERY_DISABLED !== 'true',
+            );
           },
         },
         {
