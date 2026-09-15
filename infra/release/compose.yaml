@@ -22,6 +22,11 @@ services:
   s3:
     ports: !reset []
     volumes:
+      - type: volume
+        source: s3-data
+        target: /data
+        volume:
+          nocopy: true
       - ${RELEASE_DATA_DIR}/local/s3.json:/etc/seaweedfs/s3.json:ro
     mem_limit: 384m
   mailpit:

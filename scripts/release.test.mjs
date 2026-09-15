@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { mkdtempSync, rmdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,6 +9,7 @@ import {
   replaceApplication,
   withEnvironmentLock,
 } from './release/compatibility.mjs';
+import { decryptBackup, encryptBackup } from './release/backup.mjs';
 
 test('deployment lock excludes overlap and is released even after failure', async () => {
   const target = { name: 'fixture', directory: mkdtempSync(join(tmpdir(), 'eventflow-lock-')) };
@@ -65,4 +67,16 @@ test('smoke failure returns the release error even after the previous app has re
     /smoke failed/,
   );
   assert.deepEqual(events, ['candidate', 'previous']);
+});
+
+test('backup entries authenticate their bytes and their intended archive path', () => {
+  const key = randomBytes(32);
+  const data = Buffer.from('synthetic restore data');
+  const archive = encryptBackup(key, 'archive/booking.dump', data);
+  assert.deepEqual(decryptBackup(key, 'archive/booking.dump', archive), data);
+  assert.notDeepEqual(encryptBackup(key, 'archive/booking.dump', data), archive);
+  assert.throws(() => decryptBackup(key, 'archive/tickets.dump', archive));
+  assert.throws(() => decryptBackup(randomBytes(32), 'archive/booking.dump', archive));
+  archive[archive.length - 1] ^= 1;
+  assert.throws(() => decryptBackup(key, 'archive/booking.dump', archive));
 });

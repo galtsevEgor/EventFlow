@@ -20,6 +20,7 @@ import {
   replaceApplication,
   withEnvironmentLock,
 } from './release/compatibility.mjs';
+import { backup, restore } from './release/backup.mjs';
 
 function build() {
   run('git', ['diff', '--quiet']);
@@ -148,6 +149,15 @@ if (!extra.length && command === 'build' && !first) {
   await deploy(environment('demo'), first);
 } else if (!extra.length && command === 'rollback' && first && !second) {
   await rollback(environment(first));
+} else if (
+  !extra.length &&
+  command === 'backup' &&
+  ['staging', 'demo'].includes(first) &&
+  !second
+) {
+  await backup(environment(first));
+} else if (!extra.length && command === 'restore' && first && !second) {
+  await restore(first);
 } else if (!extra.length && ['status', 'stop'].includes(command) && first && !second) {
   const target = environment(first);
   if (command === 'status') compose(target, ['ps'], { image: active(target)?.image });
@@ -157,6 +167,6 @@ if (!extra.length && command === 'build' && !first) {
     );
 } else {
   throw new Error(
-    'Use release build | deploy staging ID | promote ID | rollback ENV | status ENV | stop ENV.',
+    'Use release build | deploy staging ID | promote ID | rollback ENV | backup ENV | restore ID | status ENV | stop ENV.',
   );
 }

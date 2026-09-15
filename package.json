@@ -53,7 +53,8 @@
     "test:tickets": "node --env-file=.env --test --test-timeout=120000 tests/tickets/*.integration.mjs",
     "payments:reconcile": "node --env-file=.env scripts/reconcile-payment.mjs",
     "test:stripe": "node --env-file=.env --test tests/sandbox/stripe.test.mjs",
-    "release": "node scripts/release.mjs"
+    "release": "node scripts/release.mjs",
+    "test:release": "node tests/release/acceptance.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",
