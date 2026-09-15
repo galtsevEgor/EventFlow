@@ -84,3 +84,14 @@ services:
     profiles: [maintenance]
     command: ['node', 'scripts/migrate.mjs']
     environment: *databases
+  monitor:
+    image: ${RELEASE_IMAGE:-eventflow-release:unselected}
+    pull_policy: never
+    profiles: [observability]
+    command: ['node', 'scripts/release/monitor.mjs']
+    mem_limit: 128m
+    ports: ['127.0.0.1:${RELEASE_MONITOR_PORT}:9090']
+    environment:
+      <<: *databases
+      AMQP_URL: amqp://eventflow:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      RELEASE_PORT: ${RELEASE_PORT}

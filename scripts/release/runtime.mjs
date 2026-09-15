@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createGateway } from '../gateway.mjs';
+import { traffic } from './traffic.mjs';
 
 const applications = [
   ['bff', 'apps/bff', 4000, ['dist/main.js']],
@@ -41,7 +42,12 @@ if (
 )
   throw new Error('Release runtime is restricted to loopback HTTP endpoints.');
 
-const gateway = createGateway();
+const telemetry = traffic();
+const gateway = createGateway({ observe: telemetry.observe });
+const metrics = createServer((_req, response) => {
+  response.setHeader('content-type', 'application/json');
+  response.end(JSON.stringify(telemetry.snapshot()));
+});
 const proxyIdentity = createProxyMiddleware({
   target: 'http://keycloak:8080',
   changeOrigin: false,
@@ -57,7 +63,7 @@ function stop(failed = false) {
   if (stopping) return;
   stopping = true;
   process.exitCode = failed ? 1 : 0;
-  for (const server of [gateway, identity]) {
+  for (const server of [gateway, identity, metrics]) {
     server.closeAllConnections();
     server.close();
   }
@@ -66,9 +72,10 @@ function stop(failed = false) {
     for (const child of children) child.kill('SIGKILL');
   }, 8000).unref();
 }
-for (const server of [gateway, identity]) server.on('error', () => stop(true));
+for (const server of [gateway, identity, metrics]) server.on('error', () => stop(true));
 gateway.listen(Number(appOrigin.port), '0.0.0.0');
 identity.listen(Number(identityOrigin.port), '0.0.0.0');
+metrics.listen(9101, '0.0.0.0');
 for (const [name, cwd, port, args] of applications) {
   const child = spawn(process.execPath, args, {
     cwd,

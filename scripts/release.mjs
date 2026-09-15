@@ -12,6 +12,7 @@ import {
   rollOut,
   run,
   startDependencies,
+  waitFor,
   writeJson,
 } from './release/local.mjs';
 import {
@@ -158,6 +159,16 @@ if (!extra.length && command === 'build' && !first) {
   await backup(environment(first));
 } else if (!extra.length && command === 'restore' && first && !second) {
   await restore(first);
+} else if (!extra.length && command === 'monitor' && first && !second) {
+  const target = environment(first);
+  await withEnvironmentLock(target, async () => {
+    const installed = active(target);
+    if (!installed) throw new Error('Deploy the environment before starting its monitor.');
+    const { image } = manifest(installed.id);
+    compose(target, ['up', '-d', '--no-deps', 'monitor'], { image });
+    await waitFor(target.monitor + '/api/status', 15000);
+    console.log(`Monitor ready at ${target.monitor}`);
+  });
 } else if (!extra.length && ['status', 'stop'].includes(command) && first && !second) {
   const target = environment(first);
   if (command === 'status') compose(target, ['ps'], { image: active(target)?.image });
@@ -167,6 +178,6 @@ if (!extra.length && command === 'build' && !first) {
     );
 } else {
   throw new Error(
-    'Use release build | deploy staging ID | promote ID | rollback ENV | backup ENV | restore ID | status ENV | stop ENV.',
+    'Use release build | deploy staging ID | promote ID | rollback ENV | backup ENV | restore ID | monitor ENV | status ENV | stop ENV.',
   );
 }

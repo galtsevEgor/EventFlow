@@ -11,9 +11,9 @@ export const images = resolve(root, 'images');
 const releaseId = /^[a-f0-9]{40}$/;
 const imageId = /^sha256:[a-f0-9]{64}$/;
 const ports = {
-  staging: [28000, 28080, 28025],
-  demo: [38000, 38080, 38025],
-  recovery: [48000, 48080, 48025],
+  staging: [28000, 28080, 28025, 28090],
+  demo: [38000, 38080, 38025, 38090],
+  recovery: [48000, 48080, 48025, 48090],
 };
 export const dependencies = ['postgres', 'redis', 'rabbitmq', 'keycloak', 's3', 'mailpit'];
 
@@ -50,19 +50,21 @@ export function environment(name) {
   const envPath = resolve(directory, '.env');
   mkdirSync(directory, { recursive: true });
   initializeEnvironment(directory);
-  const [web, identity, mail] = ports[name];
+  const [web, identity, mail, monitor] = ports[name];
   return {
     name,
     directory,
     envPath,
     origin: `http://127.0.0.1:${web}`,
     identity: `http://127.0.0.1:${identity}`,
+    monitor: `http://127.0.0.1:${monitor}`,
     env: {
       ...process.env,
       ...parseEnv(readFileSync(envPath, 'utf8')),
       RELEASE_PORT: String(web),
       RELEASE_IDENTITY_PORT: String(identity),
       RELEASE_MAIL_PORT: String(mail),
+      RELEASE_MONITOR_PORT: String(monitor),
       RELEASE_DATA_DIR: resolve(directory, 'work').replaceAll('\\', '/'),
       RELEASE_MAIL_DISABLED: name === 'recovery' ? 'true' : 'false',
     },

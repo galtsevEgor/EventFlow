@@ -5,6 +5,7 @@ export function createGateway({
   bff = 'http://127.0.0.1:4000',
   organizer = 'http://127.0.0.1:3001',
   storefront = 'http://127.0.0.1:3000',
+  observe,
 } = {}) {
   function proxy(target) {
     return createProxyMiddleware({
@@ -45,6 +46,10 @@ export function createGateway({
         ? workspace
         : publicSite;
   const server = createServer((request, response) => {
+    if (observe && request.url.startsWith('/api/v1/')) {
+      const started = performance.now();
+      response.once('finish', () => observe(response.statusCode, performance.now() - started));
+    }
     if (request.url === '/organizer') {
       response.writeHead(308, { location: '/organizer/' });
       response.end();

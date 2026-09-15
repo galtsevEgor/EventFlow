@@ -10,6 +10,7 @@ import {
   withEnvironmentLock,
 } from './release/compatibility.mjs';
 import { decryptBackup, encryptBackup } from './release/backup.mjs';
+import { alerts, traffic } from './release/traffic.mjs';
 
 test('deployment lock excludes overlap and is released even after failure', async () => {
   const target = { name: 'fixture', directory: mkdtempSync(join(tmpdir(), 'eventflow-lock-')) };
@@ -79,4 +80,41 @@ test('backup entries authenticate their bytes and their intended archive path', 
   assert.throws(() => decryptBackup(randomBytes(32), 'archive/booking.dump', archive));
   archive[archive.length - 1] ^= 1;
   assert.throws(() => decryptBackup(key, 'archive/booking.dump', archive));
+});
+
+test('traffic samples report p95 and errors, and expire outside their window', () => {
+  let now = 0;
+  const samples = traffic(() => now);
+  for (let duration = 1; duration <= 20; duration++) {
+    samples.observe(duration === 20 ? 503 : 200, duration);
+  }
+  assert.deepEqual(samples.snapshot(), { requests: 20, serverErrors: 1, p95Ms: 19 });
+  now = 300_001;
+  assert.deepEqual(samples.snapshot(), { requests: 0, serverErrors: 0, p95Ms: 0 });
+});
+
+test('monitor reports outage, backlog, stale payments, refunds and API degradation', () => {
+  const healthy = { web: {}, rabbitmq: {}, catalog: {}, booking: {}, payments: {}, tickets: {} };
+  assert.deepEqual(alerts(healthy), []);
+  const impaired = {
+    ...healthy,
+    web: { requests: 20, serverErrors: 2, p95Ms: 850 },
+    rabbitmq: { dead: 1, pending: 101 },
+    catalog: { outboxAgeSeconds: 61, lockWaiters: 1 },
+    booking: null,
+    payments: { paymentAgeSeconds: 301, refundAgeSeconds: 301 },
+    tickets: { mailDead: 1 },
+  };
+  assert.deepEqual(alerts(impaired), [
+    'BOOKING_UNAVAILABLE',
+    'RABBIT_DLQ',
+    'RABBIT_BACKLOG',
+    'CATALOG_OUTBOX_STALLED',
+    'CATALOG_LOCK_WAIT',
+    'TICKETS_MAIL_DEAD',
+    'PAYMENT_STALLED',
+    'REFUND_STALLED',
+    'HTTP_5XX',
+    'HTTP_LATENCY',
+  ]);
 });

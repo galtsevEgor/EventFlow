@@ -57,7 +57,7 @@ export async function withEnvironmentLock(target, operation) {
     lock = openSync(path, 'wx', 0o600);
   } catch (error) {
     if (error.code === 'EEXIST')
-      throw new Error(`${target.name} is locked by another release operation.`);
+      throw new Error(`${target.name} is locked by another release operation.`, { cause: error });
     throw error;
   }
   try {
@@ -76,7 +76,9 @@ export async function replaceApplication(start, recover) {
     try {
       await recover();
     } catch (recoveryError) {
-      throw new AggregateError([error, recoveryError], 'Rollout and recovery both failed.');
+      throw new AggregateError([error, recoveryError], 'Rollout and recovery both failed.', {
+        cause: recoveryError,
+      });
     }
     throw error;
   }
