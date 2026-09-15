@@ -209,8 +209,11 @@ export async function up(releaseId, profile = 'single') {
     const images = output('docker', [
       'exec',
       'k3d-' + name + '-server-0',
-      'k3s',
       'ctr',
+      '--address',
+      '/run/k3s/containerd/containerd.sock',
+      '--namespace',
+      'k8s.io',
       'images',
       'ls',
       '-q',
