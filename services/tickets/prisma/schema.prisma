@@ -27,6 +27,7 @@ model DeliveryRetry {
 }
 
 model Ticket {
+  usedAt         DateTime? @db.Timestamptz(3)
   id             String   @id @db.Uuid
   orderId        String   @db.Uuid
   seatId         String   @db.VarChar(20)
@@ -42,6 +43,20 @@ model Ticket {
   issuedAt       DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([orderId, seatId])
+}
+
+model CheckIn {
+  requestId      String    @id @db.Uuid
+  requestHash    String    @db.Char(64)
+  actorSubject   String    @db.VarChar(255)
+  organizationId String    @db.Uuid
+  eventId        String    @db.Uuid
+  ticketId       String?   @db.Uuid
+  result         String    @db.VarChar(16)
+  admittedAt     DateTime? @db.Timestamptz(3)
+  checkedAt      DateTime  @db.Timestamptz(3)
+
+  @@index([eventId, checkedAt])
 }
 
 model Inbox {

@@ -5,6 +5,8 @@ export function readTicketsConfig(env: NodeJS.ProcessEnv) {
   return z
     .object({
       ...mailConfig,
+      CATALOG_URL: z.url(),
+      POLICY_CLIENT_SECRET: z.string().min(32),
       BOOKING_URL: z.url(),
       TICKET_DELIVERY_CLIENT_SECRET: z.string().min(32),
       TICKETS_DATABASE_URL: z.url().startsWith('postgresql:'),

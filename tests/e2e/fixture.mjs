@@ -169,6 +169,7 @@ export async function fullStack({ booking = false, payments = false, tickets = f
     if (tickets)
       ticketsApp = await ticketsService(namespace, {
         BOOKING_URL: (await startBooking()).origin,
+        CATALOG_URL: catalog,
         ...(typeof tickets === 'object' ? tickets : {}),
       });
     const bff = await start('apps/bff', () => ['dist/main.js'], '/health/ready', {

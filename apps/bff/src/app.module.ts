@@ -8,6 +8,7 @@ import { CoverProxyController, CoverSessionGuard } from './covers.controller';
 import { PublicController } from './public.controller';
 import { OrdersController } from './orders.controller';
 import { PaymentWebhooksController } from './payment-webhooks.controller';
+import { CheckInProxy } from './check-in.controller';
 
 @Module({ imports: [HealthModule.forService('bff')] })
 export class AppModule {
@@ -21,6 +22,7 @@ export class AppModule {
         CatalogController,
         OrdersController,
         PaymentWebhooksController,
+        CheckInProxy,
       ],
       providers: [
         CoverSessionGuard,

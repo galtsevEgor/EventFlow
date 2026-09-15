@@ -8,6 +8,14 @@ export type PolicyRequest = {
 };
 export class PolicyService {
   constructor(private readonly db: Database) {}
+  async admission(scope: Omit<PolicyRequest, 'action' | 'eventId'> & { eventId: string }) {
+    if (!(await this.check({ ...scope, action: 'check-in' })).allowed) return null;
+    const publication = await this.db.publication.findFirst({
+      where: { eventId: scope.eventId, state: 'PUBLISHED' },
+      select: { snapshot: true },
+    });
+    return publication?.snapshot;
+  }
   async check(input: PolicyRequest) {
     const { organizationId, actorSubject, eventId, action } = input;
     const member = await this.db.membership.findUnique({

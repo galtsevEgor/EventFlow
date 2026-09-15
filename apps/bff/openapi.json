@@ -1315,6 +1315,25 @@
         }
       }
     },
+    "/api/v1/check-in": {
+      "post": {
+        "operationId": "checkInTicket",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CheckInInput" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The authoritative admission result",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CheckInResponse" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders/{id}/tickets": {
       "get": {
         "operationId": "listOrderTickets",
@@ -1895,6 +1914,28 @@
         "type": "object",
         "required": ["accepted"],
         "properties": { "accepted": { "const": true } }
+      },
+      "CheckInInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requestId", "organizationId", "eventId", "credential"],
+        "properties": {
+          "requestId": { "type": "string", "format": "uuid" },
+          "organizationId": { "type": "string", "format": "uuid" },
+          "eventId": { "type": "string", "format": "uuid" },
+          "credential": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" }
+        }
+      },
+      "CheckInResponse": {
+        "type": "object",
+        "required": ["result", "admittedAt"],
+        "properties": {
+          "result": {
+            "type": "string",
+            "enum": ["ADMITTED", "ALREADY_USED", "WRONG_EVENT", "INVALID_TICKET", "WINDOW_CLOSED"]
+          },
+          "admittedAt": { "type": ["string", "null"], "format": "date-time" }
+        }
       },
       "OrderTicket": {
         "type": "object",

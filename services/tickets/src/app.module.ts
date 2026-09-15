@@ -15,13 +15,16 @@ import { TicketController } from './controller';
 import { IssueTickets } from './issue';
 import { QrCredentials } from './qr-credentials';
 import { DeliverTickets } from './deliver';
+import { AdmissionPolicy } from './admission-policy';
+import { CheckInController } from './check-in.controller';
+import { CheckInTicket } from './check-in';
 
 @Module({ imports: [HealthModule.forService('tickets')] })
 export class AppModule {
   static configure(config: TicketsConfig): DynamicModule {
     return {
       module: AppModule,
-      controllers: [TicketController, MailOperator],
+      controllers: [TicketController, MailOperator, CheckInController],
       providers: [
         { provide: Database, useFactory: () => new Database(config.TICKETS_DATABASE_URL) },
         {
@@ -30,6 +33,12 @@ export class AppModule {
         },
         { provide: QrCredentials, useFactory: () => new QrCredentials(config.TICKET_QR_KEYS) },
         IssueTickets,
+        { provide: AdmissionPolicy, useFactory: () => new AdmissionPolicy(config) },
+        {
+          provide: CheckInTicket,
+          inject: [Database],
+          useFactory: (db: Database) => new CheckInTicket(db),
+        },
         {
           provide: MailQueue,
           inject: [Database],

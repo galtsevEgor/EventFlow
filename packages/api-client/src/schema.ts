@@ -495,6 +495,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/check-in': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['checkInTicket'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/tickets': {
     parameters: {
       query?: never;
@@ -837,6 +853,21 @@ export interface components {
     PaymentAccepted: {
       /** @constant */
       accepted: true;
+    };
+    CheckInInput: {
+      /** Format: uuid */
+      requestId: string;
+      /** Format: uuid */
+      organizationId: string;
+      /** Format: uuid */
+      eventId: string;
+      credential: string;
+    };
+    CheckInResponse: {
+      /** @enum {string} */
+      result: 'ADMITTED' | 'ALREADY_USED' | 'WRONG_EVENT' | 'INVALID_TICKET' | 'WINDOW_CLOSED';
+      /** Format: date-time */
+      admittedAt: string | null;
     };
     OrderTicket: {
       /** Format: uuid */
@@ -2155,6 +2186,30 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  checkInTicket: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CheckInInput'];
+      };
+    };
+    responses: {
+      /** @description The authoritative admission result */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CheckInResponse'];
+        };
       };
     };
   };

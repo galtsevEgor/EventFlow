@@ -11,6 +11,7 @@ import { EventPublication } from './event-publication';
 const EventConfiguration = lazy(() =>
   import('./event-configuration').then((module) => ({ default: module.EventConfiguration })),
 );
+const CheckIn = lazy(() => import('./check-in').then(({ CheckIn }) => ({ default: CheckIn })));
 
 const input = z.object({
   title: z.string().trim().min(2, 'Минимум 2 символа').max(160, 'Максимум 160 символов'),
@@ -36,6 +37,7 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
   const [editing, setEditing] = useState<Schemas['Draft'] | 'new' | null>(null);
   const [configuring, setConfiguring] = useState<Schemas['Draft'] | null>(null);
   const [cover, setCover] = useState<Schemas['Draft'] | null>(null);
+  const [admission, setAdmission] = useState<Schemas['Draft'] | null>(null);
   const form = useForm({
     resolver: zodResolver(input),
     defaultValues: { title: '', description: '' },
@@ -102,6 +104,11 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
             <EventPublication id={id} event={event} canEdit={canEdit} />
             <h3>{event.title}</h3>
             <p>{event.description || 'Описание ещё не добавлено.'}</p>
+            {event.publication?.state === 'PUBLISHED' && (
+              <Button variant="secondary" onClick={() => setAdmission(event)}>
+                Контроль входа
+              </Button>
+            )}
             {canEdit && (
               <Button variant="secondary" onClick={() => setCover(event)}>
                 Афиша
@@ -155,6 +162,20 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
               : 'Сохранить черновик'}
           </Button>
         </form>
+      </Dialog>
+      <Dialog
+        open={admission !== null}
+        onOpenChange={(open) => {
+          if (!open) setAdmission(null);
+        }}
+        title="Контроль входа"
+        description={admission ? admission.title : 'Проверка билетов'}
+      >
+        {admission && (
+          <Suspense fallback={<Loading />}>
+            <CheckIn key={admission.id} organizationId={id} eventId={admission.id} />
+          </Suspense>
+        )}
       </Dialog>
       <Dialog
         open={cover !== null}
