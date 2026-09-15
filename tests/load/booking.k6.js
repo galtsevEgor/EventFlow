@@ -13,6 +13,16 @@ const reserveDuration = new Trend('reserve_ms', true),
   catalogDuration = new Trend('catalog_ms', true);
 const accepted = new Counter('reservations_accepted'),
   conflicts = new Counter('reservation_conflicts');
+const reserveScenario = fixture.peak
+  ? {
+      executor: 'ramping-arrival-rate',
+      startRate: 5,
+      stages: [
+        ...[5, 15, 30].map((target) => ({ target, duration: '20s' })),
+        { target: 5, duration: '10s' },
+      ],
+    }
+  : { executor: 'constant-arrival-rate', rate: 5, duration: `${fixture.duration}s` };
 export const options = {
   summaryTrendStats: ['min', 'med', 'p(95)', 'p(99)', 'max'],
   scenarios: {
@@ -26,20 +36,18 @@ export const options = {
       maxVUs: 100,
     },
     reserve: {
-      executor: 'constant-arrival-rate',
       exec: 'reserve',
-      rate: 5,
       timeUnit: '1s',
-      duration: `${fixture.duration}s`,
       preAllocatedVUs: 30,
       maxVUs: 100,
+      ...reserveScenario,
     },
   },
   thresholds: {
     checks: ['rate==1'],
     http_req_failed: ['rate==0'],
     dropped_iterations: ['count==0'],
-    reservations_accepted: [`count>=${fixture.duration * 5}`],
+    reservations_accepted: [`count>=${fixture.peak ? 924 : fixture.duration * 5}`],
   },
 };
 export function catalog() {
@@ -58,7 +66,7 @@ export function reserve() {
   const saleId = fixture.sales[i % fixture.sales.length];
   const key = fixture.runId.slice(0, 24) + i.toString(16).padStart(12, '0');
   const response = http.post(
-    `${fixture.booking}/api/v1/orders`,
+    `${fixture.booking[i % fixture.booking.length]}/api/v1/orders`,
     JSON.stringify({ saleId, seatIds: [`r${Math.floor(index / 50) + 1}-s${(index % 50) + 1}`] }),
     {
       headers: {

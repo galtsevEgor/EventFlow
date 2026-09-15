@@ -2,8 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { expect } from '@playwright/test';
 
-export async function loginBuyer(page, origin, username = 'owner') {
-  const user = JSON.parse(readFileSync('work/local/demo-users.json', 'utf8')).find(
+export async function loginBuyer(
+  page,
+  origin,
+  username = 'owner',
+  usersPath = 'work/local/demo-users.json',
+) {
+  const user = JSON.parse(readFileSync(usersPath, 'utf8')).find(
     (user) => user.username === username,
   );
   await page.goto(origin + '/api/v1/auth/login?returnTo=%2Forders');
@@ -19,7 +24,7 @@ export async function publishForBooking(
   page,
   origin,
   headers,
-  { organizationId, title = 'Вечер музыки', schedule = {} } = {},
+  { organizationId, title = 'Вечер музыки', schedule = {}, layout = { rows: 4, columns: 8 } } = {},
 ) {
   if (!organizationId) {
     const created = await page.request.post(origin + '/api/v1/organizations', {
@@ -53,7 +58,7 @@ export async function publishForBooking(
         ...schedule,
         currency: 'EUR',
         categories: [{ id: 'standard', name: 'Стандарт', priceMinor: 2500 }],
-        layout: { rows: 4, columns: 8, defaultCategoryId: 'standard', overrides: [] },
+        layout: { ...layout, defaultCategoryId: 'standard', overrides: [] },
       },
     },
   });

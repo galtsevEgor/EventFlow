@@ -1,6 +1,6 @@
 import { fork } from 'node:child_process';
 
-export async function bookingReplica(databaseUrl, namespace, issuer) {
+export async function bookingReplica(databaseUrl, namespace, issuer, poolSize) {
   const child = fork(new URL('./booking-child.mjs', import.meta.url), {
     execArgv: [],
     env: {
@@ -9,6 +9,7 @@ export async function bookingReplica(databaseUrl, namespace, issuer) {
       MESSAGE_NAMESPACE: namespace,
       OIDC_ISSUER: issuer,
       EVENTFLOW_LOG_REQUESTS: '0',
+      ...(poolSize ? { DATABASE_POOL_SIZE: String(poolSize) } : {}),
     },
     silent: true,
     windowsHide: true,

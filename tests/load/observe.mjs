@@ -5,7 +5,7 @@ import { monitorEventLoopDelay } from 'node:perf_hooks';
 import pg from 'pg';
 
 const execute = promisify(execFile);
-export function machine() {
+export function machine(replicas) {
   const docker = JSON.parse(
     execFileSync('docker', ['info', '--format', '{{json .}}'], {
       encoding: 'utf8',
@@ -31,8 +31,7 @@ export function machine() {
       cpuLimit: c.HostConfig.NanoCpus,
       memoryLimitBytes: c.HostConfig.Memory,
     })),
-    topology:
-      'One Node process hosting Catalog + Booking fixtures, PostgreSQL/RabbitMQ in local Docker, separate k6 process on the same machine. Direct API; no BFF/CDN/SSR/payment/check-in load.',
+    topology: `Catalog + first Booking replica in one Node process; ${replicas - 1} extra Booking child processes. Shared PostgreSQL/RabbitMQ in local Docker and separate k6 process. Direct API.`,
   };
 }
 export async function observe(booking, directory, write) {
@@ -57,7 +56,7 @@ export async function observe(booking, directory, write) {
       cpu = process.cpuUsage(previousCpu);
     previousCpu = process.cpuUsage();
     const activity =
-      await observer.query(`SELECT count(*) FILTER (WHERE state='active')::int AS active,
+      await observer.query(`SELECT count(*)::int AS sessions, count(*) FILTER (WHERE state='active')::int AS active,
       count(*) FILTER (WHERE wait_event_type='Lock')::int AS lock_waiters,
       coalesce(max(extract(epoch FROM clock_timestamp()-query_start)*1000) FILTER (WHERE state='active'),0)::float AS longest_active_query_ms
       FROM pg_stat_activity WHERE datname=current_database() AND application_name='eventflow-booking'`);

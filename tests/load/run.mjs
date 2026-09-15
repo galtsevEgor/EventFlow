@@ -6,6 +6,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { catalogFixture } from '../../services/catalog/tests/fixture.mjs';
 import { bookingFixture } from '../helpers/booking.mjs';
+import { bookingReplica } from '../helpers/booking-replica.mjs';
 import { cleanBroker } from '../helpers/broker.mjs';
 import { testIdentity } from '../helpers/identity.mjs';
 import { seedLoad } from './seed.mjs';
@@ -18,10 +19,15 @@ for (const name of ['CATALOG_DATABASE_URL', 'BOOKING_DATABASE_URL', 'AMQP_URL'])
   if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))
     throw new Error(`${name} must use loopback for load fixtures`);
 }
-const smoke = process.argv.includes('--smoke');
-if (process.argv.slice(2).some((arg) => arg !== '--smoke'))
-  throw new Error('Use pnpm test:load [--smoke]');
-const duration = smoke ? 10 : 600,
+const [profile, ...extra] = process.argv.slice(2);
+if (extra.length || (profile && !['--smoke', '--peak', '--peak-replicas'].includes(profile)))
+  throw new Error('Use pnpm test:load [--smoke|--peak|--peak-replicas]');
+const smoke = profile === '--smoke';
+const peak = profile === '--peak' || profile === '--peak-replicas';
+const replicas = profile === '--peak-replicas' ? 3 : 1;
+const poolSize = 12 / replicas;
+const peers = [];
+const duration = smoke ? 10 : peak ? 70 : 600,
   runId = randomUUID(),
   namespace = `eventflow-test-${runId}`;
 const directory = resolve('work/load', runId);
@@ -45,7 +51,14 @@ function sourceFingerprint() {
 try {
   identity = await testIdentity();
   catalog = await catalogFixture();
-  booking = await bookingFixture(namespace, 0, { OIDC_ISSUER: identity.issuer });
+  booking = await bookingFixture(namespace, 0, {
+    OIDC_ISSUER: identity.issuer,
+    DATABASE_POOL_SIZE: poolSize,
+  });
+  for (let replica = 1; replica < replicas; replica++) {
+    peers.push(await bookingReplica(booking.databaseUrl, namespace, identity.issuer, poolSize));
+  }
+  const bookingOrigins = [booking.origin, ...peers.map((peer) => peer.origin)];
   const seed = await seedLoad(catalog, booking, identity, smoke);
   const { tokens, ...configuration } = seed;
   writeFileSync(
@@ -55,20 +68,22 @@ try {
       runId,
       duration,
       catalog: catalog.origin,
-      booking: booking.origin,
+      booking: bookingOrigins,
+      peak,
     }),
     { mode: 0o600 },
   );
   writeFileSync(tokensPath, JSON.stringify(tokens), { mode: 0o600 });
   const metadata = {
     runId,
-    profile: smoke ? 'smoke' : 'baseline',
+    profile: profile?.slice(2) ?? 'baseline',
     durationSeconds: duration,
-    rates: { catalog: 50, reserve: 5 },
+    rates: { catalog: 50, reserve: peak ? [5, 15, 30, 5] : 5 },
+    booking: { replicas, poolSize },
     fixture: seed.shape,
     git: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     sourceSha256: sourceFingerprint(),
-    machine: machine(),
+    machine: machine(replicas),
     startedAt: new Date().toISOString(),
     warmup: '10 seconds of catalog, sale and authenticated order reads; excluded from k6 results',
   };
@@ -77,7 +92,7 @@ try {
     await Promise.all(
       [
         fetch(catalog.origin + '/api/v1/events'),
-        fetch(booking.origin + `/api/v1/sales/${seed.sales[0]}`),
+        ...bookingOrigins.map((origin) => fetch(origin + `/api/v1/sales/${seed.sales[0]}`)),
         fetch(booking.origin + '/api/v1/orders', {
           headers: { authorization: `Bearer ${seed.tokens[0]}` },
         }),
@@ -88,7 +103,7 @@ try {
   booking.db.resetQueryMetrics();
   stop = await observe(booking, directory, write);
   console.log(
-    `Starting ${metadata.profile}: ${duration}s, 50 catalog + 5 reserve requests/s; local synthetic fixture.`,
+    `Starting ${metadata.profile}: ${duration}s, 50 catalog + ${peak ? '5 to 30' : 5} reserve requests/s across ${replicas} Booking replica(s).`,
   );
   const summaryPath = resolve(directory, 'k6-summary.json');
   child = spawn(toolPath('k6'), ['run', '--quiet', '--no-color', 'tests/load/booking.k6.js'], {
@@ -127,6 +142,7 @@ try {
       maxPoolWaiting: Math.max(0, ...samples.map((s) => s.pool.waiting)),
       maxPoolConnections: Math.max(0, ...samples.map((s) => s.pool.total)),
       maxLockWaiters: Math.max(0, ...samples.map((s) => s.lock_waiters)),
+      maxBookingSessions: Math.max(0, ...samples.map((s) => s.sessions)),
       queries: booking.db.diagnostics().queries,
     },
   };
@@ -157,9 +173,10 @@ try {
       if (error.code !== 'ENOENT') failures.push(error);
     }
   }
+  const peerCleanup = await Promise.allSettled(peers.map((peer) => peer.close()));
   const cleanup = await Promise.allSettled([booking?.close(), catalog?.close(), identity?.close()]);
   const broker = await Promise.allSettled([cleanBroker(namespace)]);
-  for (const result of [...observation, ...cleanup, ...broker])
+  for (const result of [...observation, ...peerCleanup, ...cleanup, ...broker])
     if (result.status === 'rejected') failures.push(result.reason);
 }
 if (failures.length)
