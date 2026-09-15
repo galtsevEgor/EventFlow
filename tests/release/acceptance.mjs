@@ -5,17 +5,22 @@ import { chromium, expect } from '@playwright/test';
 import { publishForBooking } from '../e2e/booking-setup.mjs';
 
 const [action, name] = process.argv.slice(2);
-const port = { staging: 28000, recovery: 48000 }[name];
+const port = { staging: 28000, recovery: 48000, cluster: 58000 }[name];
 if (
   !port ||
   !['seed', 'mark', 'verify'].includes(action) ||
-  (action !== 'verify' && name !== 'staging')
+  (action === 'seed' && name === 'recovery') ||
+  (action === 'mark' && name !== 'staging')
 )
-  throw new Error('Use seed staging | mark staging | verify staging|recovery.');
+  throw new Error('Use seed staging|cluster | mark staging | verify staging|recovery|cluster.');
 const origin = `http://127.0.0.1:${port}`;
 const root = origin + '/api/v1';
-const evidence = 'work/release/acceptance.json';
-const [owner] = JSON.parse(readFileSync(`work/release/${name}/work/local/demo-users.json`, 'utf8'));
+const evidence = name === 'cluster' ? 'work/e7/acceptance.json' : 'work/release/acceptance.json';
+const users =
+  name === 'cluster'
+    ? 'work/e7/credentials/demo-users.json'
+    : `work/release/${name}/work/local/demo-users.json`;
+const [owner] = JSON.parse(readFileSync(users, 'utf8'));
 const browser = await chromium.launch();
 try {
   const page = await browser.newPage();

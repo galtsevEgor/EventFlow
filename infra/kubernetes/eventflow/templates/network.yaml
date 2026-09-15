@@ -1,0 +1,47 @@
+{{- if eq .Values.mode "infrastructure" }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+{{- $rules := dict
+  "gateway" (list (dict "port" 8080))
+  "keycloak" (list (dict "port" 8080))
+  "mailpit" (list (dict "port" 8025) (dict "port" 1025 "from" (list "keycloak" "catalog" "tickets")))
+  "postgres" (list (dict "port" 5432 "from" (list "keycloak" "catalog" "booking" "payments" "tickets" "migrate")))
+  "redis" (list (dict "port" 6379 "from" (list "bff")))
+  "rabbitmq" (list (dict "port" 5672 "from" (list "catalog" "booking" "payments" "tickets")))
+  "s3" (list (dict "port" 8333 "from" (list "catalog")))
+  "bff" (list (dict "port" 4000 "from" (list "gateway")))
+  "catalog" (list (dict "port" 4001 "from" (list "bff" "storefront" "tickets" "fixture")))
+  "booking" (list (dict "port" 4002 "from" (list "bff" "payments" "tickets" "fixture")))
+  "payments" (list (dict "port" 4003 "from" (list "bff")))
+  "tickets" (list (dict "port" 4004 "from" (list "bff")))
+  "storefront" (list (dict "port" 3000 "from" (list "gateway")))
+  "organizer" (list (dict "port" 3001 "from" (list "gateway")))
+}}
+{{- range $name, $rules := $rules }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}-ingress
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "eventflow.labels" $name | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    {{- range $rules }}
+    - ports: [{ protocol: TCP, port: {{ .port }} }]
+      {{- with .from }}
+      from:
+        - podSelector:
+            matchExpressions:
+              - { key: app.kubernetes.io/name, operator: In, values: {{ . | toJson }} }
+      {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

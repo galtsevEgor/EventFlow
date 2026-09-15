@@ -1,0 +1,57 @@
+{{- if eq .Values.mode "applications" }}
+{{- range $name := list "migrate" "seed" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: {{ if eq $name "migrate" }}'-20'{{ else }}'-10'{{ end }}
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 150
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        {{- include "eventflow.labels" $name | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext: { runAsUser: 1000, runAsGroup: 1000, runAsNonRoot: true }
+      {{- if eq $name "seed" }}
+      initContainers:
+        {{- include "eventflow.identityProxy" $ | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ required "image is required" $.Values.image | quote }}
+          imagePullPolicy: Never
+          workingDir: /app
+          {{- if eq $name "migrate" }}
+          command: [node, scripts/migrate.mjs]
+          env:
+            {{- include "eventflow.secrets" (list "CATALOG_DATABASE_URL" "BOOKING_DATABASE_URL" "PAYMENTS_DATABASE_URL" "TICKETS_DATABASE_URL") | nindent 12 }}
+          {{- else }}
+          command: [sh, -ec, 'mkdir -p work/local && cp /opt/demo/demo-users.json work/local/ && node scripts/keycloak-seed.mjs']
+          env:
+            {{- include "eventflow.env" $ | nindent 12 }}
+            {{- include "eventflow.secrets" (list "OIDC_CLIENT_SECRET" "POLICY_CLIENT_SECRET" "PAYMENTS_CLIENT_SECRET" "PAYMENTS_OPERATOR_SECRET" "TICKET_DELIVERY_CLIENT_SECRET" "MAIL_OPERATOR_SECRET") | nindent 12 }}
+            - { name: KEYCLOAK_ADMIN_PASSWORD, valueFrom: { secretKeyRef: { name: eventflow-infra, key: KEYCLOAK_ADMIN_PASSWORD } } }
+          volumeMounts: [{ name: demo-users, mountPath: /opt/demo, readOnly: true }]
+          {{- end }}
+          resources:
+            requests: { cpu: 100m, memory: 96Mi }
+            limits: { memory: 320Mi }
+      {{- if eq $name "seed" }}
+      volumes:
+        - name: demo-users
+          secret: { secretName: eventflow-demo-users }
+        - name: cluster-scripts
+          configMap: { name: eventflow-cluster-scripts }
+      {{- end }}
+{{- end }}
+{{- end }}

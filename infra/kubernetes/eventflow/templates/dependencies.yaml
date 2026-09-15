@@ -1,0 +1,140 @@
+{{- if eq .Values.mode "infrastructure" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventflow-cluster-scripts
+data:
+  gateway.mjs: |
+    {{- .Files.Get "files/gateway.mjs" | nindent 4 }}
+  identity-proxy.mjs: |
+    {{- .Files.Get "files/identity-proxy.mjs" | nindent 4 }}
+{{- range $name, $dep := .Values.dependencies }}
+{{- if $dep.storage }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: { storage: {{ $dep.size }} }
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "eventflow.labels" $name | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels:
+      {{- include "eventflow.labels" $name | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "eventflow.labels" $name | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      {{- if eq $name "rabbitmq" }}
+      hostname: rabbitmq
+      {{- end }}
+      containers:
+        - name: dependency
+          image: {{ $dep.image | quote }}
+          imagePullPolicy: IfNotPresent
+          {{- with $dep.args }}
+          args: {{ . | toJson }}
+          {{- end }}
+          env:
+            {{- if eq $name "postgres" }}
+            - { name: POSTGRES_USER, value: eventflow_admin }
+            - { name: POSTGRES_DB, value: eventflow_admin }
+            - { name: POSTGRES_PASSWORD, valueFrom: { secretKeyRef: { name: eventflow-infra, key: POSTGRES_ADMIN_PASSWORD } } }
+            {{- range list "CATALOG_DB_PASSWORD" "BOOKING_DB_PASSWORD" "PAYMENTS_DB_PASSWORD" "TICKETS_DB_PASSWORD" "KEYCLOAK_DB_PASSWORD" }}
+            - { name: {{ . }}, valueFrom: { secretKeyRef: { name: eventflow-infra, key: {{ . }} } } }
+            {{- end }}
+            {{- else if eq $name "redis" }}
+            - { name: REDIS_PASSWORD, valueFrom: { secretKeyRef: { name: eventflow-infra, key: REDIS_PASSWORD } } }
+            {{- else if eq $name "rabbitmq" }}
+            - { name: RABBITMQ_DEFAULT_USER, value: eventflow }
+            - { name: RABBITMQ_DEFAULT_PASS, valueFrom: { secretKeyRef: { name: eventflow-infra, key: RABBITMQ_PASSWORD } } }
+            {{- else if eq $name "keycloak" }}
+            - { name: KC_DB, value: postgres }
+            - { name: KC_DB_URL, value: 'jdbc:postgresql://postgres:5432/keycloak' }
+            - { name: KC_DB_USERNAME, value: keycloak }
+            - { name: KC_DB_PASSWORD, valueFrom: { secretKeyRef: { name: eventflow-infra, key: KEYCLOAK_DB_PASSWORD } } }
+            - { name: KC_BOOTSTRAP_ADMIN_USERNAME, value: admin }
+            - { name: KC_BOOTSTRAP_ADMIN_PASSWORD, valueFrom: { secretKeyRef: { name: eventflow-infra, key: KEYCLOAK_ADMIN_PASSWORD } } }
+            - { name: KC_HEALTH_ENABLED, value: 'true' }
+            - { name: KC_HOSTNAME, value: {{ $.Values.identityOrigin | quote }} }
+            {{- else }}
+            []
+            {{- end }}
+          ports:
+            - { name: main, containerPort: {{ $dep.port }} }
+            {{- range $dep.extraPorts }}
+            - { name: {{ .name }}, containerPort: {{ .port }} }
+            {{- end }}
+          resources:
+            requests: { cpu: {{ $dep.cpu }}, memory: 96Mi }
+            limits: { memory: {{ $dep.memory }} }
+          startupProbe:
+            exec: { command: {{ $dep.check | toJson }} }
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            exec: { command: {{ $dep.check | toJson }} }
+            periodSeconds: 5
+            timeoutSeconds: 5
+          {{- if or $dep.storage (eq $name "s3") }}
+          volumeMounts:
+            {{- if $dep.storage }}
+            - { name: data, mountPath: {{ $dep.storage }} }
+            {{- end }}
+            {{- if eq $name "postgres" }}
+            - { name: postgres-init, mountPath: /docker-entrypoint-initdb.d, readOnly: true }
+            {{- end }}
+            {{- if eq $name "s3" }}
+            - { name: s3-config, mountPath: /etc/eventflow, readOnly: true }
+            {{- end }}
+          {{- end }}
+      {{- if $dep.storage }}
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: {{ $name }}-data }
+        {{- if eq $name "postgres" }}
+        - name: postgres-init
+          configMap: { name: eventflow-postgres-init, defaultMode: 365 }
+        {{- end }}
+        {{- if eq $name "s3" }}
+        - name: s3-config
+          secret: { secretName: eventflow-s3 }
+        {{- end }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+spec:
+  type: {{ if $dep.nodePort }}NodePort{{ else }}ClusterIP{{ end }}
+  selector:
+    {{- include "eventflow.labels" $name | nindent 4 }}
+  ports:
+    - name: main
+      port: {{ $dep.port }}
+      targetPort: main
+      {{- if $dep.nodePort }}
+      nodePort: {{ $dep.nodePort }}
+      {{- end }}
+    {{- range $dep.extraPorts }}
+    - { name: {{ .name }}, port: {{ .port }}, targetPort: {{ .name }} }
+    {{- end }}
+{{- end }}
+{{- end }}

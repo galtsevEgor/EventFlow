@@ -1,0 +1,86 @@
+{{- if eq .Values.mode "applications" }}
+{{- range $name, $app := .Values.applications }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "eventflow.labels" $name | nindent 4 }}
+spec:
+  replicas: {{ default 1 (index $.Values.replicas $name) }}
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "eventflow.labels" $name | nindent 6 }}
+      app.kubernetes.io/component: http
+  template:
+    metadata:
+      labels:
+        {{- include "eventflow.labels" $name | nindent 8 }}
+        app.kubernetes.io/component: http
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+      {{- if $app.identity }}
+      initContainers:
+        {{- include "eventflow.identityProxy" $ | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: http
+          image: {{ required "image is required" $.Values.image | quote }}
+          imagePullPolicy: Never
+          workingDir: {{ default "/app" $app.directory }}
+          command: {{ default (list "node" "dist/main.js") $app.command | toJson }}
+          env:
+            {{- include "eventflow.env" $ | nindent 12 }}
+            {{- include "eventflow.secrets" $app.secrets | nindent 12 }}
+            - { name: HOST, value: '0.0.0.0' }
+            - { name: PORT, value: {{ $app.port | quote }} }
+          ports: [{ name: http, containerPort: {{ $app.port }} }]
+          resources:
+            requests: { cpu: {{ $app.cpu }}, memory: 64Mi }
+            limits: { memory: {{ $app.memory }} }
+          volumeMounts: [{ name: cluster-scripts, mountPath: /opt/eventflow, readOnly: true }]
+          startupProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: {{ default "/health/ready" $app.probe | quote }}, port: http }
+            periodSeconds: 3
+          livenessProbe:
+            tcpSocket: { port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec: { command: [sh, -c, 'sleep 2'] }
+      volumes:
+        - name: cluster-scripts
+          configMap: { name: eventflow-cluster-scripts }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+spec:
+  type: {{ if $app.nodePort }}NodePort{{ else }}ClusterIP{{ end }}
+  selector:
+    {{- include "eventflow.labels" $name | nindent 4 }}
+    app.kubernetes.io/component: http
+  ports:
+    - name: http
+      port: {{ $app.port }}
+      targetPort: http
+      {{- if $app.nodePort }}
+      nodePort: {{ $app.nodePort }}
+      {{- end }}
+{{- end }}
+{{- end }}

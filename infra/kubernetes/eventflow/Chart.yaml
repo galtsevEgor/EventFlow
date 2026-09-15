@@ -1,0 +1,5 @@
+apiVersion: v2
+name: eventflow
+description: Isolated local EventFlow scaling environment
+type: application
+version: 0.1.0

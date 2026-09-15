@@ -1,0 +1,141 @@
+mode: applications
+image: ''
+replicas: {}
+publicOrigin: http://127.0.0.1:58000
+identityOrigin: http://127.0.0.1:58080
+
+applications:
+  gateway:
+    port: 8080
+    nodePort: 30080
+    command: [node, /opt/eventflow/gateway.mjs]
+    probe: /api/v1/events
+    cpu: 100m
+    memory: 128Mi
+  storefront:
+    port: 3000
+    directory: /app/apps/storefront
+    command: [node, node_modules/next/dist/bin/next, start, --hostname, 0.0.0.0, --port, '3000']
+    probe: /
+    cpu: 150m
+    memory: 384Mi
+  organizer:
+    port: 3001
+    directory: /app/apps/organizer
+    command:
+      [node, node_modules/vite/bin/vite.js, preview, --host, 0.0.0.0, --port, '3001', --strictPort]
+    probe: /organizer/
+    cpu: 50m
+    memory: 128Mi
+  bff:
+    port: 4000
+    directory: /app/apps/bff
+    identity: true
+    secrets: [OIDC_CLIENT_SECRET, REDIS_URL]
+    cpu: 100m
+    memory: 192Mi
+  catalog:
+    port: 4001
+    directory: /app/services/catalog
+    identity: true
+    secrets: [CATALOG_DATABASE_URL, AMQP_URL, S3_ACCESS_KEY, S3_SECRET_KEY, CATALOG_INVITATION_KEY]
+    cpu: 150m
+    memory: 256Mi
+  booking:
+    port: 4002
+    directory: /app/services/booking
+    identity: true
+    secrets: [BOOKING_DATABASE_URL, AMQP_URL, BOOKING_CONTACT_KEY]
+    cpu: 150m
+    memory: 256Mi
+  payments:
+    port: 4003
+    directory: /app/services/payments
+    identity: true
+    secrets: [PAYMENTS_DATABASE_URL, AMQP_URL, PAYMENTS_CLIENT_SECRET]
+    cpu: 100m
+    memory: 256Mi
+  tickets:
+    port: 4004
+    directory: /app/services/tickets
+    identity: true
+    secrets:
+      [
+        TICKETS_DATABASE_URL,
+        AMQP_URL,
+        TICKET_QR_KEYS,
+        TICKET_DELIVERY_CLIENT_SECRET,
+        POLICY_CLIENT_SECRET,
+      ]
+    cpu: 100m
+    memory: 256Mi
+
+dependencies:
+  postgres:
+    image: postgres:18-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+    port: 5432
+    storage: /var/lib/postgresql
+    size: 2Gi
+    cpu: 200m
+    memory: 640Mi
+    check: [pg_isready, -U, eventflow_admin, -d, eventflow_admin]
+  redis:
+    image: redis:8.10.3-alpine@sha256:896f241f438ab6a210cfb24f573b84bea721a4cbe67f1b4fd07eb638b3b02a7b
+    port: 6379
+    storage: /data
+    size: 256Mi
+    cpu: 50m
+    memory: 128Mi
+    args: [sh, -ec, 'exec redis-server --appendonly yes --requirepass "$REDIS_PASSWORD"']
+    check: [sh, -ec, 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+  rabbitmq:
+    image: rabbitmq:4.4.0-management-alpine@sha256:0452ee3fd3b9a74160b251e693338616b464f22df4d4ba43304c101bebdca292
+    port: 5672
+    extraPorts:
+      - { name: management, port: 15672 }
+    storage: /var/lib/rabbitmq
+    size: 1Gi
+    cpu: 200m
+    memory: 512Mi
+    check: [rabbitmq-diagnostics, -q, ping]
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b
+    port: 8080
+    nodePort: 30081
+    args: [start-dev]
+    cpu: 300m
+    memory: 896Mi
+    check:
+      [
+        bash,
+        -ec,
+        "{ printf 'HEAD /health/ready HTTP/1.0\r\n\r\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000",
+      ]
+  s3:
+    image: chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8
+    port: 8333
+    storage: /data
+    size: 2Gi
+    cpu: 100m
+    memory: 384Mi
+    args:
+      [
+        server,
+        -dir=/data,
+        -ip=localhost,
+        -ip.bind=0.0.0.0,
+        -volume.max=16,
+        -master.volumeSizeLimitMB=64,
+        -s3,
+        -s3.config=/etc/eventflow/s3.json,
+      ]
+    check: [wget, -q, -O, /dev/null, 'http://127.0.0.1:9333/cluster/status']
+  mailpit:
+    image: axllent/mailpit:v1.32.0@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+    port: 8025
+    nodePort: 30025
+    extraPorts:
+      - { name: smtp, port: 1025 }
+    cpu: 25m
+    memory: 128Mi
+    check: [/mailpit, readyz]
