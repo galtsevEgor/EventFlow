@@ -18,6 +18,10 @@ export function CheckInCamera({ onCode }: { onCode: (code: string) => void }) {
       stream?.getTracks().forEach((track) => track.stop());
       preview.srcObject = null;
     };
+    const fail = () => {
+      if (!cancelled) setState('FAILED');
+      stop();
+    };
     async function start(element: HTMLVideoElement) {
       try {
         const media = await navigator.mediaDevices.getUserMedia({
@@ -26,6 +30,8 @@ export function CheckInCamera({ onCode }: { onCode: (code: string) => void }) {
         });
         stream = media;
         if (cancelled) return stop();
+        for (const track of media.getVideoTracks())
+          track.addEventListener('ended', fail, { once: true });
         element.srcObject = media;
         await element.play();
         if (cancelled) return;
@@ -48,8 +54,7 @@ export function CheckInCamera({ onCode }: { onCode: (code: string) => void }) {
           }
         }, 160);
       } catch {
-        if (!cancelled) setState('FAILED');
-        stop();
+        fail();
       }
     }
     void start(preview);

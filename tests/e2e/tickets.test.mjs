@@ -99,9 +99,16 @@ test(
 
       const guest = await browser.newPage();
       assert.equal((await guest.request.get(qrUrl)).status(), 401);
+      const codeUrl = qrUrl.replace(/\/qr$/, '/code');
+      assert.equal((await guest.request.get(codeUrl)).status(), 401);
       await loginBuyer(guest, stack.origin, 'outsider');
       assert.equal((await guest.request.get(listUrl)).status(), 404);
       assert.equal((await guest.request.get(qrUrl)).status(), 404);
+      assert.equal((await guest.request.get(codeUrl)).status(), 404);
+      const code = await page.request.get(codeUrl);
+      assert.equal(code.status(), 200);
+      assert.equal(code.headers()['cache-control'], 'no-store');
+      assert.ok((await code.json()).code === credential);
       const otherOrder = qrUrl.replace(order.id, randomUUID());
       assert.equal((await page.request.get(otherOrder)).status(), 404);
 

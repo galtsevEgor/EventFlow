@@ -2,8 +2,6 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { chromium, expect } from '@playwright/test';
-import jsQR from 'jsqr';
-import { PNG } from 'pngjs';
 import { loginBuyer, publishForBooking } from './booking-setup.mjs';
 import { fullStack } from './fixture.mjs';
 
@@ -97,10 +95,18 @@ test(
           return image.body();
         }),
       );
-      const png = PNG.sync.read(images[0]);
-      const decoded = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
-      assert.ok(decoded && /^[A-Za-z0-9_-]{32}$/.test(decoded.data));
-      const credential = decoded.data;
+      const first = owner.getByRole('listitem').filter({
+        has: owner.getByRole('heading', { name: 'Ряд 1, место 1', exact: true }),
+      });
+      const reveal = first.getByRole('button', { name: /^Показать код для ручного ввода/ });
+      await reveal.focus();
+      await owner.keyboard.press('Enter');
+      const manual = first.locator('code');
+      await expect(manual).toBeVisible();
+      const credential = await manual.textContent();
+      assert.ok(credential && /^[A-Za-z0-9_-]{32}$/.test(credential));
+      await first.getByRole('button', { name: /^Скрыть код/ }).press('Enter');
+      await expect(manual).toHaveCount(0);
 
       const invited = await owner.request.post(
         root + `/organizations/${organizationId}/invitations`,
@@ -186,6 +192,7 @@ test(
       await staff.unroute(checkUrl);
       await retry.click();
       await expect(dialog.getByText('Вход разрешён', { exact: true })).toBeVisible();
+      await expect(dialog.getByLabel('Код билета')).toBeFocused();
       assert.equal(new Set(requestIds).size, 1);
       assert.equal(requestIds.length, 2);
 
@@ -195,6 +202,10 @@ test(
       await virtualCamera(staff, images[1]);
       await dialog.getByRole('button', { name: 'Включить камеру' }).click();
       await expect(dialog.getByText('Вход разрешён', { exact: true })).toBeVisible();
+      assert.equal(
+        await staff.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+        false,
+      );
       assert.equal(await stack.tickets.db.checkIn.count({ where: { result: 'ADMITTED' } }), 2);
       assert.equal((await assign(false)).status(), 200);
       const revoked = await staff.request.post(checkUrl, {

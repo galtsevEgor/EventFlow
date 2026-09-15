@@ -5,9 +5,74 @@ import { useQuery } from '@tanstack/react-query';
 import { unwrap, type createApiClient, type Schemas } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 
-function Ticket({ orderId, ticket }: { orderId: string; ticket: Schemas['OrderTicket'] }) {
+type BuyerApi = ReturnType<typeof createApiClient>;
+
+function ManualCode({
+  api,
+  buyer,
+  orderId,
+  ticketId,
+}: {
+  api: BuyerApi;
+  buyer: string;
+  orderId: string;
+  ticketId: string;
+}) {
+  const code = useQuery({
+    queryKey: ['ticket-code', buyer, orderId, ticketId],
+    queryFn: async ({ signal }) =>
+      unwrap(
+        await api.client.GET('/api/v1/orders/{id}/tickets/{ticketId}/code', {
+          params: { path: { id: orderId, ticketId } },
+          cache: 'no-store',
+          signal,
+        }),
+      ).code,
+    gcTime: 0,
+    staleTime: Infinity,
+  });
+  const [feedback, setFeedback] = useState('');
+  async function copy(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setFeedback('Код скопирован.');
+    } catch {
+      setFeedback('Выделите и скопируйте код вручную.');
+    }
+  }
+  if (code.isPending) return <p role="status">Загружаем код…</p>;
+  if (code.isError)
+    return (
+      <Alert>
+        Код не загрузился. <Button onClick={() => void code.refetch()}>Повторить</Button>
+      </Alert>
+    );
+  return (
+    <div className="buyer-ticket-code">
+      <p>Покажите код сотруднику, если QR не считывается.</p>
+      <code>{code.data}</code>
+      <Button variant="secondary" onClick={() => void copy(code.data)}>
+        Скопировать код
+      </Button>
+      <p role="status">{feedback}</p>
+    </div>
+  );
+}
+
+function Ticket({
+  orderId,
+  ticket,
+  api,
+  buyer,
+}: {
+  orderId: string;
+  ticket: Schemas['OrderTicket'];
+  api: BuyerApi;
+  buyer: string;
+}) {
   const [showQr, setShowQr] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [showCode, setShowCode] = useState(false);
   const seat = `Ряд ${ticket.row}, место ${ticket.number}`;
 
   return (
@@ -37,6 +102,15 @@ function Ticket({ orderId, ticket }: { orderId: string; ticket: Schemas['OrderTi
             onError={() => setImageFailed(true)}
           />
         ))}
+      <Button
+        variant="secondary"
+        aria-expanded={showCode}
+        aria-label={`${showCode ? 'Скрыть код' : 'Показать код для ручного ввода'}: ${seat}`}
+        onClick={() => setShowCode(!showCode)}
+      >
+        {showCode ? 'Скрыть код' : 'Показать код для ручного ввода'}
+      </Button>
+      {showCode && <ManualCode api={api} buyer={buyer} orderId={orderId} ticketId={ticket.id} />}
     </li>
   );
 }
@@ -48,7 +122,7 @@ export function TicketsPanel({
 }: {
   order: Schemas['Order'];
   buyer: string;
-  api: ReturnType<typeof createApiClient>;
+  api: BuyerApi;
 }) {
   const headingId = useId();
   const tickets = useQuery({
@@ -101,7 +175,7 @@ export function TicketsPanel({
           <p>Покажите QR своего места на входе.</p>
           <ul className="buyer-tickets">
             {tickets.data.map((ticket) => (
-              <Ticket key={ticket.id} ticket={ticket} orderId={order.id} />
+              <Ticket key={ticket.id} ticket={ticket} orderId={order.id} api={api} buyer={buyer} />
             ))}
           </ul>
         </>

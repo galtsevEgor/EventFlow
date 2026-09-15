@@ -11,11 +11,13 @@ export class OrdersController {
   @All(['', '{*path}'])
   async forward(@Req() request: Request, @Res() response: Response) {
     const path = request.path;
-    const qr =
+    const ticketCredential =
       request.method === 'GET' &&
-      /^\/api\/v1\/orders\/[a-f0-9-]{36}\/tickets\/[a-f0-9-]{36}\/qr$/.test(path);
+      /^\/api\/v1\/orders\/[a-f0-9-]{36}\/tickets\/[a-f0-9-]{36}\/(qr|code)$/.test(path);
+    const qr = ticketCredential && path.endsWith('/qr');
     const tickets =
-      qr || (request.method === 'GET' && /^\/api\/v1\/orders\/[a-f0-9-]{36}\/tickets$/.test(path));
+      ticketCredential ||
+      (request.method === 'GET' && /^\/api\/v1\/orders\/[a-f0-9-]{36}\/tickets$/.test(path));
     const payment =
       (request.method === 'GET' &&
         /^\/api\/v1\/orders\/[a-f0-9-]{36}\/payment-status$/.test(path)) ||

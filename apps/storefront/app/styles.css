@@ -420,6 +420,15 @@ summary:focus-visible {
 .buyer-ticket h3 {
   margin: 0;
 }
+.buyer-ticket > button {
+  margin: 4px 8px 4px 0;
+}
+.buyer-ticket-code code {
+  display: block;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
 .buyer-ticket-qr {
   display: block;
   max-width: 100%;

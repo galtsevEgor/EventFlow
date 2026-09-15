@@ -527,6 +527,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/orders/{id}/tickets/{ticketId}/code': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getManualTicketCode'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/tickets/{ticketId}/qr': {
     parameters: {
       query?: never;
@@ -879,6 +895,7 @@ export interface components {
   };
   responses: never;
   parameters: {
+    TicketId: string;
     TicketOrderId: string;
   };
   requestBodies: never;
@@ -2244,13 +2261,38 @@ export interface operations {
       };
     };
   };
+  getManualTicketCode: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['TicketOrderId'];
+        ticketId: components['parameters']['TicketId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The ticket credential for authorized manual entry */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            code: string;
+          };
+        };
+      };
+    };
+  };
   getOrderTicketQr: {
     parameters: {
       query?: never;
       header?: never;
       path: {
         id: components['parameters']['TicketOrderId'];
-        ticketId: string;
+        ticketId: components['parameters']['TicketId'];
       };
       cookie?: never;
     };

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Alert, Button, Field, Loading } from '@eventflow/ui';
 import { api, ApiRequestError, unwrap, type Schemas } from './api';
@@ -18,17 +18,20 @@ const results = {
 export function CheckIn({ organizationId, eventId }: { organizationId: string; eventId: string }) {
   const [code, setCode] = useState('');
   const [camera, setCamera] = useState(false);
-  const [pending, setPending] = useState<Schemas['CheckInInput']>();
+  const input = useRef<HTMLInputElement>(null);
   const check = useMutation({
     mutationFn: async (body: Schemas['CheckInInput']) =>
       unwrap(await api.client.POST('/api/v1/check-in', { body })),
+    gcTime: 0,
   });
+  useEffect(() => {
+    if (check.data) input.current?.focus({ preventScroll: true });
+  }, [check.data]);
   const { mutate } = check;
   const submit = useCallback(
     (credential: string) => {
       if (!codePattern.test(credential)) return;
       const request = { credential, organizationId, eventId, requestId: crypto.randomUUID() };
-      setPending(request);
       setCamera(false);
       setCode('');
       mutate(request);
@@ -46,8 +49,10 @@ export function CheckIn({ organizationId, eventId }: { organizationId: string; e
     <div className="check-in">
       <form onSubmit={manual}>
         <Field
+          ref={input}
           label="Код билета"
           value={code}
+          disabled={check.isPending}
           onChange={(event) => setCode(event.target.value)}
           autoComplete="off"
           spellCheck={false}
@@ -71,8 +76,10 @@ export function CheckIn({ organizationId, eventId }: { organizationId: string; e
           {retryable
             ? 'Допуск не подтверждён. Проверьте связь и повторите запрос.'
             : check.error.message}
-          {retryable && pending && (
-            <Button onClick={() => mutate(pending)}>Повторить проверку</Button>
+          {retryable && check.variables && (
+            <Button onClick={() => check.variables && mutate(check.variables)}>
+              Повторить проверку
+            </Button>
           )}
         </Alert>
       )}

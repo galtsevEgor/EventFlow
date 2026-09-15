@@ -35,16 +35,30 @@ export class TicketController {
     @Param('ticketId') ticketId: string,
     @Res() response: Response,
   ) {
+    const ticket = await this.ownedTicket(authorization, id, ticketId);
+    const png = await toBuffer(this.credentials.reveal(ticket), { scale: 8 });
+    response.set('content-type', 'image/png');
+    response.set('cross-origin-resource-policy', 'same-origin');
+    response.end(png);
+  }
+
+  @Get(':ticketId/code')
+  async code(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id') id: string,
+    @Param('ticketId') ticketId: string,
+  ) {
+    return { code: this.credentials.reveal(await this.ownedTicket(authorization, id, ticketId)) };
+  }
+
+  private async ownedTicket(authorization: string | undefined, id: string, ticketId: string) {
     const where = await this.ownedOrder(authorization, id);
     const ticket = await this.db.ticket.findFirst({
       where: { ...where, id: parseInput(z.uuid(), ticketId) },
       select: { id: true, qrEncrypted: true, qrKeyId: true },
     });
     if (!ticket) throw missingTicket();
-    const png = await toBuffer(this.credentials.reveal(ticket), { scale: 8 });
-    response.set('content-type', 'image/png');
-    response.set('cross-origin-resource-policy', 'same-origin');
-    response.end(png);
+    return ticket;
   }
 
   private async ownedOrder(authorization: string | undefined, id: string) {

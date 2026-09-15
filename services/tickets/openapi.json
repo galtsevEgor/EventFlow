@@ -49,17 +49,35 @@
         }
       }
     },
+    "/api/v1/orders/{id}/tickets/{ticketId}/code": {
+      "get": {
+        "operationId": "getManualTicketCode",
+        "parameters": [
+          { "$ref": "#/components/parameters/TicketOrderId" },
+          { "$ref": "#/components/parameters/TicketId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "The ticket credential for authorized manual entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["code"],
+                  "properties": { "code": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders/{id}/tickets/{ticketId}/qr": {
       "get": {
         "operationId": "getOrderTicketQr",
         "parameters": [
           { "$ref": "#/components/parameters/TicketOrderId" },
-          {
-            "name": "ticketId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
-          }
+          { "$ref": "#/components/parameters/TicketId" }
         ],
         "responses": {
           "200": {
@@ -74,6 +92,12 @@
   "components": {
     "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } },
     "parameters": {
+      "TicketId": {
+        "name": "ticketId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      },
       "TicketOrderId": {
         "name": "id",
         "in": "path",
