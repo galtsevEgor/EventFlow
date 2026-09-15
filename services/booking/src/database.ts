@@ -9,10 +9,10 @@ export class Database extends PrismaClient<
 > {
   private readonly pool: Pool;
   private queries = { count: 0, slow: 0, maxMs: 0 };
-  constructor(connectionString: string) {
+  constructor(connectionString: string, max = 12) {
     const pool = new Pool({
       connectionString,
-      max: 12,
+      max,
       connectionTimeoutMillis: 3000,
       statement_timeout: 5000,
       application_name: 'eventflow-booking',
@@ -33,7 +33,7 @@ export class Database extends PrismaClient<
     // SQL text, parameters, identities and credentials never leave the client.
     return {
       pool: {
-        limit: 12,
+        limit: this.pool.options.max,
         total: this.pool.totalCount,
         idle: this.pool.idleCount,
         waiting: this.pool.waitingCount,

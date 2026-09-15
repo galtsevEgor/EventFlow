@@ -12,7 +12,7 @@ spec:
   "mailpit" (list (dict "port" 8025) (dict "port" 1025 "from" (list "keycloak" "catalog" "tickets")))
   "postgres" (list (dict "port" 5432 "from" (list "keycloak" "catalog" "booking" "payments" "tickets" "migrate")))
   "redis" (list (dict "port" 6379 "from" (list "bff")))
-  "rabbitmq" (list (dict "port" 5672 "from" (list "catalog" "booking" "payments" "tickets")))
+  "rabbitmq" (list (dict "port" 5672 "from" (list "catalog" "booking" "payments" "tickets")) (dict "port" 15672 "namespace" "keda"))
   "s3" (list (dict "port" 8333 "from" (list "catalog")))
   "bff" (list (dict "port" 4000 "from" (list "gateway")))
   "catalog" (list (dict "port" 4001 "from" (list "bff" "storefront" "tickets" "fixture")))
@@ -42,6 +42,12 @@ spec:
         - podSelector:
             matchExpressions:
               - { key: app.kubernetes.io/name, operator: In, values: {{ . | toJson }} }
+      {{- end }}
+      {{- with .namespace }}
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . | quote }}
       {{- end }}
     {{- end }}
 {{- end }}

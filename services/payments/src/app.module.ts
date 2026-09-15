@@ -23,10 +23,42 @@ import { PaymentOperator } from './operator';
 @Module({ imports: [HealthModule.forService('payments')] })
 export class AppModule {
   static configure(config: PaymentsConfig): DynamicModule {
+    const runWorkers = config.EVENTFLOW_WORKLOAD !== 'http';
     return {
       module: AppModule,
-      controllers: [PaymentController, WebhookController, PaymentOperator],
+      controllers:
+        config.EVENTFLOW_WORKLOAD === 'worker'
+          ? []
+          : [PaymentController, WebhookController, PaymentOperator],
       providers: [
+        ...(runWorkers
+          ? [
+              {
+                provide: Reconciler,
+                inject: [ProcessAttempt, ProcessRefund, ProcessWebhooks],
+                useFactory: (
+                  processor: ProcessAttempt,
+                  refunds: ProcessRefund,
+                  webhooks: ProcessWebhooks,
+                ) => new Reconciler(processor, refunds, webhooks),
+              },
+              {
+                provide: MessageWorker,
+                inject: [Database, PaymentInbox],
+                useFactory: (db: Database, inbox: PaymentInbox) =>
+                  new MessageWorker(
+                    new Broker({
+                      url: config.AMQP_URL,
+                      namespace: config.MESSAGE_NAMESPACE,
+                      consumer: 'payments',
+                      routes: commerceRoutes,
+                    }),
+                    new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
+                    (event) => inbox.handle(event),
+                  ),
+              },
+            ]
+          : []),
         {
           provide: ReceiveWebhook,
           inject: [Database, 'PAYMENT_PROVIDER'],
@@ -43,7 +75,10 @@ export class AppModule {
           inject: [Database, 'PAYMENT_PROVIDER'],
           useFactory: (db: Database, provider: PaymentProvider) => new ProcessRefund(db, provider),
         },
-        { provide: Database, useFactory: () => new Database(config.PAYMENTS_DATABASE_URL) },
+        {
+          provide: Database,
+          useFactory: () => new Database(config.PAYMENTS_DATABASE_URL, config.DATABASE_POOL_SIZE),
+        },
         {
           provide: TokenVerifier,
           useFactory: () => new TokenVerifier(config.OIDC_ISSUER, 'eventflow-payments'),
@@ -85,30 +120,6 @@ export class AppModule {
           useFactory: (db: Database) => new PaymentInbox(db),
         },
         {
-          provide: Reconciler,
-          inject: [ProcessAttempt, ProcessRefund, ProcessWebhooks],
-          useFactory: (
-            processor: ProcessAttempt,
-            refunds: ProcessRefund,
-            webhooks: ProcessWebhooks,
-          ) => new Reconciler(processor, refunds, webhooks),
-        },
-        {
-          provide: MessageWorker,
-          inject: [Database, PaymentInbox],
-          useFactory: (db: Database, inbox: PaymentInbox) =>
-            new MessageWorker(
-              new Broker({
-                url: config.AMQP_URL,
-                namespace: config.MESSAGE_NAMESPACE,
-                consumer: 'payments',
-                routes: commerceRoutes,
-              }),
-              new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
-              (event) => inbox.handle(event),
-            ),
-        },
-        {
           provide: 'PAYMENTS_READINESS',
           inject: [Database, Readiness],
           useFactory: (db: Database, readiness: Readiness) => {
@@ -118,6 +129,20 @@ export class AppModule {
             return readiness;
           },
         },
+        ...(config.EVENTFLOW_WORKLOAD === 'worker'
+          ? [
+              {
+                provide: 'BROKER_READINESS',
+                inject: [Readiness, MessageWorker],
+                useFactory: (readiness: Readiness, worker: MessageWorker) => {
+                  readiness.register('rabbitmq', async () => {
+                    if (!worker.broker.ready) throw new Error('RabbitMQ consumer unavailable');
+                  });
+                  return readiness;
+                },
+              },
+            ]
+          : []),
       ],
     };
   }

@@ -54,17 +54,19 @@ export function kubeOutput(args) {
   return kubectl(args, { stdio: ['ignore', 'pipe', 'inherit'], encoding: 'utf8' }).trim();
 }
 
-export function helm(args, options) {
+export function helm(args, options, namespace = name) {
   return run(
     tool('helm'),
-    ['--kubeconfig', kubeconfig, '--kube-context', context, '-n', name, ...args],
+    ['--kubeconfig', kubeconfig, '--kube-context', context, '-n', namespace, ...args],
     options,
   );
 }
 
 function ensureCluster() {
   const clusters = JSON.parse(output(tool('k3d'), ['cluster', 'list', '-o', 'json']));
-  if (!clusters?.some((cluster) => cluster.name === name)) {
+  const cluster = clusters?.find((cluster) => cluster.name === name);
+  if (cluster && !cluster.serversRunning) run(tool('k3d'), ['cluster', 'start', name]);
+  if (!cluster) {
     run(tool('k3d'), [
       'cluster',
       'create',
@@ -135,6 +137,7 @@ function initialize() {
   }
   runtime.REDIS_URL = `redis://:${env.REDIS_PASSWORD}@redis:6379`;
   runtime.AMQP_URL = `amqp://eventflow:${env.RABBITMQ_PASSWORD}@rabbitmq:5672`;
+  runtime.RABBITMQ_MANAGEMENT_URL = `http://eventflow:${env.RABBITMQ_PASSWORD}@rabbitmq.${name}.svc.cluster.local:15672`;
   apply('Namespace', name, {}, false);
   secret('eventflow-infra', Object.fromEntries(infraKeys.map((key) => [key, env[key]])));
   secret('eventflow-runtime', runtime);
@@ -162,7 +165,8 @@ function deploymentImage(service) {
 }
 
 export async function up(releaseId, profile = 'single') {
-  if (!['single', 'replicas'].includes(profile)) throw new Error('Unknown cluster profile.');
+  if (!['single', 'replicas', 'autoscale'].includes(profile))
+    throw new Error('Unknown cluster profile.');
   mkdirSync(directory, { recursive: true });
   return withEnvironmentLock({ directory, name }, async () => {
     const release = manifest(releaseId);
@@ -182,6 +186,26 @@ export async function up(releaseId, profile = 'single') {
       '--timeout',
       '5m',
     ]);
+    if (profile === 'autoscale') {
+      helm(
+        [
+          'upgrade',
+          '--install',
+          'keda',
+          'keda',
+          '--repo',
+          'https://kedacore.github.io/charts',
+          '--version',
+          '2.18.2',
+          '--create-namespace',
+          '--wait',
+          '--timeout',
+          '6m',
+        ],
+        undefined,
+        'keda',
+      );
+    }
     const images = output('docker', [
       'exec',
       'k3d-' + name + '-server-0',
@@ -210,7 +234,9 @@ export async function up(releaseId, profile = 'single') {
       `retained.image=${retained}`,
       '--set-string',
       `retained.deploymentId=${retained.split(':')[1] ?? ''}`,
-      ...(profile === 'replicas' ? ['-f', chart + '/values.replicas.yaml'] : []),
+      '--set',
+      'splitWorkers=true',
+      ...(profile !== 'single' ? ['-f', chart + '/values.' + profile + '.yaml'] : []),
       '--wait',
       '--timeout',
       '6m',
@@ -229,6 +255,14 @@ export function check() {
     chart + '/values.replicas.yaml',
     '--set-string',
     'image=eventflow-release:fixture,retained.image=eventflow-release:previous',
+  ]);
+  run(tool('helm'), [
+    'lint',
+    chart,
+    '-f',
+    chart + '/values.autoscale.yaml',
+    '--set-string',
+    'image=eventflow-release:fixture',
   ]);
   run(tool('helm'), ['lint', chart, '--set', 'mode=infrastructure']);
 }

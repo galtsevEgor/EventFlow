@@ -3,6 +3,10 @@ image: ''
 deploymentId: ''
 retained: { image: '', deploymentId: '' }
 replicas: {}
+splitWorkers: false
+workerReplicas: {}
+autoscale: false
+databasePool: { http: 3, worker: 2 }
 publicOrigin: http://127.0.0.1:58000
 identityOrigin: http://127.0.0.1:58080
 
@@ -40,6 +44,7 @@ applications:
     port: 4001
     directory: /app/services/catalog
     identity: true
+    worker: true
     secrets: [CATALOG_DATABASE_URL, AMQP_URL, S3_ACCESS_KEY, S3_SECRET_KEY, CATALOG_INVITATION_KEY]
     cpu: 150m
     memory: 256Mi
@@ -47,6 +52,7 @@ applications:
     port: 4002
     directory: /app/services/booking
     identity: true
+    worker: true
     secrets: [BOOKING_DATABASE_URL, AMQP_URL, BOOKING_CONTACT_KEY]
     cpu: 150m
     memory: 256Mi
@@ -54,6 +60,7 @@ applications:
     port: 4003
     directory: /app/services/payments
     identity: true
+    worker: true
     secrets: [PAYMENTS_DATABASE_URL, AMQP_URL, PAYMENTS_CLIENT_SECRET]
     cpu: 100m
     memory: 256Mi
@@ -61,6 +68,7 @@ applications:
     port: 4004
     directory: /app/services/tickets
     identity: true
+    worker: true
     secrets:
       [
         TICKETS_DATABASE_URL,

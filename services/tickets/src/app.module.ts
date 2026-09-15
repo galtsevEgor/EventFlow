@@ -22,11 +22,49 @@ import { CheckInTicket } from './check-in';
 @Module({ imports: [HealthModule.forService('tickets')] })
 export class AppModule {
   static configure(config: TicketsConfig): DynamicModule {
+    const runWorkers = config.EVENTFLOW_WORKLOAD !== 'http';
     return {
       module: AppModule,
-      controllers: [TicketController, MailOperator, CheckInController],
+      controllers:
+        config.EVENTFLOW_WORKLOAD === 'worker'
+          ? []
+          : [TicketController, MailOperator, CheckInController],
       providers: [
-        { provide: Database, useFactory: () => new Database(config.TICKETS_DATABASE_URL) },
+        ...(runWorkers
+          ? [
+              {
+                provide: MailWorker,
+                inject: [MailQueue],
+                useFactory: (queue: MailQueue) => {
+                  const delivery = new DeliverTickets(config);
+                  return new MailWorker(
+                    queue,
+                    (id) => delivery.send(id),
+                    config.MAIL_DELIVERY_DISABLED !== 'true',
+                  );
+                },
+              },
+              {
+                provide: MessageWorker,
+                inject: [IssueTickets],
+                useFactory: (issue: IssueTickets) =>
+                  new MessageWorker(
+                    new Broker({
+                      url: config.AMQP_URL,
+                      namespace: config.MESSAGE_NAMESPACE,
+                      consumer: 'tickets',
+                      routes: commerceRoutes,
+                    }),
+                    undefined,
+                    (event) => issue.handle(event),
+                  ),
+              },
+            ]
+          : []),
+        {
+          provide: Database,
+          useFactory: () => new Database(config.TICKETS_DATABASE_URL, config.DATABASE_POOL_SIZE),
+        },
         {
           provide: TokenVerifier,
           useFactory: () => new TokenVerifier(config.OIDC_ISSUER, 'eventflow-tickets'),
@@ -46,33 +84,6 @@ export class AppModule {
             new MailQueue((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
         },
         {
-          provide: MailWorker,
-          inject: [MailQueue],
-          useFactory: (queue: MailQueue) => {
-            const delivery = new DeliverTickets(config);
-            return new MailWorker(
-              queue,
-              (id) => delivery.send(id),
-              config.MAIL_DELIVERY_DISABLED !== 'true',
-            );
-          },
-        },
-        {
-          provide: MessageWorker,
-          inject: [IssueTickets],
-          useFactory: (issue: IssueTickets) =>
-            new MessageWorker(
-              new Broker({
-                url: config.AMQP_URL,
-                namespace: config.MESSAGE_NAMESPACE,
-                consumer: 'tickets',
-                routes: commerceRoutes,
-              }),
-              undefined,
-              (event) => issue.handle(event),
-            ),
-        },
-        {
           provide: 'TICKETS_READINESS',
           inject: [Database, Readiness],
           useFactory: (db: Database, readiness: Readiness) => {
@@ -82,6 +93,20 @@ export class AppModule {
             return readiness;
           },
         },
+        ...(config.EVENTFLOW_WORKLOAD === 'worker'
+          ? [
+              {
+                provide: 'BROKER_READINESS',
+                inject: [Readiness, MessageWorker],
+                useFactory: (readiness: Readiness, worker: MessageWorker) => {
+                  readiness.register('rabbitmq', async () => {
+                    if (!worker.broker.ready) throw new Error('RabbitMQ consumer unavailable');
+                  });
+                  return readiness;
+                },
+              },
+            ]
+          : []),
       ],
     };
   }

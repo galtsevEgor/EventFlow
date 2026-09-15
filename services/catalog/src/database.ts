@@ -2,11 +2,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from './generated/client';
 
 export class Database extends PrismaClient {
-  constructor(connectionString: string) {
+  constructor(connectionString: string, max = 12) {
     super({
       adapter: new PrismaPg({
         connectionString,
-        max: 12,
+        max,
         connectionTimeoutMillis: 3000,
         statement_timeout: 5000,
       }),

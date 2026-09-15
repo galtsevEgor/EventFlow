@@ -3,7 +3,17 @@
 {{- if .Values.retained.image }}
 {{- $_ := set $applications "storefront-retained" .Values.applications.storefront }}
 {{- end }}
+{{- if .Values.splitWorkers }}
+{{- range $name, $app := .Values.applications }}
+{{- if $app.worker }}
+{{- $_ := set $applications (printf "%s-worker" $name) (merge (dict "workerFor" $name) $app) }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- range $name, $app := $applications }}
+{{- $service := default $name $app.workerFor }}
+{{- $component := ternary "worker" "http" (hasKey $app "workerFor") }}
+{{- $scaled := and $.Values.autoscale (has $name (list "bff" "storefront" "tickets-worker")) }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -12,13 +22,19 @@ metadata:
   labels:
     {{- include "eventflow.labels" $name | nindent 4 }}
 spec:
+  {{- if not $scaled }}
+  {{- if $app.workerFor }}
+  replicas: {{ default 1 (index $.Values.workerReplicas $service) }}
+  {{- else }}
   replicas: {{ default 1 (index $.Values.replicas $name) }}
+  {{- end }}
+  {{- end }}
   strategy:
     rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
   selector:
     matchLabels:
-      {{- include "eventflow.labels" $name | nindent 6 }}
-      app.kubernetes.io/component: http
+      {{- include "eventflow.labels" $service | nindent 6 }}
+      app.kubernetes.io/component: {{ $component }}
   template:
     metadata:
       {{- if eq $name "gateway" }}
@@ -26,8 +42,8 @@ spec:
         checksum/gateway: {{ $.Files.Get "files/gateway.mjs" | sha256sum | quote }}
       {{- end }}
       labels:
-        {{- include "eventflow.labels" $name | nindent 8 }}
-        app.kubernetes.io/component: http
+        {{- include "eventflow.labels" $service | nindent 8 }}
+        app.kubernetes.io/component: {{ $component }}
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
@@ -51,6 +67,10 @@ spec:
             {{- include "eventflow.secrets" $app.secrets | nindent 12 }}
             - { name: HOST, value: '0.0.0.0' }
             - { name: PORT, value: {{ $app.port | quote }} }
+            {{- if and $.Values.splitWorkers $app.worker }}
+            - { name: EVENTFLOW_WORKLOAD, value: {{ $component }} }
+            - { name: DATABASE_POOL_SIZE, value: {{ index $.Values.databasePool $component | quote }} }
+            {{- end }}
             {{- if eq $name "gateway" }}
             - { name: EVENTFLOW_DEPLOYMENT, value: {{ $.Values.deploymentId | quote }} }
             - { name: EVENTFLOW_RETAINED_DEPLOYMENT, value: {{ $.Values.retained.deploymentId | quote }} }
@@ -77,6 +97,7 @@ spec:
       volumes:
         - name: cluster-scripts
           configMap: { name: eventflow-cluster-scripts }
+{{- if not $app.workerFor }}
 ---
 apiVersion: v1
 kind: Service
@@ -94,5 +115,6 @@ spec:
       {{- if $app.nodePort }}
       nodePort: {{ $app.nodePort }}
       {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

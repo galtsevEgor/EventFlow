@@ -22,15 +22,46 @@ import { RefundOutcome } from './payments/refund-outcome';
 @Module({ imports: [HealthModule.forService('booking')] })
 export class AppModule {
   static configure(config: BookingConfig): DynamicModule {
+    const runWorkers = config.EVENTFLOW_WORKLOAD !== 'http';
     return {
       module: AppModule,
-      controllers: [
-        SaleController,
-        OrderController,
-        BookingPaymentsController,
-        DeliveryContextController,
-      ],
+      controllers:
+        config.EVENTFLOW_WORKLOAD === 'worker'
+          ? []
+          : [SaleController, OrderController, BookingPaymentsController, DeliveryContextController],
       providers: [
+        ...(runWorkers
+          ? [
+              {
+                provide: OrderSweeper,
+                inject: [Database, OrderLifecycle],
+                useFactory: (db: Database, lifecycle: OrderLifecycle) =>
+                  new OrderSweeper(db, lifecycle),
+              },
+              {
+                provide: MessageWorker,
+                inject: [Database, ProvisionSale],
+                useFactory: (db: Database, provision: ProvisionSale) =>
+                  new MessageWorker(
+                    new Broker({
+                      url: config.AMQP_URL,
+                      namespace: config.MESSAGE_NAMESPACE,
+                      consumer: 'booking',
+                      routes: commerceRoutes,
+                    }),
+                    new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
+                    (event) =>
+                      event.eventType.startsWith('Refund')
+                        ? new RefundOutcome(db).handle(event)
+                        : event.eventType === 'PaymentSucceeded.v1'
+                          ? new ConfirmPayment(db).handle(event)
+                          : event.eventType === 'SaleAvailabilityRequested.v1'
+                            ? new ChangeAvailability(db).handle(event)
+                            : provision.handle(event),
+                  ),
+              },
+            ]
+          : []),
         {
           provide: PaymentAuthorization,
           inject: [Database],
@@ -45,11 +76,6 @@ export class AppModule {
           provide: OrderLifecycle,
           inject: [Database],
           useFactory: (db: Database) => new OrderLifecycle(db),
-        },
-        {
-          provide: OrderSweeper,
-          inject: [Database, OrderLifecycle],
-          useFactory: (db: Database, lifecycle: OrderLifecycle) => new OrderSweeper(db, lifecycle),
         },
         {
           provide: TokenVerifier,
@@ -71,33 +97,14 @@ export class AppModule {
           inject: [Database],
           useFactory: (db: Database) => new SaleReader(db),
         },
-        { provide: Database, useFactory: () => new Database(config.BOOKING_DATABASE_URL) },
+        {
+          provide: Database,
+          useFactory: () => new Database(config.BOOKING_DATABASE_URL, config.DATABASE_POOL_SIZE),
+        },
         {
           provide: ProvisionSale,
           inject: [Database],
           useFactory: (db: Database) => new ProvisionSale(db),
-        },
-        {
-          provide: MessageWorker,
-          inject: [Database, ProvisionSale],
-          useFactory: (db: Database, provision: ProvisionSale) =>
-            new MessageWorker(
-              new Broker({
-                url: config.AMQP_URL,
-                namespace: config.MESSAGE_NAMESPACE,
-                consumer: 'booking',
-                routes: commerceRoutes,
-              }),
-              new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
-              (event) =>
-                event.eventType.startsWith('Refund')
-                  ? new RefundOutcome(db).handle(event)
-                  : event.eventType === 'PaymentSucceeded.v1'
-                    ? new ConfirmPayment(db).handle(event)
-                    : event.eventType === 'SaleAvailabilityRequested.v1'
-                      ? new ChangeAvailability(db).handle(event)
-                      : provision.handle(event),
-            ),
         },
         {
           provide: 'BOOKING_READINESS',
@@ -109,6 +116,20 @@ export class AppModule {
             return readiness;
           },
         },
+        ...(config.EVENTFLOW_WORKLOAD === 'worker'
+          ? [
+              {
+                provide: 'BROKER_READINESS',
+                inject: [Readiness, MessageWorker],
+                useFactory: (readiness: Readiness, worker: MessageWorker) => {
+                  readiness.register('rabbitmq', async () => {
+                    if (!worker.broker.ready) throw new Error('RabbitMQ consumer unavailable');
+                  });
+                  return readiness;
+                },
+              },
+            ]
+          : []),
       ],
     };
   }

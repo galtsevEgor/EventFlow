@@ -37,20 +37,40 @@ import { PublicCatalogController } from './public-catalog/catalog.controller';
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
   static configure(config: CatalogConfig): DynamicModule {
+    const runWorkers = config.EVENTFLOW_WORKLOAD !== 'http';
     return {
       module: AppModule,
-      controllers: [
-        OrganizationController,
-        MembershipController,
-        DraftController,
-        PolicyController,
-        CoverController,
-        PublicCoverController,
-        PublicationController,
-        PublicCatalogController,
-        MailOperator,
-      ],
+      controllers:
+        config.EVENTFLOW_WORKLOAD === 'worker'
+          ? []
+          : [
+              OrganizationController,
+              MembershipController,
+              DraftController,
+              PolicyController,
+              CoverController,
+              PublicCoverController,
+              PublicationController,
+              PublicCatalogController,
+              MailOperator,
+            ],
       providers: [
+        ...(runWorkers
+          ? [
+              {
+                provide: MailWorker,
+                inject: [Database, MailQueue, SecretBox],
+                useFactory: (db: Database, queue: MailQueue, box: SecretBox) => {
+                  const delivery = new DeliverInvitation(db, config, box);
+                  return new MailWorker(
+                    queue,
+                    (id) => delivery.send(id),
+                    config.MAIL_DELIVERY_DISABLED !== 'true',
+                  );
+                },
+              },
+            ]
+          : []),
         {
           provide: PublicCatalog,
           inject: [Database],
@@ -71,7 +91,7 @@ export class AppModule {
           inject: [Database],
           useFactory: (db: Database) => new PublicationConsumer(db),
         },
-        ...(config.AMQP_URL
+        ...(runWorkers && config.AMQP_URL
           ? [
               {
                 provide: MessageWorker,
@@ -100,7 +120,10 @@ export class AppModule {
             new CoverService(db, storage, drafts),
           inject: [Database, CoverStorage, DraftService],
         },
-        { provide: Database, useFactory: () => new Database(config.CATALOG_DATABASE_URL) },
+        {
+          provide: Database,
+          useFactory: () => new Database(config.CATALOG_DATABASE_URL, config.DATABASE_POOL_SIZE),
+        },
         {
           provide: 'CATALOG_READINESS',
           inject: [Readiness, Database],
@@ -139,23 +162,25 @@ export class AppModule {
           useFactory: (db: Database) =>
             new MailQueue((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
         },
-        {
-          provide: MailWorker,
-          inject: [Database, MailQueue, SecretBox],
-          useFactory: (db: Database, queue: MailQueue, box: SecretBox) => {
-            const delivery = new DeliverInvitation(db, config, box);
-            return new MailWorker(
-              queue,
-              (id) => delivery.send(id),
-              config.MAIL_DELIVERY_DISABLED !== 'true',
-            );
-          },
-        },
         ...[MembershipService, PolicyService].map((service) => ({
           provide: service,
           useFactory: (db: Database) => new service(db),
           inject: [Database],
         })),
+        ...(config.EVENTFLOW_WORKLOAD === 'worker'
+          ? [
+              {
+                provide: 'BROKER_READINESS',
+                inject: [Readiness, MessageWorker],
+                useFactory: (readiness: Readiness, worker: MessageWorker) => {
+                  readiness.register('rabbitmq', async () => {
+                    if (!worker.broker.ready) throw new Error('RabbitMQ consumer unavailable');
+                  });
+                  return readiness;
+                },
+              },
+            ]
+          : []),
       ],
     };
   }

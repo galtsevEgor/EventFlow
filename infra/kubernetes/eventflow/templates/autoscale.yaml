@@ -1,0 +1,54 @@
+{{- if and (eq .Values.mode "applications") .Values.autoscale }}
+{{- range $name := list "storefront" "bff" }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: ContainerResource
+      containerResource:
+        name: cpu
+        container: http
+        target: { type: Utilization, averageUtilization: 70 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+{{- end }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: ticket-queue
+spec:
+  secretTargetRef:
+    - { parameter: host, name: eventflow-runtime, key: RABBITMQ_MANAGEMENT_URL }
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: tickets-worker
+spec:
+  scaleTargetRef: { name: tickets-worker }
+  pollingInterval: 5
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 60
+  triggers:
+    - type: rabbitmq
+      metadata:
+        protocol: http
+        vhostName: /
+        queueName: eventflow.tickets
+        mode: QueueLength
+        value: '30'
+      authenticationRef: { name: ticket-queue }
+{{- end }}

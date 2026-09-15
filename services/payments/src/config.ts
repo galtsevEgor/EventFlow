@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { workloadConfig } from '@eventflow/service-runtime';
 
 export function readPaymentsConfig(env: NodeJS.ProcessEnv) {
   return z
     .object({
+      ...workloadConfig,
       OIDC_ISSUER: z.url(),
       PAYMENTS_DATABASE_URL: z.url().startsWith('postgresql:'),
       BOOKING_URL: z.url(),

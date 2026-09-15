@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { mailConfig } from '@eventflow/service-runtime';
+import { mailConfig, workloadConfig } from '@eventflow/service-runtime';
 
 export function readTicketsConfig(env: NodeJS.ProcessEnv) {
   return z
     .object({
+      ...workloadConfig,
       ...mailConfig,
       CATALOG_URL: z.url(),
       POLICY_CLIENT_SECRET: z.string().min(32),
