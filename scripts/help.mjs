@@ -31,6 +31,10 @@ pnpm check:workflow    Validate GitHub Actions syntax
 pnpm check:secrets     Scan Git history and tracked working files
 pnpm audit:runtime     Audit production dependencies; reject high/critical findings
 pnpm ci:local          Run all local gates, including fake payments (Docker required)
+pnpm release build    Build the staged Git snapshot and save its local image manifest
+pnpm release deploy staging ID | promote ID | rollback ENV
+pnpm release backup ENV | restore ID | monitor ENV | status ENV | stop ENV
+pnpm test:release seed staging | mark staging | verify staging|recovery
 
 Runtime: Node.js 24.22.1, pnpm 10.34.9
 Storefront: http://127.0.0.1:18000

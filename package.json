@@ -1,6 +1,6 @@
 {
   "name": "eventflow",
-  "version": "0.1.0-e5",
+  "version": "0.1.0-e6",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.34.9",
