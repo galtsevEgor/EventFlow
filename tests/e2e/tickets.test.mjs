@@ -6,6 +6,9 @@ import jsQR from 'jsqr';
 import { PNG } from 'pngjs';
 import { loginBuyer, publishForBooking } from './booking-setup.mjs';
 import { fullStack } from './fixture.mjs';
+import { eventually } from '../helpers/eventually.mjs';
+import { findMail, receivedMail, smtpProxy } from '../helpers/mailpit.mjs';
+import { ClientCredentials } from '../../packages/service-runtime/dist/index.js';
 
 async function readQr(response) {
   assert.equal(response.status(), 200);
@@ -22,9 +25,10 @@ test(
   'a verified buyer gets a private, scannable QR for each seat once Booking confirms the order',
   { timeout: 120000 },
   async () => {
-    const stack = await fullStack({ payments: true, tickets: true });
-    let browser;
+    const smtp = await smtpProxy();
+    let browser, stack;
     try {
+      stack = await fullStack({ payments: true, tickets: { MAILPIT_SMTP_PORT: smtp.port } });
       await stack.tickets.worker.stop();
       browser = await chromium.launch();
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -100,9 +104,58 @@ test(
       assert.equal((await guest.request.get(qrUrl)).status(), 404);
       const otherOrder = qrUrl.replace(order.id, randomUUID());
       assert.equal((await page.request.get(otherOrder)).status(), 404);
+
+      const { db, origin } = stack.tickets;
+      const job = () => db.deliveryJob.findUnique({ where: { id: order.id } });
+      for (let attempt = 1; attempt < 4;) {
+        const failed = await eventually(
+          job,
+          (item) => item?.attempts >= attempt && item.lease === null,
+        );
+        if (failed.state === 'DEAD') break;
+        assert.equal(failed.state, 'PENDING');
+        await db.deliveryJob.updateMany({
+          where: { id: order.id, attempts: failed.attempts, lease: null },
+          data: { nextRunAt: new Date(0) },
+        });
+        attempt = failed.attempts + 1;
+      }
+      assert.equal((await eventually(job, (item) => item?.state === 'DEAD')).attempts, 4);
+      const messageId = `tickets-${order.id}@eventflow.test`;
+      assert.equal((await findMail(messageId)).length, 0);
+      assert.equal((await fetch(origin + '/internal/mail/dead')).status, 401);
+      const authorization =
+        'Bearer ' +
+        (await new ClientCredentials(
+          process.env.OIDC_ISSUER,
+          'eventflow-mail-operator',
+          process.env.MAIL_OPERATOR_SECRET,
+        ).token());
+      const operator = { authorization, 'idempotency-key': randomUUID() };
+      const dead = await fetch(origin + '/internal/mail/dead', { headers: operator });
+      assert.equal(dead.status, 200);
+      assert.deepEqual((await dead.json()).jobs, [{ id: order.id, attempts: 4 }]);
+      smtp.restore();
+      for (let replay = 0; replay < 2; replay++) {
+        const retry = await fetch(origin + `/internal/mail/${order.id}/retry`, {
+          method: 'POST',
+          headers: operator,
+        });
+        assert.equal(retry.status, 202);
+      }
+      await eventually(job, (item) => item?.state === 'SENT');
+      const email = await receivedMail(messageId);
+      assert.ok(email.Text.includes(pageUrl));
+      assert.ok(!email.Text.includes(credential));
+      assert.equal(await db.deliveryRetry.count(), 1);
+      assert.equal(await db.ticket.count({ where: { orderId: order.id } }), 2);
     } finally {
       await browser?.close();
-      await stack.close();
+      try {
+        await stack?.close();
+      } finally {
+        await smtp.close();
+      }
     }
   },
 );

@@ -17,7 +17,7 @@ export class OrderController {
   private async buyer(authorization: string | undefined) {
     const user = await this.verifier.user(authorization);
     if (!user.emailVerified) throw new ApiError(403, 'EMAIL_UNVERIFIED', 'Подтвердите email.');
-    return user.subject;
+    return user;
   }
   @Post()
   async create(
@@ -26,7 +26,8 @@ export class OrderController {
     @Body() body: unknown,
     @Res() response: Response,
   ) {
-    const result = await this.reserve.run(await this.buyer(auth), key, body);
+    const buyer = await this.buyer(auth);
+    const result = await this.reserve.run(buyer.subject, key, body, buyer.email);
     if (result.status !== 201)
       throw new ApiError(result.status, String(result.body.code), String(result.body.message));
     response.setHeader('cache-control', 'no-store');
@@ -47,7 +48,7 @@ export class OrderController {
       query,
     );
     response.setHeader('cache-control', 'no-store');
-    return this.reader.list(buyer, values.page, values.saleId);
+    return this.reader.list(buyer.subject, values.page, values.saleId);
   }
   @Get(':id')
   async read(
@@ -57,7 +58,7 @@ export class OrderController {
   ) {
     const buyer = await this.buyer(auth);
     response.setHeader('cache-control', 'no-store');
-    return this.reader.read(buyer, parseInput(z.uuid(), id));
+    return this.reader.read(buyer.subject, parseInput(z.uuid(), id));
   }
   @Post(':id/cancel')
   async cancel(
@@ -65,7 +66,8 @@ export class OrderController {
     @Param('id') id: string,
     @Res() response: Response,
   ) {
-    const result = await this.lifecycle.cancel(await this.buyer(auth), parseInput(z.uuid(), id));
+    const buyer = await this.buyer(auth);
+    const result = await this.lifecycle.cancel(buyer.subject, parseInput(z.uuid(), id));
     response.setHeader('cache-control', 'no-store');
     response.status(200).json(result);
   }

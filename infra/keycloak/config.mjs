@@ -110,6 +110,41 @@ export function clientConfigurations(env) {
       ],
     },
     {
+      clientId: 'eventflow-ticket-delivery',
+      protocol: 'openid-connect',
+      publicClient: false,
+      secret: env.TICKET_DELIVERY_CLIENT_SECRET,
+      standardFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: true,
+      defaultClientScopes: ['basic', 'roles'],
+      protocolMappers: [
+        {
+          ...audience,
+          name: 'booking-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-booking' },
+        },
+      ],
+    },
+    {
+      clientId: 'eventflow-mail-operator',
+      protocol: 'openid-connect',
+      publicClient: false,
+      secret: env.MAIL_OPERATOR_SECRET,
+      standardFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: true,
+      defaultClientScopes: ['basic', 'roles'],
+      protocolMappers: [
+        audience,
+        {
+          ...audience,
+          name: 'tickets-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-tickets' },
+        },
+      ],
+    },
+    {
       clientId: 'eventflow-payments',
       protocol: 'openid-connect',
       publicClient: false,

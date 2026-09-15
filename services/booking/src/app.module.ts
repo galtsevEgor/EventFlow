@@ -1,5 +1,5 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import { HealthModule, Readiness, TokenVerifier } from '@eventflow/service-runtime';
+import { HealthModule, Readiness, SecretBox, TokenVerifier } from '@eventflow/service-runtime';
 import { Broker, Outbox, MessageWorker } from '@eventflow/messaging';
 import { commerceRoutes } from '@eventflow/event-contracts';
 import { Database } from './database';
@@ -11,6 +11,7 @@ import type { BookingConfig } from './config';
 import { Reserve } from './orders/reserve';
 import { OrderReader } from './orders/reader';
 import { OrderController } from './orders/controller';
+import { DeliveryContextController } from './orders/delivery.controller';
 import { OrderLifecycle } from './orders/lifecycle';
 import { OrderSweeper } from './orders/sweeper';
 import { PaymentAuthorization } from './payments/authorization';
@@ -23,7 +24,12 @@ export class AppModule {
   static configure(config: BookingConfig): DynamicModule {
     return {
       module: AppModule,
-      controllers: [SaleController, OrderController, BookingPaymentsController],
+      controllers: [
+        SaleController,
+        OrderController,
+        BookingPaymentsController,
+        DeliveryContextController,
+      ],
       providers: [
         {
           provide: PaymentAuthorization,
@@ -49,7 +55,12 @@ export class AppModule {
           provide: TokenVerifier,
           useFactory: () => new TokenVerifier(config.OIDC_ISSUER, 'eventflow-booking'),
         },
-        { provide: Reserve, inject: [Database], useFactory: (db: Database) => new Reserve(db) },
+        { provide: SecretBox, useFactory: () => new SecretBox(config.BOOKING_CONTACT_KEY) },
+        {
+          provide: Reserve,
+          inject: [Database, SecretBox],
+          useFactory: (db: Database, contact: SecretBox) => new Reserve(db, contact),
+        },
         {
           provide: OrderReader,
           inject: [Database],

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
+import { randomUUID } from 'node:crypto';
 import { requirePolicy } from '@eventflow/service-runtime';
 import { catalogFixture } from './fixture.mjs';
+import { receivedMail } from '../../../tests/helpers/mailpit.mjs';
 
 let fixture, owner, organization;
 before(async () => {
@@ -37,7 +39,19 @@ async function join(subject, role) {
   return token;
 }
 
-test('invitation is verified-email-bound, single-use under concurrency, and stores only a hash', async () => {
+test('Catalog delivers its own invitation via Mailpit with an encrypted pending token', async () => {
+  const address = `invite-${randomUUID()}@eventflow.test`;
+  const invitation = await invite(address, 'STAFF');
+  const pending = await fixture.db.invitation.findUnique({ where: { id: invitation.id } });
+  assert.ok(
+    pending.deliveryToken && !Buffer.from(pending.deliveryToken).includes(invitation.token),
+  );
+  const message = await receivedMail(`catalog-${invitation.id}@eventflow.test`);
+  assert.ok(message.To.some(({ Address }) => Address === address));
+  assert.ok(message.Text.includes(`/organizer/?invite=${invitation.token}`));
+});
+
+test('invitation is verified-email-bound and single-use under concurrency', async () => {
   const invitation = await invite('manager@eventflow.test', 'MANAGER');
   const wrongEmail = await fixture.request('/api/v1/invitations/accept', owner, 'POST', {
     token: invitation.token,

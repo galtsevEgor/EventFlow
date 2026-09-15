@@ -59,6 +59,11 @@ export function initializeEnvironment(directory) {
     PAYMENTS_URL: 'http://127.0.0.1:4003',
     TICKETS_URL: 'http://127.0.0.1:4004',
     TICKET_QR_KEYS: `v1:${randomBytes(32).toString('hex')}`,
+    BOOKING_CONTACT_KEY: randomBytes(32).toString('hex'),
+    CATALOG_INVITATION_KEY: randomBytes(32).toString('hex'),
+    TICKET_DELIVERY_CLIENT_SECRET: randomBytes(32).toString('hex'),
+    MAIL_OPERATOR_SECRET: randomBytes(32).toString('hex'),
+    MAILPIT_SMTP_PORT: '11025',
     PAYMENT_PROVIDER: 'fake',
   };
   for (const [key, value] of Object.entries(additions)) {

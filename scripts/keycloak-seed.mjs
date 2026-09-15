@@ -21,6 +21,8 @@ export async function seedKeycloak(env, directory = process.cwd()) {
     'POLICY_CLIENT_SECRET',
     'PAYMENTS_CLIENT_SECRET',
     'PAYMENTS_OPERATOR_SECRET',
+    'TICKET_DELIVERY_CLIENT_SECRET',
+    'MAIL_OPERATOR_SECRET',
   ]) {
     if (!env[name]) throw new Error(`Missing ${name}; run pnpm env:init`);
   }
@@ -83,6 +85,8 @@ export async function seedKeycloak(env, directory = process.cwd()) {
     ['eventflow-policy', 'policy-check'],
     ['eventflow-payments', 'booking-payments'],
     ['eventflow-operator', 'payments-reconcile'],
+    ['eventflow-ticket-delivery', 'booking-ticket-delivery'],
+    ['eventflow-mail-operator', 'mail-retry'],
   ]) {
     let role = await admin(`/${realmName}/roles/${roleName}`, 'GET', undefined, true);
     if (!role) {

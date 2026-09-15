@@ -9,6 +9,23 @@ datasource db {
   provider = "postgresql"
 }
 
+model DeliveryJob {
+  id String @id @db.Uuid
+  state String @default("PENDING") @db.VarChar(10)
+  attempts Int @default(0)
+  nextRunAt DateTime @default(now()) @db.Timestamptz(3)
+  lease String? @db.Uuid
+
+  @@index([state, nextRunAt])
+}
+
+model DeliveryRetry {
+  requestId String @id @db.Uuid
+  jobId String @db.Uuid
+  actorSubject String @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}
+
 enum OrganizationRole {
   OWNER
   MANAGER
@@ -55,6 +72,7 @@ model AuditEntry {
 }
 
 model Invitation {
+  deliveryToken Bytes?
   id             String @id @default(uuid()) @db.Uuid
   organizationId String @db.Uuid
   email          String @db.VarChar(254)

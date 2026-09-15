@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { mailConfig } from '@eventflow/service-runtime';
 
 export function readCatalogConfig(env: NodeJS.ProcessEnv) {
   return z
     .object({
+      ...mailConfig,
+      CATALOG_INVITATION_KEY: z.string().regex(/^[a-f0-9]{64}$/),
       CATALOG_DATABASE_URL: z.url().startsWith('postgresql:'),
       OIDC_ISSUER: z.url(),
       AMQP_URL: z.url().startsWith('amqp'),

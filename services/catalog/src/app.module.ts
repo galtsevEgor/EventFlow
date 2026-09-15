@@ -1,5 +1,14 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import { HealthModule, Readiness, probeIdentity, TokenVerifier } from '@eventflow/service-runtime';
+import {
+  HealthModule,
+  MailOperator,
+  MailQueue,
+  MailWorker,
+  Readiness,
+  SecretBox,
+  probeIdentity,
+  TokenVerifier,
+} from '@eventflow/service-runtime';
 import { Database } from './database';
 import type { CatalogConfig } from './config';
 import { OrganizationController } from './organizations/organization.controller';
@@ -8,6 +17,7 @@ import { UserGuard } from './user.guard';
 import { MembershipController } from './organizations/membership.controller';
 import { MembershipService } from './organizations/membership.service';
 import { InvitationService } from './organizations/invitation.service';
+import { DeliverInvitation } from './organizations/deliver-invitation';
 import { DraftController } from './events/draft.controller';
 import { DraftService } from './events/draft.service';
 import { PolicyController } from './policy/policy.controller';
@@ -38,6 +48,7 @@ export class AppModule {
         PublicCoverController,
         PublicationController,
         PublicCatalogController,
+        MailOperator,
       ],
       providers: [
         {
@@ -116,7 +127,27 @@ export class AppModule {
           useFactory: (db: Database) => new DraftService(db, config.MAXIMUM_PRICE_MINOR),
           inject: [Database],
         },
-        ...[MembershipService, InvitationService, PolicyService].map((service) => ({
+        { provide: SecretBox, useFactory: () => new SecretBox(config.CATALOG_INVITATION_KEY) },
+        {
+          provide: InvitationService,
+          inject: [Database, SecretBox],
+          useFactory: (db: Database, box: SecretBox) => new InvitationService(db, box),
+        },
+        {
+          provide: MailQueue,
+          inject: [Database],
+          useFactory: (db: Database) =>
+            new MailQueue((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
+        },
+        {
+          provide: MailWorker,
+          inject: [Database, MailQueue, SecretBox],
+          useFactory: (db: Database, queue: MailQueue, box: SecretBox) => {
+            const delivery = new DeliverInvitation(db, config, box);
+            return new MailWorker(queue, (id) => delivery.send(id));
+          },
+        },
+        ...[MembershipService, PolicyService].map((service) => ({
           provide: service,
           useFactory: (db: Database) => new service(db),
           inject: [Database],

@@ -45,7 +45,14 @@ export async function catalogFixture(overrides = {}) {
     await new Promise((done) => jwks.listen(0, '127.0.0.1', done));
     const issuer = `http://127.0.0.1:${jwks.address().port}`;
     app = await createApplication(
-      AppModule.configure({ OIDC_ISSUER: issuer, CATALOG_DATABASE_URL: url.href, ...overrides }),
+      AppModule.configure({
+        OIDC_ISSUER: issuer,
+        CATALOG_DATABASE_URL: url.href,
+        CATALOG_INVITATION_KEY: process.env.CATALOG_INVITATION_KEY,
+        PUBLIC_ORIGIN: process.env.PUBLIC_ORIGIN,
+        MAILPIT_SMTP_PORT: Number(process.env.MAILPIT_SMTP_PORT),
+        ...overrides,
+      }),
     );
     app.useLogger(false);
     await app.listen(0, '127.0.0.1');

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { parseInput } from '@eventflow/service-runtime';
+import { parseInput, type SecretBox } from '@eventflow/service-runtime';
 import type { Prisma, Sale } from '../generated/client';
 import { Database } from '../database';
 import { salesState } from '../sale-reader';
@@ -31,8 +31,11 @@ const failure = (status: number, code: string, message: string): Result => ({
 });
 
 export class Reserve {
-  constructor(private readonly db: Database) {}
-  async run(buyer: string, keyInput: unknown, input: unknown): Promise<Result> {
+  constructor(
+    private readonly db: Database,
+    private readonly contactBox?: SecretBox,
+  ) {}
+  async run(buyer: string, keyInput: unknown, input: unknown, email?: string): Promise<Result> {
     const key = parseInput(z.uuid(), keyInput).toLowerCase();
     const data = parseInput(reserveInput, input);
     const hash = createHash('sha256')
@@ -52,7 +55,7 @@ export class Reserve {
           body: z.record(z.string(), z.json()).parse(previous.response),
         };
       }
-      const result = await this.create(tx, buyer, data);
+      const result = await this.create(tx, buyer, data, email);
       await tx.reservationRequest.create({
         data: {
           buyerSubject: buyer,
@@ -66,7 +69,12 @@ export class Reserve {
     });
   }
 
-  private async create(tx: Transaction, buyer: string, data: Input): Promise<Result> {
+  private async create(
+    tx: Transaction,
+    buyer: string,
+    data: Input,
+    email?: string,
+  ): Promise<Result> {
     // SHARE permits concurrent buyers but conflicts with the pause UPDATE.
     const [sale] = await tx.$queryRaw<
       Sale[]
@@ -97,9 +105,11 @@ export class Reserve {
     )
       return failure(409, 'SEATS_UNAVAILABLE', 'Одно из мест уже занято. Обновите выбор.');
     const expiresAt = new Date(Math.min(+now + 600000, +sale.salesEndsAt));
+    const id = randomUUID();
     const order = await tx.order.create({
       data: {
-        id: randomUUID(),
+        id,
+        contactEmail: email && this.contactBox ? this.contactBox.seal(email, id) : null,
         saleId: sale.id,
         buyerSubject: buyer,
         organizationId: sale.organizationId,

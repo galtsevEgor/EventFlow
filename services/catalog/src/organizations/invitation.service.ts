@@ -1,12 +1,15 @@
-import { createHash, randomBytes } from 'node:crypto';
-import { ApiError, type UserIdentity } from '@eventflow/service-runtime';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { ApiError, type SecretBox, type UserIdentity } from '@eventflow/service-runtime';
 import { Database } from '../database';
 import { lockOrganization, requireMembership } from './access';
 
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
 
 export class InvitationService {
-  constructor(private readonly db: Database) {}
+  constructor(
+    private readonly db: Database,
+    private readonly deliveryBox: SecretBox,
+  ) {}
   async list(actor: UserIdentity, organizationId: string) {
     await requireMembership(this.db, actor, organizationId, ['OWNER']);
     return {
@@ -54,8 +57,11 @@ export class InvitationService {
       )
         throw new ApiError(409, 'INVITATION_EXISTS', 'Активное приглашение уже существует.');
       const token = randomBytes(32).toString('base64url');
+      const id = randomUUID();
       const invitation = await tx.invitation.create({
         data: {
+          id,
+          deliveryToken: this.deliveryBox.seal(token, id),
           organizationId,
           email,
           role,
@@ -64,6 +70,7 @@ export class InvitationService {
           expiresAt: new Date(now.getTime() + 86400000),
         },
       });
+      await tx.deliveryJob.create({ data: { id } });
       await tx.auditEntry.create({
         data: {
           organizationId,
@@ -116,7 +123,10 @@ export class InvitationService {
           role: invitation.role,
         },
       });
-      await tx.invitation.update({ where: { id: invitation.id }, data: { acceptedAt: now } });
+      await tx.invitation.update({
+        where: { id: invitation.id },
+        data: { acceptedAt: now, deliveryToken: null },
+      });
       await tx.auditEntry.create({
         data: {
           organizationId,
@@ -141,7 +151,10 @@ export class InvitationService {
           'INVITATION_ACCEPTED',
           'Участник уже принял приглашение. Управляйте его ролью.',
         );
-      await tx.invitation.update({ where: { id }, data: { revokedAt: new Date() } });
+      await tx.invitation.update({
+        where: { id },
+        data: { revokedAt: new Date(), deliveryToken: null },
+      });
       await tx.auditEntry.create({
         data: {
           organizationId,

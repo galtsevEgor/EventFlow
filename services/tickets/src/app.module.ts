@@ -1,19 +1,27 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { commerceRoutes } from '@eventflow/event-contracts';
 import { Broker, MessageWorker } from '@eventflow/messaging';
-import { HealthModule, Readiness, TokenVerifier } from '@eventflow/service-runtime';
+import {
+  HealthModule,
+  MailOperator,
+  MailQueue,
+  MailWorker,
+  Readiness,
+  TokenVerifier,
+} from '@eventflow/service-runtime';
 import type { TicketsConfig } from './config';
 import { Database } from './database';
 import { TicketController } from './controller';
 import { IssueTickets } from './issue';
 import { QrCredentials } from './qr-credentials';
+import { DeliverTickets } from './deliver';
 
 @Module({ imports: [HealthModule.forService('tickets')] })
 export class AppModule {
   static configure(config: TicketsConfig): DynamicModule {
     return {
       module: AppModule,
-      controllers: [TicketController],
+      controllers: [TicketController, MailOperator],
       providers: [
         { provide: Database, useFactory: () => new Database(config.TICKETS_DATABASE_URL) },
         {
@@ -22,6 +30,20 @@ export class AppModule {
         },
         { provide: QrCredentials, useFactory: () => new QrCredentials(config.TICKET_QR_KEYS) },
         IssueTickets,
+        {
+          provide: MailQueue,
+          inject: [Database],
+          useFactory: (db: Database) =>
+            new MailQueue((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
+        },
+        {
+          provide: MailWorker,
+          inject: [MailQueue],
+          useFactory: (queue: MailQueue) => {
+            const delivery = new DeliverTickets(config);
+            return new MailWorker(queue, (id) => delivery.send(id));
+          },
+        },
         {
           provide: MessageWorker,
           inject: [IssueTickets],

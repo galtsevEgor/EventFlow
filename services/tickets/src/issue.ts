@@ -53,6 +53,7 @@ export class IssueTickets {
           };
         }),
       });
+      await tx.deliveryJob.create({ data: { id: orderId } });
     });
   }
 }

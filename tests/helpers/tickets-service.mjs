@@ -4,7 +4,7 @@ import { AppModule } from '../../services/tickets/dist/app.module.js';
 import { readTicketsConfig } from '../../services/tickets/dist/config.js';
 import { ticketsDatabase } from './tickets-database.mjs';
 
-export async function ticketsService(namespace) {
+export async function ticketsService(namespace, overrides = {}) {
   const fixture = await ticketsDatabase();
   let app;
   async function close() {
@@ -19,6 +19,7 @@ export async function ticketsService(namespace) {
       ...process.env,
       TICKETS_DATABASE_URL: fixture.url,
       MESSAGE_NAMESPACE: namespace,
+      ...overrides,
     });
     app = await createApplication(AppModule.configure(config));
     await app.listen(0, '127.0.0.1');

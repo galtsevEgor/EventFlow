@@ -55,6 +55,7 @@ enum SeatState {
   SOLD
 }
 model Order {
+  contactEmail Bytes?
   confirmedPaymentId String? @unique @db.VarChar(255)
   confirmedAt DateTime? @db.Timestamptz(3)
   id String @id @db.Uuid
