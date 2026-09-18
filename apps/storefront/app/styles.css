@@ -5,13 +5,33 @@
   background: #f7f6f1;
 }
 .account {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  gap: 20px;
-  justify-content: flex-end;
+  gap: 8px 20px;
   padding-top: 18px;
   font-size: 14px;
+}
+.account-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: clamp(8px, 2vw, 20px);
+  min-block-size: 44px;
+}
+.account-email {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-controls > * {
+  white-space: nowrap;
+}
+.account-controls > :is(a, button) {
+  flex-shrink: 0;
+}
+.account > .ef-alert {
+  grid-column: 1 / -1;
 }
 .account a {
   color: #22654c;
@@ -237,8 +257,10 @@ summary:focus-visible {
   margin-top: 32px;
 }
 .detail-cover {
+  display: block;
   width: 100%;
   height: auto;
+  aspect-ratio: 10 / 7;
   max-height: 550px;
   object-fit: contain;
   border-radius: 16px;
@@ -493,6 +515,12 @@ summary:focus-visible {
   }
 }
 @media (max-width: 650px) {
+  .account {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .account > a {
+    justify-self: end;
+  }
   .public-event-grid,
   .detail-grid {
     grid-template-columns: minmax(0, 1fr);

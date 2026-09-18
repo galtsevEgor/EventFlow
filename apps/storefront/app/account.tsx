@@ -26,19 +26,23 @@ function AccountControls() {
   return (
     <nav className="account" aria-label="Аккаунт">
       <a href="/organizer/">Организаторам ↗</a>
-      {session.isPending ? (
-        <span role="status">Загрузка…</span>
-      ) : session.data?.user ? (
-        <>
-          <span>{session.data.user.email}</span>
-          <a href="/orders">Мои заказы</a>
-          <Button variant="secondary" disabled={logout.isPending} onClick={() => logout.mutate()}>
-            Выйти
-          </Button>
-        </>
-      ) : (
-        <a href="/api/v1/auth/login?returnTo=%2F">Войти</a>
-      )}
+      <div className="account-controls">
+        {session.isPending ? (
+          <span role="status">Загрузка…</span>
+        ) : session.data?.user ? (
+          <>
+            <span className="account-email" title={session.data.user.email}>
+              {session.data.user.email}
+            </span>
+            <a href="/orders">Мои заказы</a>
+            <Button variant="secondary" disabled={logout.isPending} onClick={() => logout.mutate()}>
+              Выйти
+            </Button>
+          </>
+        ) : (
+          <a href="/api/v1/auth/login?returnTo=%2F">Войти</a>
+        )}
+      </div>
       {(session.error || logout.error) && (
         <Alert>Не удалось проверить аккаунт. Попробуйте обновить страницу.</Alert>
       )}
