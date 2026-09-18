@@ -65,6 +65,11 @@ test('only published projections are public; response exposes safe fields and ex
   assert.equal(draft.headers.get('cache-control'), 'no-store');
   assert.equal((await fixture.request(`/api/v1/events/${randomUUID()}`)).status, 404);
   assert.equal((await fixture.request('/api/v1/events/not-a-uuid')).status, 422);
+  const list = await fixture.request('/api/v1/events?pageSize=48');
+  assert.deepEqual(
+    list.body.events.find((event) => event.id === visible),
+    response.body,
+  );
 });
 test('search, city and local-date filters compose with deterministic pagination for tied start times', async () => {
   const first = await fixture.request('/api/v1/events?pageSize=3');
@@ -88,7 +93,8 @@ test('search, city and local-date filters compose with deterministic pagination 
   assert.equal((await fixture.request('/api/v1/events?to=2035-06-01')).body.total, 0);
   assert.equal((await fixture.request('/api/v1/events?q=%25')).body.total, 1);
   assert.equal((await fixture.request('/api/v1/events?q=missing')).body.total, 0);
-  assert.equal((await fixture.request('/api/v1/events?page=1000')).body.events.length, 0);
+  const emptyPage = await fixture.request('/api/v1/events?page=1000&pageSize=3');
+  assert.deepEqual(emptyPage.body, { events: [], total: 16, page: 1000, pageSize: 3, pages: 6 });
 });
 test('invalid filters are rejected and past events disappear from upcoming results but retain their page', async () => {
   for (const query of [
