@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Schemas } from '@eventflow/api-client';
-import { formatDate, formatPrice, pageLink, type Search } from './catalog-api';
+import { pageLink, type Search } from './catalog-api';
+import { formatDate, formatPrice } from './format';
 
 export function EventList({
   result,

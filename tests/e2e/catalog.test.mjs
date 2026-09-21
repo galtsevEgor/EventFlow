@@ -32,10 +32,10 @@ test(
         })
       ).json();
       const events = [];
-      for (const [title, city, color, word] of [
-        ['Концерт в саду', 'Кишинёв', '#285a45', 'GARDEN'],
-        ['Джаз на закате', 'Кишинёв', '#9b563a', 'JAZZ'],
-        ['Встреча с музыкой', 'Бельцы', '#394b76', 'LIVE'],
+      for (const [title, city, color, word, timeZone] of [
+        ['Концерт в саду', 'Кишинёв', '#285a45', 'GARDEN', 'Europe/Chisinau'],
+        ['Джаз на закате', 'Кишинёв', '#9b563a', 'JAZZ', 'UTC'],
+        ['Встреча с музыкой', 'Бельцы', '#394b76', 'LIVE', 'Asia/Tokyo'],
       ]) {
         const draft = await (
           await page.request.post(`${stack.origin}/api/v1/organizations/${org.id}/events`, {
@@ -55,7 +55,7 @@ test(
             configuration: {
               city,
               address: 'Улица Музыки, 12',
-              timeZone: 'Europe/Chisinau',
+              timeZone,
               startsAt: '2035-06-01T16:00:00Z',
               endsAt: '2035-06-01T18:00:00Z',
               salesStartsAt: '2020-01-01T09:00:00Z',
@@ -105,9 +105,12 @@ test(
           data: { revision: (await cover.json()).revision },
         });
         assert.equal(publish.status(), 201);
-        events.push({ id: draft.id, path });
+        events.push({ id: draft.id, path, title, timeZone });
       }
-      const visitor = await browser.newPage({ viewport: { width: 1360, height: 1100 } });
+      const visitor = await browser.newPage({
+        viewport: { width: 1360, height: 1100 },
+        timezoneId: 'America/Los_Angeles',
+      });
       await expect
         .poll(
           async () =>
@@ -120,6 +123,22 @@ test(
       const html = await (await visitor.request.get(stack.origin + '/')).text();
       assert.match(html, /Концерт в саду/);
       assert.doesNotMatch(html, /owner@eventflow.test/);
+      const dateText = (timeZone) =>
+        new Intl.DateTimeFormat('ru', { dateStyle: 'long', timeStyle: 'short', timeZone }).format(
+          new Date('2035-06-01T16:00:00Z'),
+        );
+      const priceText = new Intl.NumberFormat('ru', { style: 'currency', currency: 'EUR' }).format(
+        25,
+      );
+      for (const event of events) {
+        const card = visitor.locator('.public-event-card').filter({ hasText: event.title });
+        await expect(card.locator('time')).toHaveText(dateText(event.timeZone));
+        await expect(card.locator('.event-price')).toHaveText('от ' + priceText);
+        assert.ok(
+          html.includes(dateText(event.timeZone)),
+          'Event-local date is present in SSR HTML',
+        );
+      }
       mkdirSync('work/e2', { recursive: true });
       await expect
         .poll(() =>
@@ -157,6 +176,9 @@ test(
       ).toBeVisible();
       await expect(visitor.getByText('Продажи открыты', { exact: true })).toBeVisible();
       await expect(visitor).toHaveTitle('Концерт в саду — EventFlow');
+      await expect(visitor.locator('.event-info time').first()).toHaveText(
+        dateText(events[0].timeZone),
+      );
       assert.equal(await visitor.evaluate(() => window.untrustedExecuted), undefined);
       const structured = JSON.parse(
         await visitor.locator('script[type="application/ld+json"]').textContent(),

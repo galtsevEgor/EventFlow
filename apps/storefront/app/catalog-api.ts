@@ -46,11 +46,3 @@ export function pageLink(search: Search, page: number) {
   if (page > 1) params.set('page', String(page));
   return `/?${params}`;
 }
-export function formatDate(instant: string, timeZone: string) {
-  return new Intl.DateTimeFormat('ru', { dateStyle: 'long', timeStyle: 'short', timeZone }).format(
-    new Date(instant),
-  );
-}
-export function formatPrice(minor: number) {
-  return new Intl.NumberFormat('ru', { style: 'currency', currency: 'EUR' }).format(minor / 100);
-}

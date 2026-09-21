@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Account } from '../../account';
-import { formatDate, getEvent } from '../../catalog-api';
+import { getEvent } from '../../catalog-api';
+import { formatDate } from '../../format';
 import { SalePanel } from '../../sale-panel';
 
 export const dynamic = 'force-dynamic';
