@@ -28,7 +28,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
     result = await listEvents(search);
   } catch (cause) {
     error =
-      cause instanceof ApiRequestError
+      cause instanceof ApiRequestError && !cause.problem.retryable
         ? cause.message
         : 'Каталог временно недоступен. Попробуйте обновить страницу.';
   }
