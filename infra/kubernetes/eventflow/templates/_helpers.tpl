@@ -8,6 +8,11 @@ app.kubernetes.io/name: {{ . | quote }}
 - { name: KEYCLOAK_URL, value: {{ .Values.identityOrigin | quote }} }
 - { name: OIDC_ISSUER, value: {{ printf "%s/realms/eventflow" .Values.identityOrigin | quote }} }
 - { name: OIDC_CLIENT_ID, value: eventflow-bff }
+- { name: EVENTFLOW_HTTP_CONCURRENCY, value: {{ .Values.httpLimits.serviceConcurrent | quote }} }
+- { name: EVENTFLOW_API_REQUESTS, value: {{ .Values.httpLimits.apiRequests | quote }} }
+- { name: EVENTFLOW_SSR_REQUESTS, value: {{ .Values.httpLimits.ssrRequests | quote }} }
+- { name: EVENTFLOW_API_CONCURRENCY, value: {{ .Values.httpLimits.apiConcurrent | quote }} }
+- { name: EVENTFLOW_SSR_CONCURRENCY, value: {{ .Values.httpLimits.ssrConcurrent | quote }} }
 - { name: CATALOG_URL, value: 'http://catalog:4001' }
 - { name: BOOKING_URL, value: 'http://booking:4002' }
 - { name: PAYMENTS_URL, value: 'http://payments:4003' }

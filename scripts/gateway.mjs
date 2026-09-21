@@ -1,12 +1,15 @@
 import { createServer } from 'node:http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createAdmission } from './gateway-limits.mjs';
 
 export function createGateway({
   bff = 'http://127.0.0.1:4000',
   organizer = 'http://127.0.0.1:3001',
   storefront = 'http://127.0.0.1:3000',
   observe,
+  limits,
 } = {}) {
+  const admit = createAdmission(limits);
   function proxy(target) {
     return createProxyMiddleware({
       target,
@@ -18,6 +21,7 @@ export function createGateway({
             response.writeHead(503, {
               'content-type': 'application/json',
               'cache-control': 'no-store',
+              'retry-after': '1',
             });
             response.end(
               JSON.stringify({
@@ -46,6 +50,15 @@ export function createGateway({
         ? workspace
         : publicSite;
   const server = createServer((request, response) => {
+    const path = new URL(request.url, 'http://gateway').pathname;
+    if (
+      ['GET', 'HEAD'].includes(request.method) &&
+      ['/health/live', '/health/ready'].includes(path)
+    ) {
+      response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({ service: 'gateway', status: 'ready' }));
+      return;
+    }
     if (observe && request.url.startsWith('/api/v1/')) {
       const started = performance.now();
       response.once('finish', () => observe(response.statusCode, performance.now() - started));
@@ -60,6 +73,15 @@ export function createGateway({
       response.end();
       return;
     }
+    const group =
+      path === '/api/v1/webhooks/stripe'
+        ? 'webhook'
+        : path.startsWith('/api/v1/')
+          ? 'api'
+          : path.startsWith('/organizer/') || path.startsWith('/_next/static/')
+            ? null
+            : 'ssr';
+    if (!admit(request, response, group)) return;
     void route(request.url)(request, response);
   });
   server.on('upgrade', (request, socket, head) =>

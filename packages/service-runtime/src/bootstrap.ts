@@ -3,18 +3,23 @@ import type { Type, DynamicModule } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { ServiceConfig } from './config';
 import { ApiExceptionFilter, requestContext } from './http';
+import { HttpAdmission } from './http-admission';
 
 export async function createApplication(
   rootModule: Type<unknown> | DynamicModule,
-  options: { rawBody?: boolean } = {},
+  options: { rawBody?: boolean; httpConcurrency?: number } = {},
 ) {
+  const { httpConcurrency = Number(process.env.EVENTFLOW_HTTP_CONCURRENCY ?? 64), ...nestOptions } =
+    options;
+  const admission = new HttpAdmission(httpConcurrency);
   const app = await NestFactory.create(rootModule, {
     logger: ['error', 'warn', 'log'],
-    ...options,
+    ...nestOptions,
   });
   app.enableShutdownHooks();
   app.use(requestContext);
   app.useGlobalFilters(new ApiExceptionFilter());
+  app.useGlobalInterceptors(admission);
   return app;
 }
 

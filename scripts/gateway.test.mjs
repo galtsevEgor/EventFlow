@@ -37,6 +37,7 @@ test('gateway preserves same-origin routes and cookies, blocks private policy an
       servers[0].close(done);
     });
     assert.equal((await fetch(origin + '/api/v1/auth/session')).status, 503);
+    assert.equal((await fetch(origin + '/health/ready')).status, 200);
   } finally {
     await Promise.all(
       servers.map(

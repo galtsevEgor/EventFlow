@@ -7,6 +7,14 @@ splitWorkers: false
 workerReplicas: {}
 autoscale: false
 databasePool: { http: 3, worker: 2 }
+httpLimits:
+  {
+    serviceConcurrent: 64,
+    apiRequests: 600,
+    ssrRequests: 120,
+    apiConcurrent: 32,
+    ssrConcurrent: 16,
+  }
 publicOrigin: http://127.0.0.1:58000
 identityOrigin: http://127.0.0.1:58080
 
@@ -15,7 +23,7 @@ applications:
     port: 8080
     nodePort: 30080
     command: [node, /opt/eventflow/gateway.mjs]
-    probe: /api/v1/events
+    probe: /health/ready
     cpu: 100m
     memory: 128Mi
   storefront:
