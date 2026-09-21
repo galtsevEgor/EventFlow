@@ -25,3 +25,9 @@ const routes: [string[], RegExp][] = [
 export function isCatalogRoute(method: string, path: string) {
   return routes.some(([methods, pattern]) => methods.includes(method) && pattern.test(path));
 }
+export function isOrganizerOrderRoute(method: string, path: string) {
+  return (
+    (method === 'GET' && new RegExp(`^${org}/events/${uuid}/orders$`).test(path)) ||
+    (method === 'POST' && new RegExp(`^${org}/events/${uuid}/orders/${uuid}/refund$`).test(path))
+  );
+}

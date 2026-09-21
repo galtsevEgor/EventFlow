@@ -383,6 +383,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/organizations/{organizationId}/events/{eventId}/orders': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getOrganizerOrders'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/organizations/{organizationId}/events/{eventId}/orders/{id}/refund': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['requestOrderRefund'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/session': {
     parameters: {
       query?: never;
@@ -845,7 +877,7 @@ export interface components {
       currency: 'EUR';
       totalMinor: number;
       /** @enum {string} */
-      state: 'HELD' | 'CONFIRMED' | 'EXPIRED' | 'CANCELLED';
+      state: 'HELD' | 'CONFIRMED' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED';
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -859,6 +891,7 @@ export interface components {
         number: number;
         priceMinor: number;
       }[];
+      refund: components['schemas']['OrderRefund'] | null;
     };
     OrderList: {
       items: components['schemas']['Order'][];
@@ -885,7 +918,37 @@ export interface components {
       /** Format: date-time */
       serverNow: string;
       /** @enum {unknown} */
-      state: 'HELD' | 'CONFIRMED' | 'EXPIRED' | 'CANCELLED';
+      state: 'HELD' | 'CONFIRMED' | 'EXPIRED' | 'CANCELLED' | 'REFUNDED';
+    };
+    OrderRefund: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      orderId: string;
+      reason: string;
+      /** @enum {unknown} */
+      state: 'FENCING' | 'PENDING' | 'REQUIRES_REVIEW' | 'REJECTED' | 'SUCCEEDED';
+      code: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+      /** Format: date-time */
+      completedAt: string | null;
+    };
+    OrganizerOrder: components['schemas']['Order'] & {
+      /** Format: date-time */
+      refundDeadline: string;
+      canRequestRefund: boolean;
+    };
+    OrganizerOrderList: {
+      orders: components['schemas']['OrganizerOrder'][];
+      total: number;
+      page: number;
+      pageSize: number;
+      pages: number;
+      /** Format: date-time */
+      serverNow: string;
     };
     Identity: {
       sub: string;
@@ -2072,6 +2135,81 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Order'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  getOrganizerOrders: {
+    parameters: {
+      query?: {
+        page?: number;
+      };
+      header?: never;
+      path: {
+        organizationId: string;
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrganizerOrderList'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  requestOrderRefund: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path: {
+        organizationId: string;
+        eventId: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          reason: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Success */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OrderRefund'];
         };
       };
       /** @description Request failed */

@@ -36,6 +36,8 @@ export async function bookingFixture(namespace, port = 0, overrides = {}) {
         AMQP_URL: process.env.AMQP_URL,
         MESSAGE_NAMESPACE: namespace,
         OIDC_ISSUER: process.env.OIDC_ISSUER,
+        CATALOG_URL: process.env.CATALOG_URL,
+        POLICY_CLIENT_SECRET: process.env.POLICY_CLIENT_SECRET,
         BOOKING_CONTACT_KEY: process.env.BOOKING_CONTACT_KEY,
         ...overrides,
       }),

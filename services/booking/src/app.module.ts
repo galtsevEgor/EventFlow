@@ -18,6 +18,9 @@ import { PaymentAuthorization } from './payments/authorization';
 import { BookingPaymentsController } from './payments/controller';
 import { ConfirmPayment } from './payments/confirm';
 import { RefundOutcome } from './payments/refund-outcome';
+import { RefundAccess } from './refunds/access';
+import { OrganizerRefunds } from './refunds/organizer';
+import { OrganizerOrdersController } from './refunds/controller';
 
 @Module({ imports: [HealthModule.forService('booking')] })
 export class AppModule {
@@ -28,8 +31,20 @@ export class AppModule {
       controllers:
         config.EVENTFLOW_WORKLOAD === 'worker'
           ? []
-          : [SaleController, OrderController, BookingPaymentsController, DeliveryContextController],
+          : [
+              SaleController,
+              OrderController,
+              BookingPaymentsController,
+              DeliveryContextController,
+              OrganizerOrdersController,
+            ],
       providers: [
+        { provide: RefundAccess, useFactory: () => new RefundAccess(config) },
+        {
+          provide: OrganizerRefunds,
+          inject: [Database, RefundAccess],
+          useFactory: (db: Database, access: RefundAccess) => new OrganizerRefunds(db, access),
+        },
         ...(runWorkers
           ? [
               {

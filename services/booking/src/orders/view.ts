@@ -1,7 +1,11 @@
-import type { Order, OrderItem } from '../generated/client';
+import type { Order, OrderItem, OrderRefund } from '../generated/client';
+import { refundView } from '../refunds/view';
 import { effectiveState } from './transaction';
 
-export function orderView(order: Order & { items: OrderItem[] }, now: Date) {
+export function orderView(
+  order: Order & { items: OrderItem[]; refund?: OrderRefund | null },
+  now: Date,
+) {
   return {
     id: order.id,
     saleId: order.saleId,
@@ -9,6 +13,7 @@ export function orderView(order: Order & { items: OrderItem[] }, now: Date) {
     currency: order.currency,
     totalMinor: order.totalMinor,
     state: effectiveState(order, now),
+    refund: order.refund ? refundView(order.refund) : null,
     createdAt: order.createdAt.toISOString(),
     expiresAt: order.expiresAt.toISOString(),
     serverNow: now.toISOString(),

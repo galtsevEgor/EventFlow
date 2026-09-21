@@ -5,6 +5,7 @@ import test from 'node:test';
 import { OrdersController } from '../dist/orders.controller.js';
 import { PublicController } from '../dist/public.controller.js';
 import { AuthService } from '../dist/auth/auth.service.js';
+import { CatalogController } from '../dist/catalog.controller.js';
 
 async function server(handle) {
   const app = createServer((request, response) => {
@@ -56,6 +57,49 @@ const request = (method, path, originalUrl = path, body) => ({
   originalUrl,
   body,
   header: () => randomUUID(),
+});
+
+test('organizer refunds route to Booking and reject invalid CSRF before forwarding', async () => {
+  const received = [];
+  const upstream = await server((req, res) => {
+    received.push({ path: req.url, key: req.headers['idempotency-key'] });
+    res.setHeader('content-type', 'application/json');
+    res.statusCode = 202;
+    res.end('{}');
+  });
+  try {
+    const authorization = auth('http://127.0.0.1:1');
+    authorization.config.BOOKING_URL = upstream.origin;
+    authorization.config.PUBLIC_ORIGIN = 'https://eventflow.test';
+    authorization.assertCsrf = AuthService.prototype.assertCsrf;
+    const controller = new CatalogController(authorization);
+    const path = `/api/v1/organizations/${randomUUID()}/events/${randomUUID()}/orders/${randomUUID()}/refund`;
+    const key = randomUUID();
+    const req = request('POST', path, path, { reason: 'Event cancelled' });
+    for (const [origin, csrf] of [
+      ['https://attacker.test', 'csrf-fixture'],
+      ['https://eventflow.test', 'wrong'],
+    ]) {
+      req.header = (name) => (name === 'origin' ? origin : csrf);
+      await assert.rejects(
+        controller.forward(req, response()),
+        (error) => error.getStatus() === 403,
+      );
+    }
+    assert.equal(received.length, 0);
+    req.header = (name) =>
+      ({
+        origin: 'https://eventflow.test',
+        'x-csrf-token': 'csrf-fixture',
+        'idempotency-key': key,
+      })[name];
+    const res = response();
+    await controller.forward(req, res);
+    assert.equal(res.statusCode, 202);
+    assert.deepEqual(received, [{ path, key }]);
+  } finally {
+    await upstream.close();
+  }
 });
 
 test('payment routes preserve the original key and cannot forward tokens to an arbitrary origin', async () => {

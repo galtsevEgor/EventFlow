@@ -10,6 +10,7 @@ export const orderLabels = {
   EXPIRED: 'Срок брони истёк',
   CANCELLED: 'Бронь отменена',
   CONFIRMED: 'Заказ подтверждён',
+  REFUNDED: 'Оплата возвращена',
 };
 
 export function BookingProvider({ children }: { children: ReactNode }) {

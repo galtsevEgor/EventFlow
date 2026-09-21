@@ -326,6 +326,146 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{organizationId}/events/{eventId}/orders": {
+      "get": {
+        "operationId": "getOrganizerOrders",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerOrderList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/events/{eventId}/orders/{id}/refund": {
+      "post": {
+        "operationId": "requestOrderRefund",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reason"],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 240
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderRefund"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -471,7 +611,7 @@
           },
           "state": {
             "type": "string",
-            "enum": ["HELD", "CONFIRMED", "EXPIRED", "CANCELLED"]
+            "enum": ["HELD", "CONFIRMED", "EXPIRED", "CANCELLED", "REFUNDED"]
           },
           "createdAt": {
             "type": "string",
@@ -511,6 +651,16 @@
               },
               "required": ["seatId", "categoryName", "row", "number", "priceMinor"]
             }
+          },
+          "refund": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderRefund"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -523,7 +673,8 @@
           "createdAt",
           "expiresAt",
           "serverNow",
-          "items"
+          "items",
+          "refund"
         ]
       },
       "OrderList": {
@@ -606,7 +757,100 @@
             "format": "date-time"
           },
           "state": {
-            "enum": ["HELD", "CONFIRMED", "EXPIRED", "CANCELLED"]
+            "enum": ["HELD", "CONFIRMED", "EXPIRED", "CANCELLED", "REFUNDED"]
+          }
+        }
+      },
+      "OrderRefund": {
+        "type": "object",
+        "required": [
+          "id",
+          "orderId",
+          "reason",
+          "state",
+          "code",
+          "createdAt",
+          "updatedAt",
+          "completedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "orderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "state": {
+            "enum": ["FENCING", "PENDING", "REQUIRES_REVIEW", "REJECTED", "SUCCEEDED"]
+          },
+          "code": {
+            "type": ["string", "null"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        }
+      },
+      "OrganizerOrder": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Order"
+          },
+          {
+            "type": "object",
+            "required": ["refundDeadline", "canRequestRefund"],
+            "properties": {
+              "refundDeadline": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "canRequestRefund": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "OrganizerOrderList": {
+        "type": "object",
+        "required": ["orders", "total", "page", "pageSize", "pages", "serverNow"],
+        "properties": {
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizerOrder"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          },
+          "pages": {
+            "type": "integer"
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

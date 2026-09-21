@@ -61,7 +61,7 @@ applications:
     directory: /app/services/booking
     identity: true
     worker: true
-    secrets: [BOOKING_DATABASE_URL, AMQP_URL, BOOKING_CONTACT_KEY]
+    secrets: [BOOKING_DATABASE_URL, AMQP_URL, BOOKING_CONTACT_KEY, POLICY_CLIENT_SECRET]
     cpu: 150m
     memory: 256Mi
   payments:

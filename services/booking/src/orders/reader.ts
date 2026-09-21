@@ -9,7 +9,7 @@ export class OrderReader {
     return this.db.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
         where: { id, buyerSubject: buyer },
-        include: { items: { orderBy: [{ row: 'asc' }, { number: 'asc' }] } },
+        include: { items: { orderBy: [{ row: 'asc' }, { number: 'asc' }] }, refund: true },
       });
       if (!order) throw new ApiError(404, 'NOT_FOUND', 'Заказ не найден.');
       return orderView(order, await decisionTime(tx));
@@ -24,7 +24,7 @@ export class OrderReader {
           take: 20,
           skip: (page - 1) * 20,
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          include: { items: { orderBy: [{ row: 'asc' }, { number: 'asc' }] } },
+          include: { items: { orderBy: [{ row: 'asc' }, { number: 'asc' }] }, refund: true },
         });
         const now = await decisionTime(tx);
         return {
