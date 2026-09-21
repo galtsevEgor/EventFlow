@@ -673,7 +673,7 @@ export interface components {
       /** Format: uuid */
       eventId?: string;
       /** @enum {string} */
-      action: 'events:read' | 'events:write' | 'members:manage' | 'check-in';
+      action: 'events:read' | 'events:write' | 'members:manage' | 'check-in' | 'orders:refund';
     };
     EventConfiguration: {
       city: string;

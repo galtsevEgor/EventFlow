@@ -1846,7 +1846,7 @@
           },
           "action": {
             "type": "string",
-            "enum": ["events:read", "events:write", "members:manage", "check-in"]
+            "enum": ["events:read", "events:write", "members:manage", "check-in", "orders:refund"]
           }
         },
         "required": ["actorSubject", "organizationId", "action"],

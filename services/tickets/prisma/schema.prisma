@@ -63,3 +63,22 @@ model Inbox {
   eventId String   @id @db.Uuid
   seenAt  DateTime @default(now()) @db.Timestamptz(3)
 }
+model RefundGate {
+  orderId String @id @db.Uuid
+  operationId String @unique @db.Uuid
+  saleId String @db.Uuid
+  organizationId String @db.Uuid
+  state String @db.VarChar(10)
+  payloadHash String? @db.Char(64)
+  code String? @db.VarChar(60)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+}
+model Outbox {
+  id String @id @db.Uuid
+  envelope Json
+  availableAt DateTime @default(now()) @db.Timestamptz
+  sentAt DateTime? @db.Timestamptz
+  lease String? @db.Uuid
+  attempts Int @default(0)
+  @@index([sentAt, availableAt])
+}

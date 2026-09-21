@@ -9,7 +9,7 @@ const requestSchema = z.strictObject({
   actorSubject: z.string().min(1).max(128),
   organizationId: z.uuid(),
   eventId: z.uuid().optional(),
-  action: z.enum(['events:read', 'events:write', 'members:manage', 'check-in']),
+  action: z.enum(['events:read', 'events:write', 'members:manage', 'check-in', 'orders:refund']),
 });
 @Controller('internal/policy')
 export class PolicyController {

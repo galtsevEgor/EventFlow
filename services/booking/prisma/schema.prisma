@@ -48,6 +48,7 @@ enum OrderState {
   CONFIRMED
   EXPIRED
   CANCELLED
+  REFUNDED
 }
 enum SeatState {
   AVAILABLE
@@ -55,6 +56,7 @@ enum SeatState {
   SOLD
 }
 model Order {
+  refund OrderRefund?
   contactEmail Bytes?
   confirmedPaymentId String? @unique @db.VarChar(255)
   confirmedAt DateTime? @db.Timestamptz(3)
@@ -73,6 +75,26 @@ model Order {
   @@unique([id, saleId, buyerSubject])
   @@index([buyerSubject, createdAt])
   @@index([state, expiresAt])
+}
+model OrderRefund {
+  id String @id @db.Uuid
+  orderId String @unique @db.Uuid
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  actorSubject String @db.VarChar(255)
+  reason String @db.VarChar(240)
+  state String @default("FENCING") @db.VarChar(20)
+  code String? @db.VarChar(60)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+}
+model RefundRequest {
+  actorSubject String @db.VarChar(255)
+  key String @db.Uuid
+  payloadHash String @db.Char(64)
+  operationId String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([actorSubject, key])
 }
 model OrderItem {
   orderId String @db.Uuid

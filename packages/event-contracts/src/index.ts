@@ -23,3 +23,4 @@ export * from './orders.js';
 export * from './payments.js';
 export * from './check-in.js';
 export * from './statistics.js';
+export * from './refunds.js';

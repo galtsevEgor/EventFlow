@@ -7,7 +7,17 @@ export async function cleanBroker(namespace) {
   const connection = await connect(process.env.AMQP_URL);
   try {
     const channel = await connection.createChannel();
-    for (const consumer of ['catalog', 'booking', 'payments', 'tickets', 'statistics']) {
+    for (const consumer of [
+      'catalog',
+      'booking',
+      'payments',
+      'tickets',
+      'statistics',
+      'booking-refunds',
+      'ticket-refunds',
+      'payment-refunds',
+      'catalog-refunds',
+    ]) {
       const queue = `${namespace}.${consumer}`;
       for (const name of [
         queue,

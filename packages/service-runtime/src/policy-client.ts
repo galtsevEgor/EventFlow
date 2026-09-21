@@ -5,7 +5,7 @@ export type PolicyQuery = {
   actorSubject: string;
   organizationId: string;
   eventId?: string;
-  action: 'events:read' | 'events:write' | 'members:manage' | 'check-in';
+  action: 'events:read' | 'events:write' | 'members:manage' | 'check-in' | 'orders:refund';
 };
 export async function requirePolicy(catalogUrl: string, serviceToken: string, query: PolicyQuery) {
   let allowed: boolean;

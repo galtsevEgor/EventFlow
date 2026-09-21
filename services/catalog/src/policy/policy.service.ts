@@ -4,7 +4,7 @@ export type PolicyRequest = {
   actorSubject: string;
   organizationId: string;
   eventId?: string | undefined;
-  action: 'events:read' | 'events:write' | 'members:manage' | 'check-in';
+  action: 'events:read' | 'events:write' | 'members:manage' | 'check-in' | 'orders:refund';
 };
 export class PolicyService {
   constructor(private readonly db: Database) {}
@@ -30,7 +30,8 @@ export class PolicyService {
     if (action === 'members:manage') return { allowed: member.role === 'OWNER' };
     if (action === 'check-in' && !eventId) return { allowed: false };
     if (member.role === 'OWNER' || member.role === 'MANAGER') return { allowed: true };
-    if (action === 'events:write' || !eventId) return { allowed: false };
+    if (action === 'events:write' || action === 'orders:refund' || !eventId)
+      return { allowed: false };
     return {
       allowed: !!(await this.db.staffAssignment.findUnique({
         where: {

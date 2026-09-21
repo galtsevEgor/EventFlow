@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { saleRoutes } from './sales.js';
 import { orderRoutes } from './orders.js';
 import { statisticsEventTypes } from './statistics.js';
+import { refundRoutes } from './refunds.js';
 
 export const paymentOrderSchema = z.strictObject({
   orderId: z.uuid(),
@@ -10,7 +11,7 @@ export const paymentOrderSchema = z.strictObject({
   currency: z.literal('EUR'),
   expiresAt: z.iso.datetime(),
   serverNow: z.iso.datetime(),
-  state: z.enum(['HELD', 'CONFIRMED', 'EXPIRED', 'CANCELLED']),
+  state: z.enum(['HELD', 'CONFIRMED', 'EXPIRED', 'CANCELLED', 'REFUNDED']),
 });
 export const paymentSucceededSchema = z.strictObject({
   orderId: z.uuid(),
@@ -57,6 +58,7 @@ export const orderConfirmedSchema = z.strictObject({
     .max(6),
 });
 export const commerceRoutes = {
+  ...refundRoutes,
   catalog: saleRoutes.catalog,
   booking: [
     ...saleRoutes.booking,
