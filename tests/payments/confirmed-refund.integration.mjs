@@ -13,6 +13,7 @@ import { FakePaymentProvider } from '../../services/payments/dist/providers/fake
 import { CheckInTicket } from '../../services/tickets/dist/check-in.js';
 import { QrCredentials } from '../../services/tickets/dist/qr-credentials.js';
 import { message } from '../../packages/event-contracts/dist/index.js';
+import { PaymentInbox } from '../../services/payments/dist/inbox.js';
 import {
   ClientCredentials,
   MailQueue,
@@ -241,4 +242,94 @@ test('refund notification survives SMTP failure with one durable job and private
     await worker.onModuleDestroy();
     await smtp.close();
   }
+});
+
+test('review keeps all tickets fenced until an audited operator retry reconciles the original refund', async () => {
+  const flow = await confirmedOrder(fixture),
+    rows = await issued(flow);
+  await flow.request();
+  const operation = await waitRefund(flow.order.id);
+  const providerRefund = await fixture.provider.refund({
+    operationId: operation.id,
+    paymentId: operation.providerPaymentId,
+    amountMinor: operation.amountMinor,
+  });
+  await fixture.db.fakeRefund.update({
+    where: { id: providerRefund.id },
+    data: { status: 'failed' },
+  });
+  await refunds.run(operation.id);
+  await eventually(
+    () => fixture.booking.db.orderRefund.findUnique({ where: { id: operation.id } }),
+    (row) => row?.state === 'REQUIRES_REVIEW',
+  );
+  assert.equal(
+    (await fixture.booking.db.order.findUnique({ where: { id: flow.order.id } })).state,
+    'CONFIRMED',
+  );
+  assert.equal((await scan(flow, rows[0])).result, 'REFUND_PENDING');
+  assert.equal(
+    await fixture.booking.db.seatInventory.count({
+      where: { saleId: flow.sale.id, state: 'SOLD' },
+    }),
+    2,
+  );
+  const operator = await fixture.identity.token('operator', {
+    aud: 'eventflow-payments',
+    azp: 'eventflow-operator',
+    realm_access: { roles: ['payments-reconcile'] },
+  });
+  const key = randomUUID(),
+    input = {
+      kind: 'refund',
+      targetId: operation.id,
+      reason: 'Provider status verified by operator',
+    };
+  assert.equal(
+    (
+      await jsonRequest(
+        fixture.origin,
+        '/internal/payments/reconcile',
+        flow.buyer,
+        'POST',
+        input,
+        key,
+      )
+    ).status,
+    403,
+  );
+  await fixture.db.fakeRefund.update({
+    where: { id: providerRefund.id },
+    data: { status: 'succeeded' },
+  });
+  for (let i = 0; i < 2; i++)
+    assert.equal(
+      (
+        await jsonRequest(
+          fixture.origin,
+          '/internal/payments/reconcile',
+          operator,
+          'POST',
+          input,
+          key,
+        )
+      ).status,
+      202,
+    );
+  await new ProcessRefund(fixture.db, new FakePaymentProvider(fixture.db)).run(operation.id);
+  await eventually(
+    () => fixture.booking.db.orderRefund.findUnique({ where: { id: operation.id } }),
+    (row) => row?.state === 'SUCCEEDED',
+  );
+  assert.equal(await fixture.db.fakeRefund.count({ where: { operationId: operation.id } }), 1);
+  assert.equal(await fixture.db.operatorAction.count({ where: { key } }), 1);
+  const confirmation = (await fixture.booking.db.outbox.findMany()).find(
+    (row) =>
+      row.envelope.eventType === 'OrderConfirmed.v1' && row.envelope.aggregateId === flow.order.id,
+  ).envelope;
+  await new PaymentInbox(fixture.db).handle({ ...confirmation, eventId: randomUUID() });
+  assert.equal(
+    (await fixture.db.paymentAttempt.findUnique({ where: { id: flow.attempt.id } })).bookingState,
+    'REFUNDED',
+  );
 });

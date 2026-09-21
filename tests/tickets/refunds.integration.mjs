@@ -7,6 +7,7 @@ import { IssueTickets } from '../../services/tickets/dist/issue.js';
 import { CheckInTicket } from '../../services/tickets/dist/check-in.js';
 import { QrCredentials } from '../../services/tickets/dist/qr-credentials.js';
 import { ticketsDatabase } from '../helpers/tickets-database.mjs';
+import { eventually } from '../helpers/eventually.mjs';
 
 function flow(db) {
   const orderId = randomUUID(),
@@ -159,6 +160,84 @@ test('refund fences reject closed deadlines and ticket-set mismatches without di
       'TICKET_MISMATCH',
     );
     assert.equal((await mismatch.scan()).result, 'ADMITTED');
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('a legacy row-only admission commits before a waiting fence and forces rejection', async () => {
+  const fixture = await ticketsDatabase();
+  let release;
+  const jobs = [];
+  const proceed = new Promise((resolve) => {
+    release = resolve;
+  });
+  try {
+    const f = flow(fixture.db);
+    await f.issue.handle(f.confirmation);
+    let acquired;
+    const locked = new Promise((resolve) => {
+      acquired = resolve;
+    });
+    const legacy = fixture.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Ticket" WHERE "orderId" = ${f.orderId}::uuid FOR UPDATE`;
+      acquired();
+      await proceed;
+      await tx.ticket.updateMany({ where: { orderId: f.orderId }, data: { usedAt: new Date() } });
+    });
+    jobs.push(legacy);
+    await locked;
+    const fence = f.refunds.handle(f.lock);
+    jobs.push(fence);
+    await eventually(
+      () => fixture.db.$queryRaw`SELECT EXISTS (
+        SELECT 1 FROM pg_stat_activity WHERE datname = current_database()
+        AND wait_event_type = 'Lock' AND query LIKE '%FROM "Ticket"%'
+      ) AS waiting`,
+      (rows) => rows[0].waiting,
+    );
+    release();
+    await Promise.all([legacy, fence]);
+    const gate = await fixture.db.refundGate.findUniqueOrThrow({ where: { orderId: f.orderId } });
+    assert.equal(gate.state, 'REJECTED');
+    assert.equal(gate.code, 'TICKETS_USED');
+    assert.equal((await f.scan()).result, 'ALREADY_USED');
+  } finally {
+    release();
+    await Promise.allSettled(jobs);
+    await fixture.close();
+  }
+});
+
+test('a crash before committing the fence rolls back its inbox, ready-mail cancellation and reply', async () => {
+  const fixture = await ticketsDatabase();
+  try {
+    const f = flow(fixture.db);
+    await f.issue.handle(f.confirmation);
+    const failing = new TicketRefunds({
+      $transaction: (run) =>
+        fixture.db.$transaction(async (tx) => {
+          await run(tx);
+          throw new Error('crash before commit');
+        }),
+    });
+    await assert.rejects(failing.handle(f.lock), /crash before commit/);
+    assert.equal(await fixture.db.refundGate.count(), 0);
+    assert.equal(await fixture.db.outbox.count(), 0);
+    assert.equal(await fixture.db.inbox.findUnique({ where: { eventId: f.lock.eventId } }), null);
+    assert.equal(
+      (await fixture.db.deliveryJob.findUnique({ where: { id: f.orderId } })).state,
+      'PENDING',
+    );
+    await new TicketRefunds(fixture.db).handle(f.lock);
+    await new TicketRefunds(fixture.db).handle(f.lock);
+    assert.equal(await fixture.db.refundGate.count(), 1);
+    assert.equal(await fixture.db.outbox.count(), 1);
+    assert.equal(
+      (await fixture.db.deliveryJob.findUnique({ where: { id: f.orderId } })).state,
+      'SKIPPED',
+    );
+    assert.equal((await f.scan()).result, 'REFUND_PENDING');
   } finally {
     await fixture.close();
   }
