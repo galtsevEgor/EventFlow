@@ -34,6 +34,21 @@ export class AppModule {
         ...(runWorkers
           ? [
               {
+                provide: 'PAYMENT_REFUNDS_WORKER',
+                inject: [PaymentInbox],
+                useFactory: (inbox: PaymentInbox) =>
+                  new MessageWorker(
+                    new Broker({
+                      url: config.AMQP_URL,
+                      namespace: config.MESSAGE_NAMESPACE,
+                      consumer: 'payment-refunds',
+                      routes: commerceRoutes,
+                    }),
+                    undefined,
+                    (event) => inbox.handle(event),
+                  ),
+              },
+              {
                 provide: Reconciler,
                 inject: [ProcessAttempt, ProcessRefund, ProcessWebhooks],
                 useFactory: (
@@ -133,10 +148,15 @@ export class AppModule {
           ? [
               {
                 provide: 'BROKER_READINESS',
-                inject: [Readiness, MessageWorker],
-                useFactory: (readiness: Readiness, worker: MessageWorker) => {
+                inject: [Readiness, MessageWorker, 'PAYMENT_REFUNDS_WORKER'],
+                useFactory: (
+                  readiness: Readiness,
+                  worker: MessageWorker,
+                  refunds: MessageWorker,
+                ) => {
                   readiness.register('rabbitmq', async () => {
-                    if (!worker.broker.ready) throw new Error('RabbitMQ consumer unavailable');
+                    if (!worker.broker.ready || !refunds.broker.ready)
+                      throw new Error('RabbitMQ consumer unavailable');
                   });
                   return readiness;
                 },

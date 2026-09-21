@@ -2267,7 +2267,15 @@
         "properties": {
           "result": {
             "type": "string",
-            "enum": ["ADMITTED", "ALREADY_USED", "WRONG_EVENT", "INVALID_TICKET", "WINDOW_CLOSED"]
+            "enum": [
+              "ADMITTED",
+              "ALREADY_USED",
+              "WRONG_EVENT",
+              "INVALID_TICKET",
+              "WINDOW_CLOSED",
+              "REFUND_PENDING",
+              "REFUNDED"
+            ]
           },
           "admittedAt": { "type": ["string", "null"], "format": "date-time" }
         }

@@ -1013,7 +1013,14 @@ export interface components {
     };
     CheckInResponse: {
       /** @enum {string} */
-      result: 'ADMITTED' | 'ALREADY_USED' | 'WRONG_EVENT' | 'INVALID_TICKET' | 'WINDOW_CLOSED';
+      result:
+        | 'ADMITTED'
+        | 'ALREADY_USED'
+        | 'WRONG_EVENT'
+        | 'INVALID_TICKET'
+        | 'WINDOW_CLOSED'
+        | 'REFUND_PENDING'
+        | 'REFUNDED';
       /** Format: date-time */
       admittedAt: string | null;
     };

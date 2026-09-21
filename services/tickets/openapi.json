@@ -1,7 +1,14 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "EventFlow Tickets", "version": "1.0.0" },
-  "security": [{ "bearer": [] }],
+  "info": {
+    "title": "EventFlow Tickets",
+    "version": "1.0.0"
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
   "paths": {
     "/api/v1/check-in": {
       "post": {
@@ -9,14 +16,22 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/CheckInInput" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInInput"
+              }
+            }
           }
         },
         "responses": {
           "200": {
             "description": "The authoritative admission result",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/CheckInResponse" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInResponse"
+                }
+              }
             }
           }
         }
@@ -25,7 +40,11 @@
     "/api/v1/orders/{id}/tickets": {
       "get": {
         "operationId": "listOrderTickets",
-        "parameters": [{ "$ref": "#/components/parameters/TicketOrderId" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TicketOrderId"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Issued tickets for the authenticated buyer",
@@ -38,14 +57,18 @@
                   "properties": {
                     "tickets": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/OrderTicket" }
+                      "items": {
+                        "$ref": "#/components/schemas/OrderTicket"
+                      }
                     }
                   }
                 }
               }
             }
           },
-          "404": { "description": "No tickets available to this buyer" }
+          "404": {
+            "description": "No tickets available to this buyer"
+          }
         }
       }
     },
@@ -53,8 +76,12 @@
       "get": {
         "operationId": "getManualTicketCode",
         "parameters": [
-          { "$ref": "#/components/parameters/TicketOrderId" },
-          { "$ref": "#/components/parameters/TicketId" }
+          {
+            "$ref": "#/components/parameters/TicketOrderId"
+          },
+          {
+            "$ref": "#/components/parameters/TicketId"
+          }
         ],
         "responses": {
           "200": {
@@ -64,7 +91,12 @@
                 "schema": {
                   "type": "object",
                   "required": ["code"],
-                  "properties": { "code": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" } }
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{32}$"
+                    }
+                  }
                 }
               }
             }
@@ -76,33 +108,57 @@
       "get": {
         "operationId": "getOrderTicketQr",
         "parameters": [
-          { "$ref": "#/components/parameters/TicketOrderId" },
-          { "$ref": "#/components/parameters/TicketId" }
+          {
+            "$ref": "#/components/parameters/TicketOrderId"
+          },
+          {
+            "$ref": "#/components/parameters/TicketId"
+          }
         ],
         "responses": {
           "200": {
             "description": "Private, non-cacheable ticket QR image",
-            "content": { "image/png": { "schema": { "type": "string", "format": "binary" } } }
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
-          "404": { "description": "No matching ticket available to this buyer" }
+          "404": {
+            "description": "No matching ticket available to this buyer"
+          }
         }
       }
     }
   },
   "components": {
-    "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
     "parameters": {
       "TicketId": {
         "name": "ticketId",
         "in": "path",
         "required": true,
-        "schema": { "type": "string", "format": "uuid" }
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
       },
       "TicketOrderId": {
         "name": "id",
         "in": "path",
         "required": true,
-        "schema": { "type": "string", "format": "uuid" }
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
       }
     },
     "schemas": {
@@ -111,10 +167,22 @@
         "additionalProperties": false,
         "required": ["requestId", "organizationId", "eventId", "credential"],
         "properties": {
-          "requestId": { "type": "string", "format": "uuid" },
-          "organizationId": { "type": "string", "format": "uuid" },
-          "eventId": { "type": "string", "format": "uuid" },
-          "credential": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" }
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "organizationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "credential": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{32}$"
+          }
         }
       },
       "CheckInResponse": {
@@ -123,9 +191,20 @@
         "properties": {
           "result": {
             "type": "string",
-            "enum": ["ADMITTED", "ALREADY_USED", "WRONG_EVENT", "INVALID_TICKET", "WINDOW_CLOSED"]
+            "enum": [
+              "ADMITTED",
+              "ALREADY_USED",
+              "WRONG_EVENT",
+              "INVALID_TICKET",
+              "WINDOW_CLOSED",
+              "REFUND_PENDING",
+              "REFUNDED"
+            ]
           },
-          "admittedAt": { "type": ["string", "null"], "format": "date-time" }
+          "admittedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
         }
       },
       "OrderTicket": {
@@ -133,10 +212,19 @@
         "additionalProperties": false,
         "required": ["id", "row", "number", "categoryName"],
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "row": { "type": "integer" },
-          "number": { "type": "integer" },
-          "categoryName": { "type": "string" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "row": {
+            "type": "integer"
+          },
+          "number": {
+            "type": "integer"
+          },
+          "categoryName": {
+            "type": "string"
+          }
         }
       }
     }

@@ -75,15 +75,23 @@ export class ProcessRefund {
             where: { id: operation.attemptId },
             data: { bookingState: 'REQUIRES_REVIEW' },
           });
-          const event = message('payments', 'RefundReviewRequired.v1', operation.orderId, 1, {
-            operationId: operation.id,
-            attemptId: operation.attemptId,
-            orderId: operation.orderId,
-            providerPaymentId: operation.providerPaymentId,
-            state: 'REQUIRES_REVIEW',
-            providerRefundId: operation.providerRefundId,
-            code: 'RECONCILIATION_REQUIRED',
-          });
+          const event = message(
+            'payments',
+            operation.reason === 'ORGANIZER_REQUESTED'
+              ? 'ConfirmedOrderRefundReviewRequired.v1'
+              : 'RefundReviewRequired.v1',
+            operation.orderId,
+            1,
+            {
+              operationId: operation.id,
+              attemptId: operation.attemptId,
+              orderId: operation.orderId,
+              providerPaymentId: operation.providerPaymentId,
+              state: 'REQUIRES_REVIEW',
+              providerRefundId: operation.providerRefundId,
+              code: 'RECONCILIATION_REQUIRED',
+            },
+          );
           await tx.outbox.create({ data: { id: event.eventId, envelope: event } });
         }
       });
@@ -119,7 +127,13 @@ export class ProcessRefund {
       });
       const event = message(
         'payments',
-        state === 'SUCCEEDED' ? 'RefundSucceeded.v1' : 'RefundFailed.v1',
+        operation.reason === 'ORGANIZER_REQUESTED'
+          ? state === 'SUCCEEDED'
+            ? 'ConfirmedOrderRefundSucceeded.v1'
+            : 'ConfirmedOrderRefundReviewRequired.v1'
+          : state === 'SUCCEEDED'
+            ? 'RefundSucceeded.v1'
+            : 'RefundFailed.v1',
         operation.orderId,
         1,
         {

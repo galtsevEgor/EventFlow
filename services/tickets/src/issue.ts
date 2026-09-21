@@ -34,6 +34,8 @@ export class IssueTickets {
       if (!receipt.count) return;
 
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${orderId}, 1))`;
+      const gate = await tx.refundGate.findUnique({ where: { orderId } });
+      if (gate?.state === 'REVOKED') return;
       // The order is issued atomically. A replay with a new event ID keeps the original tickets.
       if (await tx.ticket.findFirst({ where: { orderId }, select: { id: true } })) return;
       await tx.ticket.createMany({
@@ -53,7 +55,7 @@ export class IssueTickets {
           };
         }),
       });
-      await tx.deliveryJob.create({ data: { id: orderId } });
+      if (gate?.state !== 'LOCKED') await tx.deliveryJob.create({ data: { id: orderId } });
     });
   }
 }

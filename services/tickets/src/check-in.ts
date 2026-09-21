@@ -10,7 +10,13 @@ import type { Database } from './database';
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 
-type LockedTicket = { id: string; saleId: string; organizationId: string; usedAt: Date | null };
+type LockedTicket = {
+  id: string;
+  orderId: string;
+  saleId: string;
+  organizationId: string;
+  usedAt: Date | null;
+};
 
 export class CheckInTicket {
   constructor(private readonly db: Database) {}
@@ -34,11 +40,20 @@ export class CheckInTicket {
         return { result: checkInResult.parse(previous.result), admittedAt: previous.admittedAt };
       }
 
+      const candidate = await tx.ticket.findUnique({
+        where: { qrHash: credentialHash },
+        select: { orderId: true },
+      });
+      if (candidate)
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${candidate.orderId}, 1))`;
       const [ticket] = await tx.$queryRaw<LockedTicket[]>`
-        SELECT id, "saleId", "organizationId", "usedAt" FROM "Ticket"
+        SELECT id, "orderId", "saleId", "organizationId", "usedAt" FROM "Ticket"
           WHERE "qrHash" = ${credentialHash} FOR UPDATE`;
       const [clock] = await tx.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS now`;
       if (!clock) throw new Error('Database clock unavailable');
+      const gate = ticket
+        ? await tx.refundGate.findUnique({ where: { orderId: ticket.orderId } })
+        : null;
 
       let result: CheckInResult;
       let admittedAt: Date | null = null;
@@ -51,6 +66,10 @@ export class CheckInTicket {
         result = 'INVALID_TICKET';
       } else if (ticket.saleId !== eventId || ticket.organizationId !== organizationId) {
         result = 'WRONG_EVENT';
+      } else if (gate?.state === 'REVOKED') {
+        result = 'REFUNDED';
+      } else if (gate?.state === 'LOCKED') {
+        result = 'REFUND_PENDING';
       } else if (ticket.usedAt) {
         result = 'ALREADY_USED';
         admittedAt = ticket.usedAt;

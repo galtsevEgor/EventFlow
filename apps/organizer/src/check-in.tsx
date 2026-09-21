@@ -13,6 +13,8 @@ const results = {
   WRONG_EVENT: 'Билет на другое мероприятие',
   INVALID_TICKET: 'Билет не найден',
   WINDOW_CLOSED: 'Допуск сейчас закрыт',
+  REFUND_PENDING: 'Билет заблокирован на время возврата',
+  REFUNDED: 'Билет аннулирован после возврата',
 } satisfies Record<Schemas['CheckInResponse']['result'], string>;
 
 export function CheckIn({ organizationId, eventId }: { organizationId: string; eventId: string }) {

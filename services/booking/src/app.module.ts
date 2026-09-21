@@ -21,6 +21,7 @@ import { RefundOutcome } from './payments/refund-outcome';
 import { RefundAccess } from './refunds/access';
 import { OrganizerRefunds } from './refunds/organizer';
 import { OrganizerOrdersController } from './refunds/controller';
+import { RefundWorkflow } from './refunds/workflow';
 
 @Module({ imports: [HealthModule.forService('booking')] })
 export class AppModule {
@@ -47,6 +48,21 @@ export class AppModule {
         },
         ...(runWorkers
           ? [
+              {
+                provide: 'BOOKING_REFUNDS_WORKER',
+                inject: [Database],
+                useFactory: (db: Database) =>
+                  new MessageWorker(
+                    new Broker({
+                      url: config.AMQP_URL,
+                      namespace: config.MESSAGE_NAMESPACE,
+                      consumer: 'booking-refunds',
+                      routes: commerceRoutes,
+                    }),
+                    undefined,
+                    (event) => new RefundWorkflow(db).handle(event),
+                  ),
+              },
               {
                 provide: OrderSweeper,
                 inject: [Database, OrderLifecycle],
@@ -135,10 +151,15 @@ export class AppModule {
           ? [
               {
                 provide: 'BROKER_READINESS',
-                inject: [Readiness, MessageWorker],
-                useFactory: (readiness: Readiness, worker: MessageWorker) => {
+                inject: [Readiness, MessageWorker, 'BOOKING_REFUNDS_WORKER'],
+                useFactory: (
+                  readiness: Readiness,
+                  worker: MessageWorker,
+                  refunds: MessageWorker,
+                ) => {
                   readiness.register('rabbitmq', async () => {
-                    if (!worker.broker.ready) throw new Error('RabbitMQ consumer unavailable');
+                    if (!worker.broker.ready || !refunds.broker.ready)
+                      throw new Error('RabbitMQ consumer unavailable');
                   });
                   return readiness;
                 },

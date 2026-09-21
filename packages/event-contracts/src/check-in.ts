@@ -20,5 +20,7 @@ export const checkInResult = z.enum([
   'WRONG_EVENT',
   'INVALID_TICKET',
   'WINDOW_CLOSED',
+  'REFUND_PENDING',
+  'REFUNDED',
 ]);
 export type CheckInResult = z.infer<typeof checkInResult>;

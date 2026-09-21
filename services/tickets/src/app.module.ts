@@ -1,6 +1,6 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { commerceRoutes } from '@eventflow/event-contracts';
-import { Broker, MessageWorker } from '@eventflow/messaging';
+import { Broker, MessageWorker, Outbox } from '@eventflow/messaging';
 import {
   HealthModule,
   MailOperator,
@@ -18,6 +18,7 @@ import { DeliverTickets } from './deliver';
 import { AdmissionPolicy } from './admission-policy';
 import { CheckInController } from './check-in.controller';
 import { CheckInTicket } from './check-in';
+import { TicketRefunds } from './refunds';
 
 @Module({ imports: [HealthModule.forService('tickets')] })
 export class AppModule {
@@ -33,6 +34,21 @@ export class AppModule {
         ...(runWorkers
           ? [
               {
+                provide: 'TICKETS_REFUNDS_WORKER',
+                inject: [Database],
+                useFactory: (db: Database) =>
+                  new MessageWorker(
+                    new Broker({
+                      url: config.AMQP_URL,
+                      namespace: config.MESSAGE_NAMESPACE,
+                      consumer: 'ticket-refunds',
+                      routes: commerceRoutes,
+                    }),
+                    undefined,
+                    (event) => new TicketRefunds(db).handle(event),
+                  ),
+              },
+              {
                 provide: MailWorker,
                 inject: [MailQueue],
                 useFactory: (queue: MailQueue) => {
@@ -46,8 +62,8 @@ export class AppModule {
               },
               {
                 provide: MessageWorker,
-                inject: [IssueTickets],
-                useFactory: (issue: IssueTickets) =>
+                inject: [IssueTickets, Database],
+                useFactory: (issue: IssueTickets, db: Database) =>
                   new MessageWorker(
                     new Broker({
                       url: config.AMQP_URL,
@@ -55,7 +71,7 @@ export class AppModule {
                       consumer: 'tickets',
                       routes: commerceRoutes,
                     }),
-                    undefined,
+                    new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
                     (event) => issue.handle(event),
                   ),
               },
@@ -97,10 +113,15 @@ export class AppModule {
           ? [
               {
                 provide: 'BROKER_READINESS',
-                inject: [Readiness, MessageWorker],
-                useFactory: (readiness: Readiness, worker: MessageWorker) => {
+                inject: [Readiness, MessageWorker, 'TICKETS_REFUNDS_WORKER'],
+                useFactory: (
+                  readiness: Readiness,
+                  worker: MessageWorker,
+                  refunds: MessageWorker,
+                ) => {
                   readiness.register('rabbitmq', async () => {
-                    if (!worker.broker.ready) throw new Error('RabbitMQ consumer unavailable');
+                    if (!worker.broker.ready || !refunds.broker.ready)
+                      throw new Error('RabbitMQ consumer unavailable');
                   });
                   return readiness;
                 },

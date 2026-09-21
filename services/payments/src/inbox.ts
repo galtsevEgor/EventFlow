@@ -3,6 +3,7 @@ import {
   orderConfirmedSchema,
   paymentReviewSchema,
   refundRequestedSchema,
+  confirmedRefundCommandSchema,
   type EventEnvelope,
 } from '@eventflow/event-contracts';
 import { PermanentMessageError } from '@eventflow/messaging';
@@ -20,9 +21,11 @@ export class PaymentInbox {
           ? orderConfirmedSchema
           : event.eventType === 'PaymentRefundRequested.v1'
             ? refundRequestedSchema
-            : event.eventType === 'PaymentReviewRequired.v1'
-              ? paymentReviewSchema
-              : null;
+            : event.eventType === 'ConfirmedOrderRefundRequested.v1'
+              ? confirmedRefundCommandSchema
+              : event.eventType === 'PaymentReviewRequired.v1'
+                ? paymentReviewSchema
+                : null;
     const parsed = schema?.safeParse(event.data);
     if (!parsed?.success || parsed.data.orderId !== event.aggregateId)
       throw new PermanentMessageError('Invalid payment command');
@@ -38,6 +41,8 @@ export class PaymentInbox {
         });
       } else {
         const attempt = await tx.paymentAttempt.findUnique({ where: { orderId } });
+        if (!attempt && event.eventType === 'ConfirmedOrderRefundRequested.v1')
+          throw new PermanentMessageError('Unknown refund payment');
         if (attempt) {
           const data = parsed.data;
           const valid =
@@ -46,6 +51,8 @@ export class PaymentInbox {
             'providerPaymentId' in data &&
             data.providerPaymentId === attempt.providerPaymentId;
           if (!valid || event.eventType === 'PaymentReviewRequired.v1') {
+            if (event.eventType === 'ConfirmedOrderRefundRequested.v1')
+              throw new PermanentMessageError('Refund binding mismatch');
             await tx.paymentAttempt.update({
               where: { id: attempt.id },
               data: {
@@ -55,12 +62,18 @@ export class PaymentInbox {
             });
           } else if (event.eventType === 'OrderConfirmed.v1') {
             if (!attempt.successPublished) throw new PermanentMessageError('Payment not verified');
-            await tx.paymentAttempt.update({
-              where: { id: attempt.id },
+            await tx.paymentAttempt.updateMany({
+              where: {
+                id: attempt.id,
+                bookingState: { notIn: ['REFUND_PENDING', 'REFUNDED', 'REQUIRES_REVIEW'] },
+              },
               data: { bookingState: 'CONFIRMED' },
             });
           } else {
-            const refund = refundRequestedSchema.parse(data);
+            const refund =
+              event.eventType === 'ConfirmedOrderRefundRequested.v1'
+                ? confirmedRefundCommandSchema.parse(data)
+                : refundRequestedSchema.parse(data);
             if (
               !attempt.successPublished ||
               refund.amountMinor !== attempt.amountMinor ||
@@ -72,7 +85,10 @@ export class PaymentInbox {
             const existing = await tx.refundOperation.findUnique({
               where: { attemptId: attempt.id },
             });
-            if (existing && existing.id !== refund.operationId)
+            if (
+              existing &&
+              (existing.id !== refund.operationId || existing.reason !== refund.reason)
+            )
               throw new PermanentMessageError('Conflicting refund operation');
             if (!existing)
               await tx.refundOperation.create({

@@ -25,6 +25,7 @@ export class TicketController {
       orderBy: [{ row: 'asc' }, { number: 'asc' }],
     });
     if (!tickets.length) throw missingTicket();
+    await this.assertActive(where.orderId);
     return { tickets };
   }
 
@@ -58,7 +59,16 @@ export class TicketController {
       select: { id: true, qrEncrypted: true, qrKeyId: true },
     });
     if (!ticket) throw missingTicket();
+    await this.assertActive(where.orderId);
     return ticket;
+  }
+
+  private async assertActive(orderId: string) {
+    const gate = await this.db.refundGate.findUnique({ where: { orderId } });
+    if (gate?.state === 'LOCKED')
+      throw new ApiError(409, 'REFUND_PENDING', 'Билеты заблокированы на время возврата.');
+    if (gate?.state === 'REVOKED')
+      throw new ApiError(410, 'REFUNDED', 'Билеты аннулированы после возврата.');
   }
 
   private async ownedOrder(authorization: string | undefined, id: string) {
