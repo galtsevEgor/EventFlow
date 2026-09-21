@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { saleRoutes } from './sales.js';
 import { orderRoutes } from './orders.js';
+import { statisticsEventTypes } from './statistics.js';
 
 export const paymentOrderSchema = z.strictObject({
   orderId: z.uuid(),
@@ -71,6 +72,7 @@ export const commerceRoutes = {
     'PaymentReviewRequired.v1',
   ],
   tickets: ['OrderConfirmed.v1'],
+  statistics: statisticsEventTypes,
 };
 export const refundOutcomeSchema = z.strictObject({
   operationId: z.uuid(),
