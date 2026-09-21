@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { ApiError } from '@eventflow/service-runtime';
 import { AuthService } from './auth/auth.service';
 import { isCatalogRoute } from './catalog.routes';
+import { upstreamUrl } from './upstream-url';
 
 @Controller('api/v1')
 export class CatalogController {
@@ -17,21 +18,24 @@ export class CatalogController {
     let upstream: globalThis.Response;
     const idempotencyKey = request.header('idempotency-key');
     try {
-      upstream = await fetch(new URL(request.path, this.auth.config.CATALOG_URL), {
-        method: request.method,
-        headers: {
-          authorization: `Bearer ${session.accessToken}`,
-          'content-type': 'application/json',
-          ...(idempotencyKey ? { 'idempotency-key': idempotencyKey } : {}),
-          'x-request-id': response.locals.requestId,
-          traceparent: response.locals.traceparent,
+      upstream = await fetch(
+        upstreamUrl(this.auth.config.CATALOG_URL, request.path, request.originalUrl),
+        {
+          method: request.method,
+          headers: {
+            authorization: `Bearer ${session.accessToken}`,
+            'content-type': 'application/json',
+            ...(idempotencyKey ? { 'idempotency-key': idempotencyKey } : {}),
+            'x-request-id': response.locals.requestId,
+            traceparent: response.locals.traceparent,
+          },
+          ...(request.method === 'GET' || request.body === undefined
+            ? {}
+            : { body: JSON.stringify(request.body) }),
+          signal: AbortSignal.timeout(5000),
+          redirect: 'error',
         },
-        ...(request.method === 'GET' || request.body === undefined
-          ? {}
-          : { body: JSON.stringify(request.body) }),
-        signal: AbortSignal.timeout(5000),
-        redirect: 'error',
-      });
+      );
     } catch {
       throw new ApiError(
         503,

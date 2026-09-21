@@ -4,6 +4,93 @@
   background: #f4f6f1;
   color-scheme: light;
 }
+.sales-filters {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+.sales-filters label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.sales-heading {
+  flex-wrap: wrap;
+}
+.sales-filters button {
+  white-space: normal;
+}
+.sales-filters input,
+.sales-filters select {
+  min-width: 0;
+  width: 100%;
+  padding: 10px;
+}
+.sales-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.sales-metrics div {
+  padding: 16px;
+  background: #eef3eb;
+  border-radius: 10px;
+}
+.sales-metrics dt {
+  font-size: 14px;
+}
+.sales-metrics dd {
+  margin: 12px 0 0;
+  font-weight: 700;
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+.sales-chart {
+  margin: 28px 0;
+}
+.sales-chart figcaption {
+  font-weight: 700;
+}
+.sales-chart svg {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  margin: 16px 0;
+}
+.sales-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.sales-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sales-table-scroll th,
+.sales-table-scroll td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #d6e0d7;
+}
+.sales-table-scroll caption {
+  text-align: left;
+  font-weight: 700;
+  padding: 12px 0;
+}
+@media (max-width: 760px) {
+  .sales-filters,
+  .sales-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 440px) {
+  .sales-filters {
+    grid-template-columns: 1fr;
+  }
+  .sales-metrics dd {
+    font-size: 20px;
+  }
+}
 .cover-preview {
   width: 100%;
   max-height: 260px;
@@ -223,6 +310,7 @@ h3 {
 }
 .section-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding-bottom: 24px;
   border-bottom: 1px solid #e5ebe5;
