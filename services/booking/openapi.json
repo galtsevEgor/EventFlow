@@ -673,8 +673,7 @@
           "createdAt",
           "expiresAt",
           "serverNow",
-          "items",
-          "refund"
+          "items"
         ]
       },
       "OrderList": {

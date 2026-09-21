@@ -220,3 +220,21 @@ test('refund deadline and confirmed payment binding are checked before issuing a
     0,
   );
 });
+
+test('pre-refund reservation snapshots replay unchanged while current order reads include refund status', async () => {
+  const sale = await seedSale(fixture.db),
+    key = randomUUID();
+  const input = { saleId: sale.id, seatIds: ['r1-s1'] };
+  const first = await request('/api/v1/orders', buyer, 'POST', input, key);
+  assert.equal(first.status, 201);
+  const legacy = { ...first.body };
+  delete legacy.refund;
+  await fixture.db.reservationRequest.update({
+    where: { buyerSubject_key: { buyerSubject: 'buyer', key } },
+    data: { response: legacy },
+  });
+  const replay = await request('/api/v1/orders', buyer, 'POST', input, key);
+  assert.equal(replay.status, 201);
+  assert.deepEqual(replay.body, legacy);
+  assert.equal((await request(`/api/v1/orders/${first.body.id}`, buyer)).body.refund, null);
+});

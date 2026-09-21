@@ -891,7 +891,7 @@ export interface components {
         number: number;
         priceMinor: number;
       }[];
-      refund: components['schemas']['OrderRefund'] | null;
+      refund?: components['schemas']['OrderRefund'] | null;
     };
     OrderList: {
       items: components['schemas']['Order'][];
