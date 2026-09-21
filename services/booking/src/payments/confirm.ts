@@ -4,6 +4,7 @@ import { PermanentMessageError } from '@eventflow/messaging';
 import type { Database } from '../database';
 import { decisionTime, lockOrder, lockSeats, lockSlot, transaction } from '../orders/transaction';
 import { release } from '../orders/release';
+import { recordOrderStatistics } from '../orders/statistics';
 
 export class ConfirmPayment {
   constructor(private readonly db: Database) {}
@@ -161,6 +162,7 @@ export class ConfirmPayment {
               priceMinor,
             })),
           });
+          await recordOrderStatistics(tx, order.id);
         }
         await tx.paymentResult.create({
           data: {

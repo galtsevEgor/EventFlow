@@ -89,7 +89,9 @@ test('inline expiry permits takeover and stale cleanup preserves the new owner',
     7,
   );
   assert.equal(
-    (await fixture.db.outbox.findMany()).filter((e) => e.envelope.aggregateId === old.id).length,
+    (await fixture.db.outbox.findMany()).filter(
+      (e) => e.envelope.aggregateId === old.id && e.envelope.eventType === 'OrderExpired.v1',
+    ).length,
     1,
   );
 });

@@ -14,6 +14,7 @@ import {
 } from './transaction';
 import { orderView } from './view';
 import { release } from './release';
+import { recordOrderStatistics } from './statistics';
 
 export const reserveInput = z.strictObject({
   saleId: z.uuid().transform((value) => value.toLowerCase()),
@@ -143,6 +144,7 @@ export class Reserve {
       where: { buyerSubject_saleId: { buyerSubject: buyer, saleId: sale.id } },
       data: { currentOrderId: order.id },
     });
+    await recordOrderStatistics(tx, order.id);
     return { status: 201, body: orderView(order, now) };
   }
 }

@@ -21,4 +21,6 @@ export const statisticsEventTypes = [
   'OrderStatisticsChanged.v1',
   'PaymentSucceeded.v1',
   'RefundSucceeded.v1',
+  'PaymentStatisticsReplayed.v1',
+  'RefundStatisticsReplayed.v1',
 ] as const;

@@ -1,6 +1,7 @@
 import { message } from '@eventflow/event-contracts';
 import type { Order } from '../generated/client';
 import type { Transaction } from './transaction';
+import { recordOrderStatistics } from './statistics';
 
 // Caller holds this buyer's slot, order and all item seats, in that order.
 export async function release(tx: Transaction, order: Order, state: 'EXPIRED' | 'CANCELLED') {
@@ -22,4 +23,5 @@ export async function release(tx: Transaction, order: Order, state: 'EXPIRED' | 
     { orderId: order.id, saleId: order.saleId },
   );
   await tx.outbox.create({ data: { id: event.eventId, envelope: event } });
+  await recordOrderStatistics(tx, order.id);
 }

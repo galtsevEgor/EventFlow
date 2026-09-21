@@ -26,13 +26,14 @@ import { CoverController, PublicCoverController } from './covers/cover.controlle
 import { CoverService } from './covers/cover.service';
 import { CoverStorage } from './covers/storage';
 import { Broker, Outbox, MessageWorker } from '@eventflow/messaging';
-import { saleRoutes } from '@eventflow/event-contracts';
+import { commerceRoutes } from '@eventflow/event-contracts';
 import { PublicationService } from './publication/publication.service';
 import { PublicationController } from './publication/publication.controller';
 import { PublicationConsumer } from './publication/consumer';
 import { AvailabilityService } from './publication/availability.service';
 import { PublicCatalog } from './public-catalog/catalog.service';
 import { PublicCatalogController } from './public-catalog/catalog.controller';
+import { StatisticsConsumer } from './statistics/consumer';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -102,10 +103,25 @@ export class AppModule {
                       url: config.AMQP_URL,
                       namespace: config.MESSAGE_NAMESPACE,
                       consumer: 'catalog',
-                      routes: saleRoutes,
+                      routes: commerceRoutes,
                     }),
                     new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
                     (event) => consumer.handle(event),
+                  ),
+              },
+              {
+                provide: 'STATISTICS_WORKER',
+                inject: [Database],
+                useFactory: (db: Database) =>
+                  new MessageWorker(
+                    new Broker({
+                      url: config.AMQP_URL,
+                      namespace: config.MESSAGE_NAMESPACE,
+                      consumer: 'statistics',
+                      routes: commerceRoutes,
+                    }),
+                    undefined,
+                    (event) => new StatisticsConsumer(db).handle(event),
                   ),
               },
             ]
@@ -171,10 +187,16 @@ export class AppModule {
           ? [
               {
                 provide: 'BROKER_READINESS',
-                inject: [Readiness, MessageWorker],
-                useFactory: (readiness: Readiness, worker: MessageWorker) => {
+                inject: [Readiness, MessageWorker, 'STATISTICS_WORKER'],
+                useFactory: (
+                  readiness: Readiness,
+                  worker: MessageWorker,
+                  statistics: MessageWorker,
+                ) => {
                   readiness.register('rabbitmq', async () => {
                     if (!worker.broker.ready) throw new Error('RabbitMQ consumer unavailable');
+                    if (!statistics.broker.ready)
+                      throw new Error('Statistics consumer unavailable');
                   });
                   return readiness;
                 },
