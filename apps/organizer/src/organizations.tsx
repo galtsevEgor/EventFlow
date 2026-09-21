@@ -9,6 +9,7 @@ import { ErrorMessage } from './feedback';
 import { Events } from './events';
 import { Team } from './team';
 import { SalesStatistics } from './sales-statistics';
+import { OrderRefunds } from './order-refunds';
 
 const input = z.object({
   name: z.string().trim().min(2, 'Минимум 2 символа').max(100, 'Максимум 100 символов'),
@@ -106,7 +107,7 @@ function Organization({ id }: { id: string }) {
     queryFn: async () =>
       unwrap(await api.client.GET('/api/v1/organizations/{id}', { params: { path: { id } } })),
   });
-  const [tab, setTab] = useState<'events' | 'team' | 'statistics'>('events');
+  const [tab, setTab] = useState<'events' | 'team' | 'statistics' | 'orders'>('events');
   const [editing, setEditing] = useState(false);
   const form = useForm({ resolver: zodResolver(input), defaultValues: { name: '' } });
   const rename = useMutation({
@@ -144,6 +145,14 @@ function Organization({ id }: { id: string }) {
       <nav className="section-tabs" aria-label="Разделы организации">
         {org.data.role !== 'STAFF' && (
           <Button
+            variant={tab === 'orders' ? 'primary' : 'secondary'}
+            onClick={() => setTab('orders')}
+          >
+            Заказы
+          </Button>
+        )}
+        {org.data.role !== 'STAFF' && (
+          <Button
             variant={tab === 'statistics' ? 'primary' : 'secondary'}
             onClick={() => setTab('statistics')}
           >
@@ -162,7 +171,9 @@ function Organization({ id }: { id: string }) {
           </Button>
         )}
       </nav>
-      {tab === 'statistics' && org.data.role !== 'STAFF' ? (
+      {tab === 'orders' && org.data.role !== 'STAFF' ? (
+        <OrderRefunds key={id} id={id} />
+      ) : tab === 'statistics' && org.data.role !== 'STAFF' ? (
         <SalesStatistics key={id} id={id} />
       ) : tab === 'team' && org.data.role === 'OWNER' ? (
         <Team id={id} />

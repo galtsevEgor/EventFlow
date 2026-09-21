@@ -103,7 +103,7 @@ export function SalesStatistics({ id }: { id: string }) {
   const cards = data
     ? [
         ['Подтверждённые заказы', data.totals.confirmedOrders],
-        ['Продано мест за всё время', data.totals.soldSeats],
+        ['Продано действующих мест', data.totals.soldSeats],
         ['Мест в действующих бронях', data.totals.heldSeats],
         ['Доступно мест', data.totals.availableSeats],
         ['Подтверждённые продажи', money(data.totals.revenueMinor)],

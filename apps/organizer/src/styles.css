@@ -466,6 +466,20 @@ footer {
   background: #def2e3;
   color: #143d23;
 }
+.refund-orders {
+  display: grid;
+  gap: 16px;
+  margin: 20px 0;
+}
+.refund-order {
+  padding: 16px;
+  border: 1px solid #d9ddd8;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.refund-order h3 {
+  font-size: 1rem;
+}
 @media (max-width: 680px) {
   main {
     padding: 22px 16px;

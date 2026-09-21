@@ -97,7 +97,7 @@ test(
           .filter({ has: page.getByText(label, { exact: true }) })
           .locator('dd');
       await expect(metric('Подтверждённые заказы')).toHaveText('1');
-      await expect(metric('Продано мест за всё время')).toHaveText('2');
+      await expect(metric('Продано действующих мест')).toHaveText('2');
       await expect(metric('Подтверждённые продажи')).toContainText('50,00');
       await expect(metric('Получено оплат')).toContainText('75,00');
       await expect(metric('Завершённые возвраты')).toContainText('25,00');

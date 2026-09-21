@@ -6,6 +6,7 @@ import { Alert, Button } from '@eventflow/ui';
 import { BookingProvider, money, orderLabels, SignIn, useBuyer } from './client';
 import { PaymentPanel } from './payment-panel';
 import { TicketsPanel } from './tickets-panel';
+import { RefundPanel } from './refund-panel';
 
 function Countdown({
   expiresAt,
@@ -56,7 +57,13 @@ function Details({ id }: { id: string }) {
       );
       return { data, startedAt };
     },
-    refetchInterval: (query) => (query.state.data?.data.state === 'HELD' ? 3000 : false),
+    refetchInterval: (query) => {
+      const data = query.state.data?.data;
+      if (data?.state === 'HELD') return 3000;
+      if (data?.state === 'CONFIRMED')
+        return data.refund?.state === 'REQUIRES_REVIEW' ? 15000 : 5000;
+      return false;
+    },
   });
   const cancel = useMutation({
     mutationFn: async () =>
@@ -112,14 +119,24 @@ function Details({ id }: { id: string }) {
         ))}
       </ul>
       <p className="order-total">Итого: {money(data.totalMinor)}</p>
-      <PaymentPanel
-        key={`payment:${session.data.user.sub}`}
-        id={id}
-        buyer={session.data.user.sub}
-        orderState={data.state}
-        api={api}
-      />
-      {data.state === 'CONFIRMED' && (
+      {data.refund && (
+        <RefundPanel
+          refund={data.refund}
+          totalMinor={data.totalMinor}
+          refresh={() => void order.refetch()}
+          busy={order.isFetching}
+        />
+      )}
+      {(!data.refund || data.refund.state === 'REJECTED') && (
+        <PaymentPanel
+          key={`payment:${session.data.user.sub}`}
+          id={id}
+          buyer={session.data.user.sub}
+          orderState={data.state}
+          api={api}
+        />
+      )}
+      {data.state === 'CONFIRMED' && (!data.refund || data.refund.state === 'REJECTED') && (
         <TicketsPanel
           key={`tickets:${session.data.user.sub}`}
           order={data}
