@@ -27,6 +27,19 @@ test('reservations publish current snapshots atomically and the migration backfi
       .filter((event) => event.eventType === 'OrderStatisticsChanged.v1');
     assert.deepEqual(current.map((event) => event.data.state).sort(), ['CANCELLED', 'HELD']);
     assert.ok(current.every((event) => orderStatisticsSchema.safeParse(event.data).success));
+    const historical = (
+      await fixture.app.get(Reserve).run('historical-confirmed', randomUUID(), {
+        saleId: sale.id,
+        seatIds: ['r1-s2'],
+      })
+    ).body;
+    await fixture.db.order.update({
+      where: { id: historical.id },
+      data: {
+        state: 'CONFIRMED',
+        confirmedAt: new Date(),
+      },
+    });
     const migration = readFileSync(
       'services/booking/prisma/migrations/202611050001_order_statistics/migration.sql',
       'utf8',
@@ -44,6 +57,15 @@ test('reservations publish current snapshots atomically and the migration backfi
       orderStatisticsSchema.parse(backfill[1].data),
     );
     assert.ok(backfill.every((event) => event.aggregateVersion === 2));
+    const restored = await fixture.db.outbox.findFirst({
+      where: {
+        envelope: { path: ['data', 'orderId'], equals: historical.id },
+        AND: { envelope: { path: ['data', 'state'], equals: 'CONFIRMED' } },
+      },
+    });
+    assert.ok(restored);
+    assert.equal(orderStatisticsSchema.parse(restored.envelope.data).state, 'CONFIRMED');
+    assert.equal(restored.envelope.aggregateVersion, 2);
   } finally {
     await fixture.close();
     await cleanBroker(namespace);
