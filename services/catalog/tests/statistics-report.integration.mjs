@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { before, after, test } from 'node:test';
 import { catalogFixture } from './fixture.mjs';
 import { StatisticsConsumer } from '../dist/statistics/consumer.js';
-import { message } from '../../../packages/event-contracts/dist/index.js';
+import { message } from '@eventflow/event-contracts';
 
 let fixture, org, foreign, owner, manager, staff, outsider, eventId, consumer;
 async function event(organizationId) {
