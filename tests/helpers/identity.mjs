@@ -11,20 +11,22 @@ export async function testIdentity() {
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
       const fields = new URLSearchParams(Buffer.concat(chunks).toString());
-      if (
-        fields.get('client_id') !== 'eventflow-payments' ||
-        fields.get('client_secret') !== serviceSecret
-      ) {
+      const client = fields.get('client_id');
+      const roles = {
+        'eventflow-payments': 'booking-payments',
+        'eventflow-ticket-delivery': 'booking-ticket-delivery',
+      };
+      if (!Object.hasOwn(roles, client) || fields.get('client_secret') !== serviceSecret) {
         res.writeHead(401);
         res.end('{}');
         return;
       }
       const token = await new SignJWT({
-        sub: 'service-payments',
+        sub: client,
         iss: issuer,
         aud: 'eventflow-booking',
-        azp: 'eventflow-payments',
-        realm_access: { roles: ['booking-payments'] },
+        azp: client,
+        realm_access: { roles: [roles[client]] },
       })
         .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
         .setIssuedAt()

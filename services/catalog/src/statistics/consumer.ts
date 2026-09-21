@@ -3,6 +3,7 @@ import {
   orderStatisticsSchema,
   paymentSucceededSchema,
   refundOutcomeSchema,
+  orderRefundedSchema,
   type EventEnvelope,
 } from '@eventflow/event-contracts';
 import { PermanentMessageError } from '@eventflow/messaging';
@@ -20,7 +21,11 @@ export class StatisticsConsumer {
       await this.db.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`statistics:${event.aggregateId.toLowerCase()}`}, 0))`;
         if (await tx.inbox.findUnique({ where: { eventId: event.eventId } })) return;
-        if (event.eventType === 'OrderStatisticsChanged.v1') await this.order(tx, event);
+        if (
+          event.eventType === 'OrderStatisticsChanged.v1' ||
+          event.eventType === 'OrderRefunded.v1'
+        )
+          await this.order(tx, event);
         else if (['PaymentSucceeded.v1', 'PaymentStatisticsReplayed.v1'].includes(event.eventType))
           await this.payment(tx, event);
         else if (['RefundSucceeded.v1', 'RefundStatisticsReplayed.v1'].includes(event.eventType))
@@ -36,12 +41,27 @@ export class StatisticsConsumer {
   }
 
   private async order(tx: Prisma.TransactionClient, event: EventEnvelope) {
-    const parsed = orderStatisticsSchema.safeParse(event.data);
+    const refunded = event.eventType === 'OrderRefunded.v1';
+    const parsed = refunded
+      ? orderRefundedSchema.safeParse(event.data)
+      : orderStatisticsSchema.safeParse(event.data);
     if (!parsed.success || event.producer !== 'booking') throw invalid();
-    const data = parsed.data;
+    const value = parsed.data;
+    const data = {
+      orderId: value.orderId,
+      saleId: value.saleId,
+      organizationId: value.organizationId,
+      state: value.state,
+      seatCount: value.seatCount,
+      totalMinor: value.totalMinor,
+      currency: value.currency,
+      createdAt: value.createdAt,
+      expiresAt: value.expiresAt,
+      confirmedAt: value.confirmedAt,
+    };
     if (
       event.aggregateId !== data.orderId ||
-      event.aggregateVersion !== (data.state === 'HELD' ? 1 : 2)
+      event.aggregateVersion !== (refunded ? 3 : data.state === 'HELD' ? 1 : 2)
     )
       throw invalid();
     const draft = await tx.eventDraft.findFirst({
@@ -49,6 +69,17 @@ export class StatisticsConsumer {
       select: { id: true },
     });
     if (!draft) throw invalid();
+    if ('operationId' in value)
+      await this.recordRefund(
+        tx,
+        {
+          operationId: value.operationId,
+          orderId: value.orderId,
+          attemptId: value.attemptId,
+          providerPaymentId: value.providerPaymentId,
+        },
+        value.refundedAt,
+      );
     const previous = await tx.salesOrder.findUnique({ where: { orderId: data.orderId } });
     const payloadHash = hash(data);
     if (previous) {
@@ -64,7 +95,8 @@ export class StatisticsConsumer {
         previous.totalMinor !== data.totalMinor ||
         previous.currency !== data.currency ||
         +previous.createdAt !== +new Date(data.createdAt) ||
-        +previous.expiresAt !== +new Date(data.expiresAt)
+        +previous.expiresAt !== +new Date(data.expiresAt) ||
+        (previous.confirmedAt && +previous.confirmedAt !== +new Date(data.confirmedAt ?? 0))
       )
         throw invalid();
     }
@@ -114,12 +146,21 @@ export class StatisticsConsumer {
       throw invalid();
     const { operationId, orderId, attemptId, providerPaymentId } = parsed.data;
     const data = { operationId, orderId, attemptId, providerPaymentId };
+    await this.recordRefund(tx, data, event.occurredAt);
+  }
+
+  private async recordRefund(
+    tx: Prisma.TransactionClient,
+    data: { operationId: string; orderId: string; attemptId: string; providerPaymentId: string },
+    completedAt: string,
+  ) {
+    const { operationId } = data;
     const payloadHash = hash(data);
     const previous = await tx.salesRefund.findUnique({ where: { operationId } });
     if (previous) {
       if (previous.payloadHash !== payloadHash) throw invalid();
       return;
     }
-    await tx.salesRefund.create({ data: { ...data, payloadHash, completedAt: event.occurredAt } });
+    await tx.salesRefund.create({ data: { ...data, payloadHash, completedAt } });
   }
 }

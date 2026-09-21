@@ -83,8 +83,8 @@ export class StatisticsReport {
           SELECT "eventId",
             coalesce(sum("seatCount") FILTER (WHERE state = 'CONFIRMED'), 0)::bigint AS "soldSeats",
             coalesce(sum("seatCount") FILTER (WHERE state = 'HELD' AND "expiresAt" > ${clock.now}), 0)::bigint AS "heldSeats",
-            count(*) FILTER (WHERE state = 'CONFIRMED' AND "confirmedAt" >= ${start} AND "confirmedAt" < ${until}) AS "confirmedOrders",
-            coalesce(sum("totalMinor") FILTER (WHERE state = 'CONFIRMED' AND "confirmedAt" >= ${start} AND "confirmedAt" < ${until}), 0)::bigint AS "revenueMinor",
+            count(*) FILTER (WHERE state IN ('CONFIRMED','REFUNDED') AND "confirmedAt" >= ${start} AND "confirmedAt" < ${until}) AS "confirmedOrders",
+            coalesce(sum("totalMinor") FILTER (WHERE state IN ('CONFIRMED','REFUNDED') AND "confirmedAt" >= ${start} AND "confirmedAt" < ${until}), 0)::bigint AS "revenueMinor",
             max("updatedAt") AS "updatedAt"
           FROM orders GROUP BY "eventId"
         ), payment_totals AS (
@@ -139,7 +139,7 @@ export class StatisticsReport {
         >`${base}
         SELECT to_char("confirmedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
           count(*) AS "confirmedOrders", sum("totalMinor")::bigint AS "revenueMinor"
-        FROM orders WHERE state = 'CONFIRMED' AND "confirmedAt" >= ${start} AND "confirmedAt" < ${until}
+        FROM orders WHERE state IN ('CONFIRMED','REFUNDED') AND "confirmedAt" >= ${start} AND "confirmedAt" < ${until}
         GROUP BY date ORDER BY date`;
         const byDate = new Map(daily.map((row) => [row.date, row]));
         const series = Array.from({ length: days }, (_, i) => {

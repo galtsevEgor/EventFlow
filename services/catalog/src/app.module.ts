@@ -132,6 +132,21 @@ export class AppModule {
                     (event) => new StatisticsConsumer(db).handle(event),
                   ),
               },
+              {
+                provide: 'CATALOG_REFUNDS_WORKER',
+                inject: [Database],
+                useFactory: (db: Database) =>
+                  new MessageWorker(
+                    new Broker({
+                      url: config.AMQP_URL!,
+                      namespace: config.MESSAGE_NAMESPACE,
+                      consumer: 'catalog-refunds',
+                      routes: commerceRoutes,
+                    }),
+                    undefined,
+                    (event) => new StatisticsConsumer(db).handle(event),
+                  ),
+              },
             ]
           : []),
         {
@@ -195,15 +210,16 @@ export class AppModule {
           ? [
               {
                 provide: 'BROKER_READINESS',
-                inject: [Readiness, MessageWorker, 'STATISTICS_WORKER'],
+                inject: [Readiness, MessageWorker, 'STATISTICS_WORKER', 'CATALOG_REFUNDS_WORKER'],
                 useFactory: (
                   readiness: Readiness,
                   worker: MessageWorker,
                   statistics: MessageWorker,
+                  refunds: MessageWorker,
                 ) => {
                   readiness.register('rabbitmq', async () => {
                     if (!worker.broker.ready) throw new Error('RabbitMQ consumer unavailable');
-                    if (!statistics.broker.ready)
+                    if (!statistics.broker.ready || !refunds.broker.ready)
                       throw new Error('Statistics consumer unavailable');
                   });
                   return readiness;

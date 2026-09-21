@@ -49,9 +49,12 @@ export async function fullStack({
   let bookingService;
   let paymentsService;
   let ticketsApp;
+  let catalogOrigin;
   const bookingPort = await availablePort();
   async function startBooking() {
-    bookingService ??= await bookingFixture(namespace, bookingPort);
+    bookingService ??= await bookingFixture(namespace, bookingPort, {
+      CATALOG_URL: catalogOrigin ?? process.env.CATALOG_URL,
+    });
     return bookingService;
   }
   async function startPayments() {
@@ -173,6 +176,7 @@ export async function fullStack({
       throw new Error(`${directory} startup timed out: ${output}`);
     }
     const catalog = await start('services/catalog', () => ['dist/main.js'], '/health/ready');
+    catalogOrigin = catalog;
     if (booking) await startBooking();
     if (payments) await startPayments();
     if (tickets)

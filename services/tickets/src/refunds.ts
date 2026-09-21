@@ -74,6 +74,11 @@ export class TicketRefunds {
             code,
           },
         });
+      if (!code)
+        await tx.deliveryJob.updateMany({
+          where: { id: data.orderId, state: { in: ['PENDING', 'DEAD'] } },
+          data: { state: 'SKIPPED', lease: null },
+        });
       const reply = message(
         'tickets',
         code ? 'TicketRefundLockRejected.v1' : 'TicketRefundLocked.v1',
@@ -121,6 +126,11 @@ export class TicketRefunds {
         },
         update: { state: 'REVOKED', updatedAt: new Date() },
       });
+      await tx.deliveryJob.updateMany({
+        where: { id: data.orderId, state: { in: ['PENDING', 'DEAD'] } },
+        data: { state: 'SKIPPED', lease: null },
+      });
+      await tx.deliveryJob.createMany({ data: { id: data.operationId }, skipDuplicates: true });
       await tx.inbox.create({ data: { eventId: event.eventId } });
     });
   }

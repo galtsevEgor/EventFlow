@@ -13,6 +13,13 @@ import { FakePaymentProvider } from '../../services/payments/dist/providers/fake
 import { CheckInTicket } from '../../services/tickets/dist/check-in.js';
 import { QrCredentials } from '../../services/tickets/dist/qr-credentials.js';
 import { message } from '../../packages/event-contracts/dist/index.js';
+import {
+  ClientCredentials,
+  MailQueue,
+  MailWorker,
+} from '../../packages/service-runtime/dist/index.js';
+import { DeliverTickets } from '../../services/tickets/dist/deliver.js';
+import { receivedMail, findMail, smtpProxy } from '../helpers/mailpit.mjs';
 
 let fixture, tickets, refunds;
 before(async () => {
@@ -161,4 +168,77 @@ test('lost provider reply keeps admission fenced and restart discovers the origi
     (row) => row.state === 'REFUNDED',
   );
   assert.equal(await fixture.db.fakeRefund.count({ where: { operationId: operation.id } }), 1);
+});
+
+test('refund notification survives SMTP failure with one durable job and private delivery context', async () => {
+  const flow = await confirmedOrder(fixture);
+  await issued(flow);
+  const requested = await flow.request();
+  const operation = await waitRefund(flow.order.id);
+  const credentials = new ClientCredentials(
+    fixture.identity.issuer,
+    'eventflow-ticket-delivery',
+    fixture.identity.serviceSecret,
+  );
+  const service = await credentials.token();
+  const context = `/internal/orders/${flow.order.id}/refund-delivery-context`;
+  assert.equal((await jsonRequest(fixture.booking.origin, context, service)).status, 404);
+  await refunds.run(operation.id);
+  await eventually(
+    () => tickets.db.deliveryJob.findUnique({ where: { id: operation.id } }),
+    Boolean,
+  );
+  assert.equal((await jsonRequest(fixture.booking.origin, context, flow.buyer)).status, 403);
+  assert.deepEqual((await jsonRequest(fixture.booking.origin, context, service)).body, {
+    email: 'buyer@eventflow.test',
+  });
+  assert.equal(
+    (
+      await jsonRequest(
+        fixture.booking.origin,
+        `/internal/orders/${flow.order.id}/delivery-context`,
+        service,
+      )
+    ).status,
+    404,
+  );
+  const smtp = await smtpProxy();
+  const queue = new MailQueue((sql, ...values) => tickets.db.$queryRawUnsafe(sql, ...values));
+  const delivery = new DeliverTickets({
+    ...process.env,
+    OIDC_ISSUER: fixture.identity.issuer,
+    TICKET_DELIVERY_CLIENT_SECRET: fixture.identity.serviceSecret,
+    BOOKING_URL: fixture.booking.origin,
+    PUBLIC_ORIGIN: 'http://127.0.0.1:3000/',
+    MAILPIT_SMTP_PORT: smtp.port,
+  });
+  const worker = new MailWorker(queue, async (id) => {
+    const gate = await tickets.db.refundGate.findUnique({ where: { operationId: id } });
+    return gate?.state === 'REVOKED' ? delivery.refund(id, gate.orderId) : 'SKIPPED';
+  });
+  try {
+    worker.onModuleInit();
+    await eventually(
+      () => tickets.db.deliveryJob.findUnique({ where: { id: operation.id } }),
+      (row) => row?.attempts > 0 && row.lease === null,
+    );
+    assert.equal((await findMail(`tickets-${operation.id}@eventflow.test`)).length, 0);
+    smtp.restore();
+    await tickets.db.deliveryJob.update({
+      where: { id: operation.id },
+      data: { nextRunAt: new Date(0) },
+    });
+    await eventually(
+      () => tickets.db.deliveryJob.findUnique({ where: { id: operation.id } }),
+      (row) => row?.state === 'SENT',
+    );
+    const mail = await receivedMail(`tickets-${operation.id}@eventflow.test`);
+    assert.equal(mail.Subject, 'Возврат оплаты EventFlow выполнен');
+    assert.ok(mail.Text.includes(`/orders/${flow.order.id}`));
+    assert.equal(mail.Text.includes(requested.body.reason), false);
+    assert.equal(await tickets.db.deliveryJob.count({ where: { id: operation.id } }), 1);
+  } finally {
+    await worker.onModuleDestroy();
+    await smtp.close();
+  }
 });

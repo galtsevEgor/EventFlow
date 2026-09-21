@@ -50,12 +50,17 @@ export class AppModule {
               },
               {
                 provide: MailWorker,
-                inject: [MailQueue],
-                useFactory: (queue: MailQueue) => {
+                inject: [MailQueue, Database],
+                useFactory: (queue: MailQueue, db: Database) => {
                   const delivery = new DeliverTickets(config);
                   return new MailWorker(
                     queue,
-                    (id) => delivery.send(id),
+                    async (id) => {
+                      const gate = await db.refundGate.findUnique({ where: { operationId: id } });
+                      return gate?.state === 'REVOKED'
+                        ? delivery.refund(id, gate.orderId)
+                        : delivery.send(id);
+                    },
                     config.MAIL_DELIVERY_DISABLED !== 'true',
                   );
                 },
