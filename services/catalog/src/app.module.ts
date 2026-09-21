@@ -34,6 +34,8 @@ import { AvailabilityService } from './publication/availability.service';
 import { PublicCatalog } from './public-catalog/catalog.service';
 import { PublicCatalogController } from './public-catalog/catalog.controller';
 import { StatisticsConsumer } from './statistics/consumer';
+import { StatisticsReport } from './statistics/report';
+import { StatisticsController } from './statistics/controller';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -53,9 +55,15 @@ export class AppModule {
               PublicCoverController,
               PublicationController,
               PublicCatalogController,
+              StatisticsController,
               MailOperator,
             ],
       providers: [
+        {
+          provide: StatisticsReport,
+          inject: [Database],
+          useFactory: (db: Database) => new StatisticsReport(db),
+        },
         ...(runWorkers
           ? [
               {

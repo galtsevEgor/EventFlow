@@ -303,6 +303,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/organizations/{id}/statistics': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getSalesStatistics'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/sales/{id}': {
     parameters: {
       query?: never;
@@ -735,6 +751,59 @@ export interface components {
     };
     PublicEventPage: {
       events: components['schemas']['PublicEvent'][];
+      total: number;
+      page: number;
+      pageSize: number;
+      pages: number;
+    };
+    SalesMetrics: {
+      capacity: number;
+      soldSeats: number;
+      heldSeats: number;
+      availableSeats: number;
+      confirmedOrders: number;
+      revenueMinor: number;
+      paidMinor: number;
+      refundedMinor: number;
+      netMinor: number;
+    };
+    SalesEventStatistics: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+      /** Format: date-time */
+      startsAt: string;
+      /** Format: date-time */
+      updatedAt: string | null;
+      capacity: number;
+      soldSeats: number;
+      heldSeats: number;
+      availableSeats: number;
+      confirmedOrders: number;
+      revenueMinor: number;
+      paidMinor: number;
+      refundedMinor: number;
+      netMinor: number;
+    };
+    SalesStatistics: {
+      /** @enum {string} */
+      currency: 'EUR';
+      /** Format: date */
+      from: string;
+      /** Format: date */
+      to: string;
+      /** Format: date-time */
+      asOf: string;
+      /** Format: date-time */
+      lastUpdatedAt: string | null;
+      totals: components['schemas']['SalesMetrics'];
+      events: components['schemas']['SalesEventStatistics'][];
+      series: {
+        /** Format: date */
+        date: string;
+        confirmedOrders: number;
+        revenueMinor: number;
+      }[];
       total: number;
       page: number;
       pageSize: number;
@@ -1806,6 +1875,43 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Publication'];
+        };
+      };
+      /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  getSalesStatistics: {
+    parameters: {
+      query?: {
+        eventId?: string;
+        from?: string;
+        to?: string;
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Success */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SalesStatistics'];
         };
       };
       /** @description Request failed */

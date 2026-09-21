@@ -5,6 +5,7 @@ const routes: [string[], RegExp][] = [
   [['GET', 'POST'], /^\/api\/v1\/organizations$/],
   [['GET', 'PATCH'], new RegExp(`^${org}$`)],
   [['GET'], new RegExp(`^${org}/(?:audit|members)$`)],
+  [['GET'], new RegExp(`^${org}/statistics$`)],
   [['PATCH', 'DELETE'], new RegExp(`^${org}/members/${member}$`)],
   [['PUT'], new RegExp(`^${org}/members/${member}/events/${uuid}$`)],
   [['GET', 'POST'], new RegExp(`^${org}/invitations$`)],
