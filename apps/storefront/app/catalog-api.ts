@@ -5,7 +5,8 @@ import { createApiClient, unwrap } from '@eventflow/api-client';
 export type Search = Record<string, string | string[] | undefined>;
 export const filterKeys = ['q', 'city', 'from', 'to', 'page', 'pageSize'] as const;
 function client() {
-  return createApiClient(process.env.CATALOG_URL ?? 'http://127.0.0.1:4001').client;
+  return createApiClient(process.env.BFF_URL ?? process.env.CATALOG_URL ?? 'http://127.0.0.1:4000')
+    .client;
 }
 export async function listEvents(search: Search) {
   for (const key of filterKeys)

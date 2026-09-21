@@ -14,7 +14,7 @@ spec:
   "redis" (list (dict "port" 6379 "from" (list "bff")))
   "rabbitmq" (list (dict "port" 5672 "from" (list "catalog" "booking" "payments" "tickets")) (dict "port" 15672 "namespace" "keda"))
   "s3" (list (dict "port" 8333 "from" (list "catalog")))
-  "bff" (list (dict "port" 4000 "from" (list "gateway")))
+  "bff" (list (dict "port" 4000 "from" (list "gateway" "storefront" "storefront-retained")))
   "catalog" (list (dict "port" 4001 "from" (list "bff" "storefront" "tickets" "fixture")))
   "booking" (list (dict "port" 4002 "from" (list "bff" "payments" "tickets" "fixture")))
   "payments" (list (dict "port" 4003 "from" (list "bff")))

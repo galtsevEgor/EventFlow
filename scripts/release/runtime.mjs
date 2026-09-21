@@ -79,7 +79,12 @@ metrics.listen(9101, '0.0.0.0');
 for (const [name, cwd, port, args] of applications) {
   const child = spawn(process.execPath, args, {
     cwd,
-    env: { ...process.env, HOST: '127.0.0.1', PORT: String(port) },
+    env: {
+      ...process.env,
+      BFF_URL: process.env.BFF_URL ?? 'http://127.0.0.1:4000',
+      HOST: '127.0.0.1',
+      PORT: String(port),
+    },
     stdio: 'inherit',
   });
   children.add(child);

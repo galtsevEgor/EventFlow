@@ -67,6 +67,7 @@ jobs:
       - run: pnpm test:tickets
       - run: pnpm tools:setup
       - run: pnpm test:load --smoke
+      - run: pnpm test:overload --smoke
       - run: pnpm test:smoke
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:identity

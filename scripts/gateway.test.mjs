@@ -50,3 +50,32 @@ test('gateway preserves same-origin routes and cookies, blocks private policy an
     );
   }
 });
+
+test('real gateway rate limits return retry metadata while health stays reachable', async () => {
+  const upstream = createServer((_request, response) => response.end('{}'));
+  let gateway;
+  try {
+    await new Promise((done) => upstream.listen(0, '127.0.0.1', done));
+    const target = `http://127.0.0.1:${upstream.address().port}`;
+    gateway = createGateway({ bff: target, limits: { apiRequests: 1 } });
+    await new Promise((done) => gateway.listen(0, '127.0.0.1', done));
+    const origin = `http://127.0.0.1:${gateway.address().port}`;
+    assert.equal((await fetch(origin + '/api/v1/events')).status, 200);
+    const limited = await fetch(origin + '/api/v1/events', {
+      headers: { 'x-forwarded-for': '203.0.113.1' },
+    });
+    assert.equal(limited.status, 429);
+    assert.ok(Number(limited.headers.get('retry-after')) > 0);
+    assert.equal(limited.headers.get('cache-control'), 'no-store');
+    const body = await limited.json();
+    assert.equal(body.code, 'RATE_LIMITED');
+    assert.equal(body.retryable, true);
+    assert.equal((await fetch(origin + '/health/ready')).status, 200);
+  } finally {
+    for (const server of [gateway, upstream])
+      if (server) {
+        server.closeAllConnections();
+        await new Promise((done) => server.close(done));
+      }
+  }
+});

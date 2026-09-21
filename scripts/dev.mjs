@@ -12,7 +12,11 @@ await new Promise((done, reject) => {
 const child = spawn(
   process.execPath,
   ['node_modules/turbo/bin/turbo', 'run', 'dev', '--env-mode=loose'],
-  { stdio: 'inherit', windowsHide: true },
+  {
+    stdio: 'inherit',
+    windowsHide: true,
+    env: { ...process.env, BFF_URL: process.env.BFF_URL ?? 'http://127.0.0.1:4000' },
+  },
 );
 let stopping = false;
 function stop() {

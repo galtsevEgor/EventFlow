@@ -25,7 +25,13 @@ async function availablePort() {
   return port;
 }
 
-export async function fullStack({ booking = false, payments = false, tickets = false } = {}) {
+export async function fullStack({
+  booking = false,
+  payments = false,
+  tickets = false,
+  gatewayLimits,
+  httpConcurrency,
+} = {}) {
   const database = `eventflow_e2e_${randomUUID().replaceAll('-', '')}`;
   const prefix = `e2e:${randomUUID()}:`;
   const namespace = `eventflow-test-${randomUUID()}`;
@@ -123,6 +129,9 @@ export async function fullStack({ booking = false, payments = false, tickets = f
       SESSION_PREFIX: prefix,
       EVENTFLOW_LOG_REQUESTS: '0',
       NEXT_TELEMETRY_DISABLED: '1',
+      ...(httpConcurrency === undefined
+        ? {}
+        : { EVENTFLOW_HTTP_CONCURRENCY: String(httpConcurrency) }),
     };
     execFileSync(
       process.execPath,
@@ -189,7 +198,7 @@ export async function fullStack({ booking = false, payments = false, tickets = f
         String(port),
       ],
       '/',
-      { CATALOG_URL: catalog },
+      { CATALOG_URL: catalog, BFF_URL: bff },
     );
     const organizer = await start(
       'apps/organizer',
@@ -204,7 +213,7 @@ export async function fullStack({ booking = false, payments = false, tickets = f
       ],
       '/organizer/',
     );
-    gateway = createGateway({ bff, storefront, organizer });
+    gateway = createGateway({ bff, storefront, organizer, limits: gatewayLimits });
     const origin = new URL(process.env.PUBLIC_ORIGIN);
     await new Promise((done, reject) => {
       gateway.once('error', reject);
@@ -212,12 +221,20 @@ export async function fullStack({ booking = false, payments = false, tickets = f
     });
     return {
       origin: origin.origin,
+      catalog,
+      bff,
+      catalogDatabase: database,
       close,
       startBooking,
       startPayments,
       tickets: ticketsApp,
       async stopCatalog() {
         const process = children.find((item) => item.directory === 'services/catalog');
+        process.child.kill('SIGTERM');
+        await process.closed;
+      },
+      async stopBff() {
+        const process = children.find((item) => item.directory === 'apps/bff');
         process.child.kill('SIGTERM');
         await process.closed;
       },

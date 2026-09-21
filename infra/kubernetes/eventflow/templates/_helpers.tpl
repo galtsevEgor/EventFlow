@@ -14,6 +14,7 @@ app.kubernetes.io/name: {{ . | quote }}
 - { name: EVENTFLOW_API_CONCURRENCY, value: {{ .Values.httpLimits.apiConcurrent | quote }} }
 - { name: EVENTFLOW_SSR_CONCURRENCY, value: {{ .Values.httpLimits.ssrConcurrent | quote }} }
 - { name: CATALOG_URL, value: 'http://catalog:4001' }
+- { name: BFF_URL, value: 'http://bff:4000' }
 - { name: BOOKING_URL, value: 'http://booking:4002' }
 - { name: PAYMENTS_URL, value: 'http://payments:4003' }
 - { name: TICKETS_URL, value: 'http://tickets:4004' }
