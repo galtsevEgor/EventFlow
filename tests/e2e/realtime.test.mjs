@@ -26,6 +26,7 @@ test(
         title: 'Live concert',
         layout: { rows: 2, columns: 4 },
       });
+
       const { organizations } = await (
         await buyer.request.get(stack.origin + '/api/v1/organizations')
       ).json();
@@ -122,6 +123,55 @@ test(
       await expect(seat).toBeEnabled({ timeout: 5000 });
       assert.deepEqual(errors, []);
       console.log(JSON.stringify({ kind: 'realtime_browser_latency', holdMs, releaseMs }));
+    } finally {
+      await browser.close();
+      await stack.close();
+    }
+  },
+);
+
+test(
+  'browser falls back to polling while SSE is blocked and resynchronizes after reconnect',
+  { timeout: 120000 },
+  async () => {
+    const stack = await fullStack({ booking: true });
+    const browser = await chromium.launch();
+    try {
+      const owner = await browser.newPage(),
+        observer = await browser.newPage();
+      const headers = await loginBuyer(owner, stack.origin);
+      const saleId = await publishForBooking(owner, stack.origin, headers, {
+        title: 'Reconnect concert',
+        layout: { rows: 2, columns: 4 },
+      });
+      await loginBuyer(observer, stack.origin, 'outsider');
+      await observer.goto(`${stack.origin}/events/${saleId}`);
+      await expect(observer.locator('[data-live="true"]')).toBeVisible({ timeout: 15000 });
+      const path = `**/api/v1/sales/${saleId}/updates`;
+      await observer.route(path, (route) => route.abort('failed'));
+      await observer.reload();
+      await observer.bringToFront();
+      const seat = observer.getByRole('button', { name: /^Ряд 1, место 1,/ });
+      await expect(seat).toBeEnabled();
+      await expect(observer.locator('[data-live="false"]')).toBeVisible();
+      const reserved = await owner.request.post(stack.origin + '/api/v1/orders', {
+        headers: { ...headers, 'idempotency-key': randomUUID() },
+        data: { saleId, seatIds: ['r1-s1'] },
+      });
+      assert.equal(reserved.status(), 201);
+      const order = await reserved.json();
+      await expect(seat).toBeDisabled({ timeout: 8000 });
+      assert.equal(
+        (
+          await owner.request.post(`${stack.origin}/api/v1/orders/${order.id}/cancel`, {
+            headers,
+          })
+        ).status(),
+        200,
+      );
+      await observer.unroute(path);
+      await expect(observer.locator('[data-live="true"]')).toBeVisible({ timeout: 15000 });
+      await expect(seat).toBeEnabled({ timeout: 3000 });
     } finally {
       await browser.close();
       await stack.close();

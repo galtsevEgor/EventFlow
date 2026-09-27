@@ -21,6 +21,7 @@ export class RealtimeHub {
   };
   private readonly connections = new Set<UpdatesConnection>();
   private opening = 0;
+  private report: NodeJS.Timeout | undefined;
   constructor(
     private readonly config: AuthConfig,
     private readonly bus: RealtimeBus,
@@ -34,6 +35,13 @@ export class RealtimeHub {
       opening: this.opening,
       ready: this.bus.ready,
     };
+  }
+  onModuleInit() {
+    this.report = setInterval(() => {
+      if (this.metrics.opened)
+        console.log(JSON.stringify({ kind: 'realtime_metrics', ...this.snapshot() }));
+    }, 30000);
+    this.report.unref();
   }
   async open(request: Request, response: Response, target: RealtimeHint) {
     if (!this.bus.ready)
@@ -90,6 +98,7 @@ export class RealtimeHub {
     }
   }
   onModuleDestroy() {
+    clearInterval(this.report);
     for (const connection of [...this.connections]) connection.close();
   }
 }

@@ -17,6 +17,7 @@ export async function realtimeFixture(overrides = {}, options = {}) {
     orderId = randomUUID(),
     organizationId = randomUUID();
   let managerAllowed = true;
+  let revision = 0;
   const upstream = createServer((req, res) => {
     req.resume();
     const token = req.headers.authorization;
@@ -30,7 +31,7 @@ export async function realtimeFixture(overrides = {}, options = {}) {
         managerAllowed);
     res.statusCode = allowed ? 200 : 404;
     res.setHeader('content-type', 'application/json');
-    res.end('{}');
+    res.end(JSON.stringify({ revision }));
   });
   await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
   const config = readAuthConfig({
@@ -90,6 +91,7 @@ export async function realtimeFixture(overrides = {}, options = {}) {
     revokeManager: () => {
       managerAllowed = false;
     },
+    bump: () => ++revision,
     async session(replica, sub = 'owner') {
       const id = await replica.store.create({
         user: { sub, email: `${sub}@eventflow.test`, emailVerified: true, name: sub },
