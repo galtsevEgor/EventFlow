@@ -9,8 +9,13 @@ import { AppModule } from '../dist/app.module.js';
 import { readAuthConfig } from '../dist/auth/config.js';
 import { AuthService } from '../dist/auth/auth.service.js';
 import { SessionStore } from '../dist/auth/session-store.js';
+import { cleanBroker } from '../../../tests/helpers/broker.mjs';
 
-const config = readAuthConfig({ ...process.env, SESSION_PREFIX: `test:${randomUUID()}:` });
+const config = readAuthConfig({
+  ...process.env,
+  SESSION_PREFIX: `test:${randomUUID()}:`,
+  MESSAGE_NAMESPACE: `eventflow-test-${randomUUID()}`,
+});
 const origin = config.PUBLIC_ORIGIN;
 const users = JSON.parse(readFileSync('work/local/demo-users.json', 'utf8'));
 process.env.EVENTFLOW_LOG_REQUESTS = '0';
@@ -46,6 +51,7 @@ after(async () => {
       if (keys.length) await store.client.del(keys);
   }
   await app?.close();
+  await cleanBroker(config.MESSAGE_NAMESPACE);
   await new Promise((done) => upstream.close(done));
 });
 

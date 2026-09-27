@@ -1358,6 +1358,88 @@
         }
       }
     },
+    "/api/v1/sales/{id}/updates": {
+      "get": {
+        "operationId": "subscribeSaleUpdates",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "SSE update frames; ready requires a fresh API snapshot. No replay is promised.",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          },
+          "default": {
+            "description": "Connection denied or temporarily unavailable",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}/updates": {
+      "get": {
+        "operationId": "subscribeOrderUpdates",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE update frames; ready requires a fresh API snapshot. No replay is promised.",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          },
+          "default": {
+            "description": "Connection denied or temporarily unavailable",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/events/{eventId}/orders/updates": {
+      "get": {
+        "operationId": "subscribeOrganizerOrderUpdates",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE update frames; ready requires a fresh API snapshot. No replay is promised.",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          },
+          "default": {
+            "description": "Connection denied or temporarily unavailable",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders/{id}/payment-attempt": {
       "post": {
         "operationId": "createPaymentAttempt",
@@ -2192,6 +2274,12 @@
             "additionalProperties": false
           }
         ]
+      },
+      "UpdateFrame": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": { "kind": { "type": "string", "enum": ["ready", "changed", "heartbeat"] } }
       },
       "PaymentAttemptReference": {
         "type": "object",

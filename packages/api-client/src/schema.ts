@@ -479,6 +479,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/sales/{id}/updates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['subscribeSaleUpdates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/orders/{id}/updates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['subscribeOrderUpdates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/organizations/{organizationId}/events/{eventId}/orders/updates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['subscribeOrganizerOrderUpdates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/payment-attempt': {
     parameters: {
       query?: never;
@@ -964,6 +1012,10 @@ export interface components {
           user: components['schemas']['Identity'];
           csrfToken: string;
         };
+    UpdateFrame: {
+      /** @enum {string} */
+      kind: 'ready' | 'changed' | 'heartbeat';
+    };
     PaymentAttemptReference: {
       /** Format: uuid */
       attemptId: string;
@@ -2337,6 +2389,100 @@ export interface operations {
         content?: never;
       };
       /** @description Request failed */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  subscribeSaleUpdates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description SSE update frames; ready requires a fresh API snapshot. No replay is promised. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/event-stream': string;
+        };
+      };
+      /** @description Connection denied or temporarily unavailable */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  subscribeOrderUpdates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description SSE update frames; ready requires a fresh API snapshot. No replay is promised. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/event-stream': string;
+        };
+      };
+      /** @description Connection denied or temporarily unavailable */
+      default: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  subscribeOrganizerOrderUpdates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: string;
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description SSE update frames; ready requires a fresh API snapshot. No replay is promised. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/event-stream': string;
+        };
+      };
+      /** @description Connection denied or temporarily unavailable */
       default: {
         headers: {
           [name: string]: unknown;

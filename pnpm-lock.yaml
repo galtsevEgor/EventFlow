@@ -83,6 +83,12 @@ importers:
 
   apps/bff:
     dependencies:
+      '@eventflow/event-contracts':
+        specifier: workspace:*
+        version: link:../../packages/event-contracts
+      '@eventflow/messaging':
+        specifier: workspace:*
+        version: link:../../packages/messaging
       '@eventflow/service-runtime':
         specifier: workspace:*
         version: link:../../packages/service-runtime

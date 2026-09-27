@@ -9,13 +9,15 @@ export function createAdmission(options = {}, now = () => performance.now()) {
     ssrRequests: Number(process.env.EVENTFLOW_SSR_REQUESTS ?? 120),
     apiConcurrent: Number(process.env.EVENTFLOW_API_CONCURRENCY ?? 32),
     ssrConcurrent: Number(process.env.EVENTFLOW_SSR_CONCURRENCY ?? 16),
+    streamRequests: Number(process.env.EVENTFLOW_STREAM_REQUESTS ?? 120),
+    streamConcurrent: Number(process.env.EVENTFLOW_STREAM_CONCURRENCY ?? 256),
     ...options,
   };
   for (const [key, value] of Object.entries(limits))
     if (!Number.isSafeInteger(value) || value < 1) throw new Error(`Invalid gateway limit: ${key}`);
   let started = now();
   const clients = new Map();
-  const active = { api: 0, ssr: 0, webhook: 0 };
+  const active = { api: 0, ssr: 0, webhook: 0, stream: 0 };
 
   function reject(request, response, status, retryAfter) {
     const requestId = randomUUID();
@@ -54,7 +56,7 @@ export function createAdmission(options = {}, now = () => performance.now()) {
       const retryAfter = Math.max(1, Math.ceil((limits.windowMs - (time - started)) / 1000));
       if (!counts) {
         if (clients.size >= limits.maxClients) return reject(request, response, 429, retryAfter);
-        counts = { api: 0, ssr: 0 };
+        counts = { api: 0, ssr: 0, stream: 0 };
         clients.set(client, counts);
       }
       counts[group]++;

@@ -16,6 +16,15 @@ const schema = z.object({
   BOOKING_URL: httpUrl.default('http://127.0.0.1:4002'),
   PAYMENTS_URL: httpUrl.default('http://127.0.0.1:4003'),
   TICKETS_URL: httpUrl.default('http://127.0.0.1:4004'),
+  AMQP_URL: z.string().startsWith('amqp').optional(),
+  MESSAGE_NAMESPACE: z
+    .string()
+    .regex(/^[a-zA-Z0-9:_-]+$/)
+    .default('eventflow'),
+  REALTIME_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(256),
+  REALTIME_USER_CONNECTIONS: z.coerce.number().int().min(1).max(100).default(4),
+  REALTIME_IP_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(128),
+  REALTIME_HEARTBEAT_MS: z.coerce.number().int().min(1000).max(10000).default(5000),
 });
 export type AuthConfig = ReturnType<typeof readAuthConfig>;
 export function readAuthConfig(env: NodeJS.ProcessEnv) {

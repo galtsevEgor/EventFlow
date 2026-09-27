@@ -20,7 +20,7 @@ import { ConfirmPayment } from './payments/confirm';
 import { RefundOutcome } from './payments/refund-outcome';
 import { RefundAccess } from './refunds/access';
 import { OrganizerRefunds } from './refunds/organizer';
-import { OrganizerOrdersController } from './refunds/controller';
+import { OrganizerOrdersController, OrderUpdatesAccessController } from './refunds/controller';
 import { RefundWorkflow } from './refunds/workflow';
 
 @Module({ imports: [HealthModule.forService('booking')] })
@@ -38,6 +38,7 @@ export class AppModule {
               BookingPaymentsController,
               DeliveryContextController,
               OrganizerOrdersController,
+              OrderUpdatesAccessController,
             ],
       providers: [
         { provide: RefundAccess, useFactory: () => new RefundAccess(config) },

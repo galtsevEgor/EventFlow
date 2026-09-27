@@ -1,6 +1,8 @@
 import { createServer } from 'node:http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createAdmission } from './gateway-limits.mjs';
+const updatesPath =
+  /^\/api\/v1\/(?:sales\/[a-f0-9-]{36}\/updates|orders\/[a-f0-9-]{36}\/updates|organizations\/[a-f0-9-]{36}\/events\/[a-f0-9-]{36}\/orders\/updates)$/i;
 
 export function createGateway({
   bff = 'http://127.0.0.1:4000',
@@ -10,12 +12,15 @@ export function createGateway({
   limits,
 } = {}) {
   const admit = createAdmission(limits);
-  function proxy(target) {
+  function proxy(target, stream = false) {
     return createProxyMiddleware({
       target,
       changeOrigin: false,
-      proxyTimeout: 15_000,
+      proxyTimeout: stream ? 0 : 15_000,
       on: {
+        proxyReq: (upstream, _request, response) => {
+          if (stream) response.once('close', () => upstream.destroy());
+        },
         error: (_error, _request, response) => {
           if ('writeHead' in response && !response.headersSent) {
             response.writeHead(503, {
@@ -41,14 +46,17 @@ export function createGateway({
     });
   }
   const api = proxy(bff),
+    updates = proxy(bff, true),
     workspace = proxy(organizer),
     publicSite = proxy(storefront);
   const route = (url) =>
-    url.startsWith('/api/v1/')
-      ? api
-      : url === '/organizer' || url.startsWith('/organizer/')
-        ? workspace
-        : publicSite;
+    updatesPath.test(url)
+      ? updates
+      : url.startsWith('/api/v1/')
+        ? api
+        : url === '/organizer' || url.startsWith('/organizer/')
+          ? workspace
+          : publicSite;
   const server = createServer((request, response) => {
     const path = new URL(request.url, 'http://gateway').pathname;
     if (
@@ -73,8 +81,9 @@ export function createGateway({
       response.end();
       return;
     }
-    const group =
-      path === '/api/v1/webhooks/stripe'
+    const group = updatesPath.test(path)
+      ? 'stream'
+      : path === '/api/v1/webhooks/stripe'
         ? 'webhook'
         : path.startsWith('/api/v1/')
           ? 'api'
@@ -82,10 +91,10 @@ export function createGateway({
             ? null
             : 'ssr';
     if (!admit(request, response, group)) return;
-    void route(request.url)(request, response);
+    void route(path)(request, response);
   });
   server.on('upgrade', (request, socket, head) =>
-    route(request.url).upgrade(request, socket, head),
+    route(new URL(request.url, 'http://gateway').pathname).upgrade(request, socket, head),
   );
   return server;
 }

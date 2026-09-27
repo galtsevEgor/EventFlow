@@ -86,7 +86,7 @@ try {
       async (response) => {
         assert.deepEqual(await response.json(), { status: 'ok', service: name });
       },
-      name === 'tickets' ? { MESSAGE_NAMESPACE: smokeNamespace } : {},
+      { MESSAGE_NAMESPACE: smokeNamespace },
     );
   }
 } finally {

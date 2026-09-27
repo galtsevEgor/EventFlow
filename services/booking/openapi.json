@@ -466,6 +466,59 @@
           }
         }
       }
+    },
+    "/internal/organizations/{organizationId}/events/{eventId}/order-updates-access": {
+      "get": {
+        "operationId": "authorizeOrganizerOrderUpdates",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user may subscribe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["allowed"],
+                  "properties": {
+                    "allowed": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

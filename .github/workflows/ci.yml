@@ -65,6 +65,7 @@ jobs:
       - run: pnpm test:booking
       - run: pnpm test:payments
       - run: pnpm test:tickets
+      - run: pnpm test:realtime
       - run: pnpm tools:setup
       - run: pnpm test:load --smoke
       - run: pnpm test:overload --smoke

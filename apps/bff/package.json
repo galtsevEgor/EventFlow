@@ -11,6 +11,8 @@
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
+    "@eventflow/event-contracts": "workspace:*",
+    "@eventflow/messaging": "workspace:*",
     "@eventflow/service-runtime": "workspace:*",
     "@nestjs/common": "12.3.2",
     "cookie": "2.0.1",

@@ -64,3 +64,24 @@ export class OrganizerOrdersController {
     );
   }
 }
+
+@Controller('internal/organizations/:organizationId/events/:eventId/order-updates-access')
+export class OrderUpdatesAccessController {
+  constructor(
+    @Inject(TokenVerifier) private readonly verifier: TokenVerifier,
+    @Inject(OrganizerRefunds) private readonly refunds: OrganizerRefunds,
+  ) {}
+  @Get() async get(
+    @Headers('authorization') auth: string | undefined,
+    @Param('organizationId') org: string,
+    @Param('eventId') event: string,
+  ) {
+    const actor = await this.verifier.user(auth);
+    if (!actor.emailVerified) throw new ApiError(403, 'EMAIL_UNVERIFIED', 'Подтвердите email.');
+    return this.refunds.canSubscribe(
+      actor.subject,
+      parseInput(z.uuid(), org).toLowerCase(),
+      parseInput(z.uuid(), event).toLowerCase(),
+    );
+  }
+}

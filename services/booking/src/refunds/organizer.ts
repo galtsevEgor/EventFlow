@@ -15,6 +15,18 @@ export class OrganizerRefunds {
     private readonly access: RefundAccess,
   ) {}
 
+  async canSubscribe(actor: string, organizationId: string, saleId: string) {
+    await this.access.check(actor, organizationId, saleId);
+    if (
+      !(await this.db.sale.findFirst({
+        where: { id: saleId, organizationId },
+        select: { id: true },
+      }))
+    )
+      throw new ApiError(404, 'NOT_FOUND', 'Мероприятие не найдено.');
+    return { allowed: true };
+  }
+
   async list(actor: string, organizationId: string, saleId: string, page: number) {
     await this.access.check(actor, organizationId, saleId);
     return this.db.$transaction(
