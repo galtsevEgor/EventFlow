@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Database } from '../database';
 import type { BookingClient } from '../booking-client';
 import type { PaymentProvider } from '../providers/provider';
+import { paymentUpdate } from '../updates';
 
 export class CreateAttempt {
   constructor(
@@ -58,6 +59,7 @@ export class CreateAttempt {
             provider: this.provider.name,
           },
         });
+        await paymentUpdate(tx, orderId);
       }
       await tx.paymentRequest.create({
         data: { buyerSubject: buyer, key, orderId, attemptId: attempt.id },

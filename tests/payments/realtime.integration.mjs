@@ -41,10 +41,10 @@ test('payment state changes notify the owned order without creating a polling fe
           row.envelope.aggregateId === orderId,
       );
     const initial = await hints();
-    assert.equal(initial.length, 1);
+    assert.equal(initial.length, 2);
     await fixture.processor.wake(id);
     await fixture.processor.run(id);
-    assert.equal((await hints()).length, 1);
+    assert.equal((await hints()).length, 2);
     fixture.provider.inject('retrieve', { failBefore: true });
     await fixture.processor.wake(id);
     await fixture.processor.run(id);
@@ -52,10 +52,10 @@ test('payment state changes notify the owned order without creating a polling fe
       (await fixture.db.paymentAttempt.findUnique({ where: { id } })).state,
       'NEEDS_RECONCILIATION',
     );
-    assert.equal((await hints()).length, 2);
+    assert.equal((await hints()).length, 3);
     await fixture.processor.wake(id);
     await fixture.processor.run(id);
-    assert.equal((await hints()).length, 3);
+    assert.equal((await hints()).length, 4);
     for (const row of await hints())
       assert.deepEqual(realtimeHintSchema.parse(row.envelope.data), {
         scope: 'order',

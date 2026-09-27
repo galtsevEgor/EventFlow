@@ -27,7 +27,7 @@ function restore(key: string): Pending | null {
   }
   return null;
 }
-export function SeatPicker({ sale }: { sale: Schemas['PublicSale'] }) {
+export function SeatPicker({ sale, live }: { sale: Schemas['PublicSale']; live: boolean }) {
   const { api, session } = useBuyer();
   if (session.isPending) return <p role="status">Проверяем аккаунт…</p>;
   if (session.isError)
@@ -41,17 +41,25 @@ export function SeatPicker({ sale }: { sale: Schemas['PublicSale'] }) {
   if (!session.data.user.emailVerified)
     return <Alert>Подтвердите email, чтобы бронировать места.</Alert>;
   return (
-    <Selection key={session.data.user.sub} sale={sale} api={api} buyer={session.data.user.sub} />
+    <Selection
+      key={session.data.user.sub}
+      sale={sale}
+      live={live}
+      api={api}
+      buyer={session.data.user.sub}
+    />
   );
 }
 function Selection({
   sale,
   api,
   buyer,
+  live,
 }: {
   sale: Schemas['PublicSale'];
   api: ReturnType<typeof useBuyer>['api'];
   buyer: string;
+  live: boolean;
 }) {
   const cache = useQueryClient();
   const storageKey = `eventflow:reservation:${buyer}:${sale.id}`;
@@ -63,7 +71,7 @@ function Selection({
       unwrap(
         await api.client.GET('/api/v1/orders', { params: { query: { saleId: sale.id } }, signal }),
       ),
-    refetchInterval: 5000,
+    refetchInterval: (query) => (live && !query.state.error ? 30000 : 5000),
   });
   const active = orders.data?.items.find((order) => order.state === 'HELD');
   const chosen = sale.seats.filter(

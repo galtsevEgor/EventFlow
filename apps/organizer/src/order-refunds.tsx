@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge, Button, Dialog, EmptyState, Field, Loading, Select } from '@eventflow/ui';
 import { api, queryClient, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
+import { useLiveUpdates } from './use-live-updates';
 
 const money = (minor: number) =>
   new Intl.NumberFormat('ru', { style: 'currency', currency: 'EUR' }).format(minor / 100);
@@ -146,11 +147,25 @@ export function OrderRefunds({ id }: { id: string }) {
 }
 
 function OrderList({ organizationId, eventId }: { organizationId: string; eventId: string }) {
+  const refresh = useCallback(async () => {
+    await Promise.all([
+      queryClient.cancelQueries({ queryKey: ['organizer-orders', organizationId, eventId] }),
+      queryClient.cancelQueries({ queryKey: ['sales-statistics', organizationId] }),
+    ]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['organizer-orders', organizationId, eventId] }),
+      queryClient.invalidateQueries({ queryKey: ['sales-statistics', organizationId] }),
+    ]);
+  }, [organizationId, eventId]);
+  const live = useLiveUpdates(
+    `/api/v1/organizations/${organizationId}/events/${eventId}/orders/updates`,
+    refresh,
+  );
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Schemas['OrganizerOrder'] | null>(null);
   const list = useQuery({
     queryKey: ['organizer-orders', organizationId, eventId, page],
-    refetchInterval: 5000,
+    refetchInterval: (query) => (live && !query.state.error ? 30000 : 5000),
     queryFn: async () =>
       unwrap(
         await api.client.GET('/api/v1/organizations/{organizationId}/events/{eventId}/orders', {
@@ -159,7 +174,7 @@ function OrderList({ organizationId, eventId }: { organizationId: string; eventI
       ),
   });
   return (
-    <>
+    <div data-live={live ? 'true' : 'false'}>
       <Button variant="secondary" disabled={list.isFetching} onClick={() => void list.refetch()}>
         Обновить заказы
       </Button>
@@ -233,6 +248,6 @@ function OrderList({ organizationId, eventId }: { organizationId: string; eventI
           close={() => setSelected(null)}
         />
       )}
-    </>
+    </div>
   );
 }

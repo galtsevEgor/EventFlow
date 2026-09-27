@@ -1,12 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiRequestError, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { BookingProvider, money, orderLabels, SignIn, useBuyer } from './client';
 import { PaymentPanel } from './payment-panel';
 import { TicketsPanel } from './tickets-panel';
 import { RefundPanel } from './refund-panel';
+import { useLiveUpdates } from './use-live-updates';
 
 function Countdown({
   expiresAt,
@@ -39,6 +40,27 @@ function Countdown({
 }
 function Details({ id }: { id: string }) {
   const { api, session } = useBuyer();
+  const cache = useQueryClient(),
+    buyer = session.data?.user?.sub;
+  const cached = cache.getQueryData<{ data: { state: string } }>(['order', id, buyer]);
+  const refresh = useCallback(async () => {
+    await Promise.all(
+      ['order', 'payment', 'tickets'].map((key) =>
+        cache.cancelQueries({ queryKey: [key, id, buyer] }),
+      ),
+    );
+    await Promise.all(
+      ['order', 'payment', 'tickets'].map((key) =>
+        cache.invalidateQueries({ queryKey: [key, id, buyer] }),
+      ),
+    );
+  }, [cache, id, buyer]);
+  const live = useLiveUpdates(
+    buyer && !['REFUNDED', 'EXPIRED', 'CANCELLED'].includes(cached?.data.state ?? '')
+      ? `/api/v1/orders/${id}/updates`
+      : null,
+    refresh,
+  );
   useEffect(() => {
     // Redirect parameters are not proof of payment; remove client secrets from browser history.
     const url = new URL(location.href);
@@ -59,6 +81,8 @@ function Details({ id }: { id: string }) {
     },
     refetchInterval: (query) => {
       const data = query.state.data?.data;
+      if (live && data && ['HELD', 'CONFIRMED'].includes(data.state) && !query.state.error)
+        return 30000;
       if (data?.state === 'HELD') return 3000;
       if (data?.state === 'CONFIRMED')
         return data.refund?.state === 'REQUIRES_REVIEW' ? 15000 : 5000;
@@ -91,7 +115,7 @@ function Details({ id }: { id: string }) {
     );
   const data = order.data.data;
   return (
-    <article className="order-card">
+    <article className="order-card" data-live={live ? 'true' : 'false'}>
       <p className="eyebrow">ВАШ ЗАКАЗ</p>
       <h1>{data.title}</h1>
       <p className="sale-status" role="status">
@@ -133,6 +157,7 @@ function Details({ id }: { id: string }) {
           id={id}
           buyer={session.data.user.sub}
           orderState={data.state}
+          live={live}
           api={api}
         />
       )}
@@ -142,6 +167,7 @@ function Details({ id }: { id: string }) {
           order={data}
           buyer={session.data.user.sub}
           api={api}
+          live={live}
         />
       )}
       {data.state === 'HELD' && (

@@ -1,9 +1,10 @@
 'use client';
-import { useState } from 'react';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { useCallback, useState } from 'react';
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createApiClient, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { SeatPicker } from './booking/seat-picker';
+import { useLiveUpdates } from './booking/use-live-updates';
 
 const labels = {
   SCHEDULED: 'Продажи ещё не начались',
@@ -13,11 +14,51 @@ const labels = {
 };
 function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
   const [api] = useState(createApiClient);
+  const cache = useQueryClient();
+  const refresh = useCallback(async () => {
+    await Promise.all([
+      cache.cancelQueries({ queryKey: ['sale', id] }),
+      cache.cancelQueries({ queryKey: ['orders'] }),
+    ]);
+    await Promise.all([
+      cache.invalidateQueries({ queryKey: ['sale', id] }),
+      cache.invalidateQueries({ queryKey: ['orders'] }),
+    ]);
+  }, [cache, id]);
+  const live = useLiveUpdates(`/api/v1/sales/${id}/updates`, refresh);
   const sale = useQuery({
     queryKey: ['sale', id],
-    queryFn: async ({ signal }) =>
-      unwrap(await api.client.GET('/api/v1/sales/{id}', { params: { path: { id } }, signal })),
-    refetchInterval: 5000,
+    queryFn: async ({ signal }) => {
+      const observedAt = performance.now();
+      const data = unwrap(
+        await api.client.GET('/api/v1/sales/{id}', { params: { path: { id } }, signal }),
+      );
+      return { data, observedAt };
+    },
+    refetchInterval: (query) => {
+      if (query.state.error) return 5000;
+      const snapshot = query.state.data;
+      const normal = live && !query.state.error ? 30000 : 5000;
+      if (!snapshot) return normal;
+      const boundary =
+        snapshot.data.state === 'SCHEDULED'
+          ? snapshot.data.salesStartsAt
+          : snapshot.data.state === 'CLOSED'
+            ? null
+            : snapshot.data.salesEndsAt;
+      return boundary
+        ? Math.max(
+            100,
+            Math.min(
+              normal,
+              Date.parse(boundary) -
+                Date.parse(snapshot.data.serverNow) -
+                (performance.now() - snapshot.observedAt) +
+                50,
+            ),
+          )
+        : normal;
+    },
   });
   if (sale.isPending) return <p role="status">Уточняем состояние продаж…</p>;
   if (sale.isError)
@@ -29,7 +70,7 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
         </Button>
       </Alert>
     );
-  const data = sale.data;
+  const data = sale.data.data;
   const categories = new Map<string, { name: string; price: number; count: number }>();
   for (const seat of data.seats) {
     const category = categories.get(seat.categoryId) ?? {
@@ -70,7 +111,10 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
           </li>
         ))}
       </ul>
-      <SeatPicker sale={data} />
+      <SeatPicker sale={data} live={live} />
+      <p className="muted" data-live={live ? 'true' : 'false'}>
+        Обновляем свободные места автоматически.
+      </p>
     </div>
   );
 }

@@ -119,10 +119,12 @@ export function TicketsPanel({
   order,
   buyer,
   api,
+  live,
 }: {
   order: Schemas['Order'];
   buyer: string;
   api: BuyerApi;
+  live: boolean;
 }) {
   const headingId = useId();
   const tickets = useQuery({
@@ -137,7 +139,8 @@ export function TicketsPanel({
       if (!response.data) throw new Error('Не удалось загрузить билеты.');
       return response.data.tickets;
     },
-    refetchInterval: (query) => (query.state.data === null && !query.state.error ? 3000 : false),
+    refetchInterval: (query) =>
+      query.state.data === null && !query.state.error ? (live ? 30000 : 3000) : false,
   });
   const event = useQuery({
     queryKey: ['ticket-event', order.saleId],

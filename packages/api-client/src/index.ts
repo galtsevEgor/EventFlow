@@ -4,6 +4,7 @@ import type { paths, components } from './schema';
 
 export type Schemas = components['schemas'];
 export type { paths } from './schema';
+export { watchUpdates } from './updates.js';
 
 export const sessionSchema = z.union([
   z.strictObject({ user: z.null() }),

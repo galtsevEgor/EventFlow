@@ -55,11 +55,13 @@ export function PaymentPanel({
   buyer,
   orderState,
   api,
+  live,
 }: {
   id: string;
   buyer: string;
   orderState: Schemas['Order']['state'];
   api: BuyerApi;
+  live: boolean;
 }) {
   const cache = useQueryClient();
   const payment = useQuery({
@@ -77,7 +79,11 @@ export function PaymentPanel({
         ? 3000
         : query.state.data === null && orderState !== 'HELD'
           ? false
-          : polling(query.state.data),
+          : polling(query.state.data) === false
+            ? false
+            : live
+              ? 30000
+              : 3000,
   });
   const start = useMutation({
     mutationFn: async () => {
