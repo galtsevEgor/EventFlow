@@ -44,7 +44,9 @@ test(
       const keys = [],
         attempts = [];
       // The server commits; its response and the subsequent status lookup are temporarily lost.
-      await page.route('**/payment-status', (route) => route.abort('failed'));
+      await page.route('**/payment-status', (route) =>
+        attempts.length ? route.abort('failed') : route.continue(),
+      );
       await page.route('**/payment-attempt', async (route) => {
         const result = await route.fetch();
         assert.equal(result.status(), 202);
@@ -61,6 +63,8 @@ test(
         });
       });
       await page.getByRole('button', { name: 'Перейти к оплате', exact: true }).click();
+      // A live refresh can fail before the mutation finishes; prove the server committed first.
+      await expect.poll(() => attempts.length, { timeout: 10000 }).toBe(1);
       await expect(
         page.getByRole('alert').filter({ hasText: 'Не удалось проверить платёж' }),
       ).toBeVisible();
