@@ -5,6 +5,7 @@ import { chromium, expect } from '@playwright/test';
 import { fullStack } from './fixture.mjs';
 import { loginBuyer, publishForBooking } from './booking-setup.mjs';
 import { eventually } from '../helpers/eventually.mjs';
+import { ClientCredentials } from '../../packages/service-runtime/dist/index.js';
 
 test(
   'two browsers receive live seat, order, ticket and organizer refund updates',
@@ -172,6 +173,106 @@ test(
       await observer.unroute(path);
       await expect(observer.locator('[data-live="true"]')).toBeVisible({ timeout: 15000 });
       await expect(seat).toBeEnabled({ timeout: 3000 });
+    } finally {
+      await browser.close();
+      await stack.close();
+    }
+  },
+);
+
+test(
+  'cancelled order receives compensation recovery after operator review without a reload',
+  { timeout: 150000 },
+  async () => {
+    const stack = await fullStack({ payments: true });
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      const headers = await loginBuyer(page, stack.origin);
+      const saleId = await publishForBooking(page, stack.origin, headers, {
+        title: 'Late payment recovery',
+        layout: { rows: 2, columns: 4 },
+      });
+      const reserved = await page.request.post(stack.origin + '/api/v1/orders', {
+        headers: { ...headers, 'idempotency-key': randomUUID() },
+        data: { saleId, seatIds: ['r1-s1'] },
+      });
+      assert.equal(reserved.status(), 201);
+      const order = await reserved.json();
+      const payments = await stack.startPayments();
+      await payments.reconciler.stop();
+      const created = await page.request.post(
+        `${stack.origin}/api/v1/orders/${order.id}/payment-attempt`,
+        { headers: { ...headers, 'idempotency-key': randomUUID() }, data: {} },
+      );
+      assert.equal(created.status(), 202);
+      const { attemptId } = await created.json();
+      await eventually(() => payments.processor.run(attemptId), Boolean);
+      const attempt = await payments.db.paymentAttempt.findUniqueOrThrow({
+        where: { id: attemptId },
+      });
+      await payments.provider.confirm(attempt.providerPaymentId, 'success');
+      assert.equal(
+        (
+          await page.request.post(`${stack.origin}/api/v1/orders/${order.id}/cancel`, { headers })
+        ).status(),
+        200,
+      );
+      await payments.processor.wake(attemptId);
+      await eventually(() => payments.processor.run(attemptId), Boolean);
+      const operation = await eventually(
+        () => payments.db.refundOperation.findUnique({ where: { attemptId } }),
+        Boolean,
+      );
+      const providerRefund = await payments.provider.refund({
+        operationId: operation.id,
+        paymentId: operation.providerPaymentId,
+        amountMinor: operation.amountMinor,
+      });
+      await payments.db.fakeRefund.update({
+        where: { id: providerRefund.id },
+        data: { status: 'failed' },
+      });
+      await payments.refunds.run(operation.id);
+      await page.goto(`${stack.origin}/orders/${order.id}`);
+      await expect(page.locator('.order-card[data-live="true"]')).toBeVisible({ timeout: 15000 });
+      await expect(
+        page.getByRole('status').filter({ hasText: 'Платёж требует проверки' }),
+      ).toBeVisible();
+      await payments.db.fakeRefund.update({
+        where: { id: providerRefund.id },
+        data: { status: 'succeeded' },
+      });
+      const token = await new ClientCredentials(
+        process.env.OIDC_ISSUER,
+        'eventflow-operator',
+        process.env.PAYMENTS_OPERATOR_SECRET,
+      ).token();
+      const retried = await fetch(payments.origin + '/internal/payments/reconcile', {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
+          'idempotency-key': randomUUID(),
+        },
+        body: JSON.stringify({
+          kind: 'refund',
+          targetId: operation.id,
+          reason: 'Synthetic provider status verified by operator',
+        }),
+      });
+      assert.equal(retried.status, 202);
+      await retried.body.cancel();
+      await eventually(() => payments.refunds.run(operation.id), Boolean);
+      await expect(
+        page.getByText('Возврат выполнен. Заказ не подтверждён.', { exact: true }),
+      ).toBeVisible({ timeout: 5000 });
+      const booking = await stack.startBooking();
+      assert.equal(
+        (await booking.db.order.findUniqueOrThrow({ where: { id: order.id } })).state,
+        'CANCELLED',
+      );
+      assert.equal(await payments.db.fakeRefund.count({ where: { operationId: operation.id } }), 1);
     } finally {
       await browser.close();
       await stack.close();

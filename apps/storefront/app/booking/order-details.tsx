@@ -55,10 +55,9 @@ function Details({ id }: { id: string }) {
       ),
     );
   }, [cache, id, buyer]);
+  // Cancelled and expired orders can still receive late-payment compensation updates.
   const live = useLiveUpdates(
-    buyer && !['REFUNDED', 'EXPIRED', 'CANCELLED'].includes(cached?.data.state ?? '')
-      ? `/api/v1/orders/${id}/updates`
-      : null,
+    buyer && cached?.data.state !== 'REFUNDED' ? `/api/v1/orders/${id}/updates` : null,
     refresh,
   );
   useEffect(() => {
@@ -81,8 +80,7 @@ function Details({ id }: { id: string }) {
     },
     refetchInterval: (query) => {
       const data = query.state.data?.data;
-      if (live && data && ['HELD', 'CONFIRMED'].includes(data.state) && !query.state.error)
-        return 30000;
+      if (live && data && !query.state.error) return 30000;
       if (data?.state === 'HELD') return 3000;
       if (data?.state === 'CONFIRMED')
         return data.refund?.state === 'REQUIRES_REVIEW' ? 15000 : 5000;

@@ -79,11 +79,9 @@ export function PaymentPanel({
         ? 3000
         : query.state.data === null && orderState !== 'HELD'
           ? false
-          : polling(query.state.data) === false
-            ? false
-            : live
-              ? 30000
-              : 3000,
+          : live
+            ? 30000
+            : polling(query.state.data),
   });
   const start = useMutation({
     mutationFn: async () => {
