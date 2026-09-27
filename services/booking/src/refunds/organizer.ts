@@ -7,6 +7,7 @@ import { decisionTime, lockOrder, transaction } from '../orders/transaction';
 import { orderView } from '../orders/view';
 import { RefundAccess } from './access';
 import { refundView } from './view';
+import { refundUpdate } from './updates';
 
 export class OrganizerRefunds {
   constructor(
@@ -141,6 +142,7 @@ export class OrganizerRefunds {
         });
         const event = message('booking', 'TicketRefundLockRequested.v1', orderId, 1, data);
         await tx.outbox.create({ data: { id: event.eventId, envelope: event } });
+        await refundUpdate(tx, order);
       }
       await tx.refundRequest.create({
         data: { actorSubject: actor, key, payloadHash, operationId: refund.id },

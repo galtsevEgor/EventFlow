@@ -13,6 +13,7 @@ export async function cleanBroker(namespace) {
       'payments',
       'tickets',
       'statistics',
+      'realtime',
       'booking-refunds',
       'ticket-refunds',
       'payment-refunds',

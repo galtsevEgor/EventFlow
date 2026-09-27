@@ -3,6 +3,7 @@ import { message } from '@eventflow/event-contracts';
 import type { Database } from '../database';
 import type { RefundOperation } from '../generated/client';
 import { ProviderMismatch, type PaymentProvider, type ProviderRefund } from '../providers/provider';
+import { paymentUpdate } from '../updates';
 
 export class ProcessRefund {
   constructor(
@@ -70,6 +71,8 @@ export class ProcessRefund {
             leaseUntil: null,
           },
         });
+        if (changed.count && operation.state !== (review ? 'REQUIRES_REVIEW' : 'UNKNOWN'))
+          await paymentUpdate(tx, operation.orderId);
         if (changed.count && review) {
           await tx.paymentAttempt.update({
             where: { id: operation.attemptId },
@@ -118,7 +121,10 @@ export class ProcessRefund {
           leaseUntil: null,
         },
       });
-      if (!changed.count || state === 'PENDING') return;
+      if (!changed.count) return;
+      if (state !== operation.state || operation.providerRefundId !== result.id)
+        await paymentUpdate(tx, operation.orderId);
+      if (state === 'PENDING') return;
       await tx.paymentAttempt.update({
         where: { id: operation.attemptId },
         data: {

@@ -9,6 +9,7 @@ import {
 import { PermanentMessageError } from '@eventflow/messaging';
 import type { Database } from '../database';
 import { decisionTime, lockOrder, lockSeats, lockSlot, transaction } from '../orders/transaction';
+import { refundUpdate } from './updates';
 
 export class RefundWorkflow {
   constructor(private readonly db: Database) {}
@@ -81,6 +82,7 @@ export class RefundWorkflow {
             data: { state: 'PENDING', updatedAt: now },
           });
         }
+        await refundUpdate(tx, order);
       }
       await tx.inbox.create({ data: { eventId: event.eventId } });
     });
@@ -183,6 +185,7 @@ export class RefundWorkflow {
           const next = message('booking', 'OrderRefunded.v1', order.id, 3, snapshot);
           await tx.outbox.create({ data: { id: next.eventId, envelope: next } });
         }
+        await refundUpdate(tx, order);
       }
       await tx.inbox.create({ data: { eventId: event.eventId } });
     });

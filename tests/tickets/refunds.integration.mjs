@@ -214,6 +214,7 @@ test('a crash before committing the fence rolls back its inbox, ready-mail cance
   try {
     const f = flow(fixture.db);
     await f.issue.handle(f.confirmation);
+    const previousOutbox = await fixture.db.outbox.count();
     const failing = new TicketRefunds({
       $transaction: (run) =>
         fixture.db.$transaction(async (tx) => {
@@ -223,7 +224,7 @@ test('a crash before committing the fence rolls back its inbox, ready-mail cance
     });
     await assert.rejects(failing.handle(f.lock), /crash before commit/);
     assert.equal(await fixture.db.refundGate.count(), 0);
-    assert.equal(await fixture.db.outbox.count(), 0);
+    assert.equal(await fixture.db.outbox.count(), previousOutbox);
     assert.equal(await fixture.db.inbox.findUnique({ where: { eventId: f.lock.eventId } }), null);
     assert.equal(
       (await fixture.db.deliveryJob.findUnique({ where: { id: f.orderId } })).state,
@@ -232,7 +233,7 @@ test('a crash before committing the fence rolls back its inbox, ready-mail cance
     await new TicketRefunds(fixture.db).handle(f.lock);
     await new TicketRefunds(fixture.db).handle(f.lock);
     assert.equal(await fixture.db.refundGate.count(), 1);
-    assert.equal(await fixture.db.outbox.count(), 1);
+    assert.equal(await fixture.db.outbox.count(), previousOutbox + 1);
     assert.equal(
       (await fixture.db.deliveryJob.findUnique({ where: { id: f.orderId } })).state,
       'SKIPPED',

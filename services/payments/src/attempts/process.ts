@@ -8,6 +8,7 @@ import {
   type ProviderPayment,
 } from '../providers/provider';
 import type { PaymentAttempt } from '../generated/client';
+import { paymentUpdate } from '../updates';
 
 export function matches(attempt: PaymentAttempt, payment: ProviderPayment) {
   return (
@@ -45,9 +46,12 @@ export class ProcessAttempt {
           this.provider.name,
         );
         if (order.state !== 'HELD') {
-          await this.db.paymentAttempt.updateMany({
-            where: { id: attempt.id, lease },
-            data: { state: 'CANCELLED', lease: null, leaseUntil: null },
+          await this.db.$transaction(async (tx) => {
+            const changed = await tx.paymentAttempt.updateMany({
+              where: { id: attempt.id, lease },
+              data: { state: 'CANCELLED', lease: null, leaseUntil: null },
+            });
+            if (changed.count) await paymentUpdate(tx, attempt.orderId);
           });
           return true;
         }
@@ -90,26 +94,35 @@ export class ProcessAttempt {
       await this.accept(attempt.id, lease, payment);
     } catch (error) {
       const review = error instanceof ProviderMismatch || attempt.failures >= 7;
-      await this.db.paymentAttempt.updateMany({
-        where: { id: attempt.id, lease },
-        data: {
-          ...(!attempt.successPublished
-            ? { state: review ? 'REQUIRES_REVIEW' : 'NEEDS_RECONCILIATION' }
-            : {}),
-          ...(review
-            ? {
-                ...(attempt.successPublished && attempt.bookingState === 'PENDING'
-                  ? { bookingState: 'REQUIRES_REVIEW' }
-                  : {}),
-                reviewCode:
-                  error instanceof ProviderMismatch ? 'PROVIDER_BINDING_MISMATCH' : 'RETRY_LIMIT',
-              }
-            : {}),
-          failures: { increment: 1 },
-          nextRunAt: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** attempt.failures)),
-          lease: null,
-          leaseUntil: null,
-        },
+      await this.db.$transaction(async (tx) => {
+        const changed = await tx.paymentAttempt.updateMany({
+          where: { id: attempt.id, lease },
+          data: {
+            ...(!attempt.successPublished
+              ? { state: review ? 'REQUIRES_REVIEW' : 'NEEDS_RECONCILIATION' }
+              : {}),
+            ...(review
+              ? {
+                  ...(attempt.successPublished && attempt.bookingState === 'PENDING'
+                    ? { bookingState: 'REQUIRES_REVIEW' }
+                    : {}),
+                  reviewCode:
+                    error instanceof ProviderMismatch ? 'PROVIDER_BINDING_MISMATCH' : 'RETRY_LIMIT',
+                }
+              : {}),
+            failures: { increment: 1 },
+            nextRunAt: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** attempt.failures)),
+            lease: null,
+            leaseUntil: null,
+          },
+        });
+        const next = review ? 'REQUIRES_REVIEW' : 'NEEDS_RECONCILIATION';
+        if (
+          changed.count &&
+          ((!attempt.successPublished && attempt.state !== next) ||
+            (review && attempt.bookingState === 'PENDING'))
+        )
+          await paymentUpdate(tx, attempt.orderId);
       });
     }
     return true;
@@ -122,6 +135,13 @@ export class ProcessAttempt {
       if (!attempt || attempt.lease !== lease) return;
       if (!matches(attempt, payment)) throw new ProviderMismatch();
       const succeeded = attempt.successPublished || payment.status === 'succeeded';
+      const state = succeeded
+        ? 'SUCCEEDED'
+        : payment.status === 'cancelled'
+          ? 'CANCELLED'
+          : payment.status === 'processing'
+            ? 'PROCESSING'
+            : 'REQUIRES_ACTION';
       if (payment.status === 'succeeded' && !attempt.successPublished) {
         const event = message('payments', 'PaymentSucceeded.v1', attempt.orderId, 1, {
           orderId: attempt.orderId,
@@ -138,13 +158,7 @@ export class ProcessAttempt {
       await tx.paymentAttempt.update({
         where: { id },
         data: {
-          state: succeeded
-            ? 'SUCCEEDED'
-            : payment.status === 'cancelled'
-              ? 'CANCELLED'
-              : payment.status === 'processing'
-                ? 'PROCESSING'
-                : 'REQUIRES_ACTION',
+          state,
           providerPaymentId: payment.id,
           successPublished: succeeded,
           failures: 0,
@@ -153,6 +167,8 @@ export class ProcessAttempt {
           leaseUntil: null,
         },
       });
+      if (state !== attempt.state || payment.id !== attempt.providerPaymentId)
+        await paymentUpdate(tx, attempt.orderId);
     });
   }
   async wake(id: string) {

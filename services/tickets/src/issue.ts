@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { orderConfirmedSchema, type EventEnvelope } from '@eventflow/event-contracts';
+import {
+  orderConfirmedSchema,
+  realtimeInvalidation,
+  type EventEnvelope,
+} from '@eventflow/event-contracts';
 import { PermanentMessageError } from '@eventflow/messaging';
 import { Database } from './database';
 import { QrCredentials } from './qr-credentials';
@@ -56,6 +60,8 @@ export class IssueTickets {
         }),
       });
       if (gate?.state !== 'LOCKED') await tx.deliveryJob.create({ data: { id: orderId } });
+      const update = realtimeInvalidation('tickets', { scope: 'order', id: orderId });
+      await tx.outbox.create({ data: { id: update.eventId, envelope: update } });
     });
   }
 }

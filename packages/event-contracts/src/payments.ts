@@ -3,6 +3,7 @@ import { saleRoutes } from './sales.js';
 import { orderRoutes } from './orders.js';
 import { statisticsEventTypes } from './statistics.js';
 import { refundRoutes } from './refunds.js';
+import { realtimeEventTypes } from './realtime.js';
 
 export const paymentOrderSchema = z.strictObject({
   orderId: z.uuid(),
@@ -58,6 +59,7 @@ export const orderConfirmedSchema = z.strictObject({
     .max(6),
 });
 export const commerceRoutes = {
+  realtime: realtimeEventTypes,
   ...refundRoutes,
   catalog: saleRoutes.catalog,
   booking: [

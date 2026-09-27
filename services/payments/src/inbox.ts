@@ -8,6 +8,7 @@ import {
 } from '@eventflow/event-contracts';
 import { PermanentMessageError } from '@eventflow/messaging';
 import type { Database } from './database';
+import { paymentUpdate } from './updates';
 
 export class PaymentInbox {
   constructor(private readonly db: Database) {}
@@ -108,6 +109,7 @@ export class PaymentInbox {
                 data: { bookingState: 'REFUND_PENDING' },
               });
           }
+          await paymentUpdate(tx, orderId);
         }
       }
       await tx.inbox.create({ data: { eventId: event.eventId } });
