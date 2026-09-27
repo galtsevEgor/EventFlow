@@ -35,7 +35,7 @@
     "generate:spikes": "prisma generate --schema=spikes/booking/schema.prisma",
     "test:spikes": "pnpm generate:spikes && tsc -p spikes/tsconfig.json && tsx --env-file=.env --test --test-timeout=30000 spikes/booking/*.test.ts spikes/payments/*.test.ts",
     "audit:runtime": "pnpm audit --prod --audit-level high",
-    "ci:local": "pnpm tools:setup && pnpm check:workflow && pnpm cluster check && pnpm check:secrets && pnpm audit:runtime && pnpm check && pnpm build && pnpm storybook:build && pnpm env:init && pnpm infra:check && pnpm infra:up && pnpm identity:seed && pnpm db:migrate && pnpm test:catalog && pnpm test:publication && pnpm test:booking && pnpm test:payments && pnpm test:tickets && pnpm test:realtime && pnpm test:load --smoke && pnpm test:overload --smoke && pnpm browser:install && pnpm test:identity && pnpm test:e2e && pnpm test:smoke && pnpm test:infra && pnpm test:spikes",
+    "ci:local": "pnpm tools:setup && pnpm check:workflow && pnpm cluster check && pnpm check:secrets && pnpm audit:runtime && pnpm check && pnpm build && pnpm storybook:build && pnpm env:init && pnpm infra:check && pnpm infra:up && pnpm identity:seed && pnpm db:migrate && pnpm test:catalog && pnpm test:publication && pnpm test:booking && pnpm test:payments && pnpm test:tickets && pnpm test:realtime && pnpm test:realtime-load --smoke && pnpm test:load --smoke && pnpm test:overload --smoke && pnpm browser:install && pnpm test:identity && pnpm test:e2e && pnpm test:smoke && pnpm test:infra && pnpm test:spikes",
     "identity:seed": "node --env-file=.env scripts/keycloak-seed.mjs",
     "test:identity": "node --env-file=.env --test --test-timeout=45000 apps/bff/tests/auth.integration.mjs",
     "db:migrate": "node --env-file=.env scripts/migrate.mjs",
@@ -57,7 +57,8 @@
     "release": "node scripts/release.mjs",
     "cluster": "node scripts/cluster.mjs",
     "test:release": "node tests/release/acceptance.mjs",
-    "test:realtime": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/realtime/*.integration.mjs"
+    "test:realtime": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/realtime/*.integration.mjs",
+    "test:realtime-load": "node --env-file=.env tests/load/realtime.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",

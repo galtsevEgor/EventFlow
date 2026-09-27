@@ -10,7 +10,7 @@ import { RealtimeHub } from '../../apps/bff/dist/realtime/hub.js';
 import { eventually } from './eventually.mjs';
 import { cleanBroker } from './broker.mjs';
 
-export async function realtimeFixture(overrides = {}, options = {}) {
+export async function realtimeFixture(overrides = {}, { snapshotSeats = 0, ...options } = {}) {
   const namespace = `eventflow-test-${randomUUID()}`,
     prefix = `realtime-test:${randomUUID()}:`;
   const saleId = randomUUID(),
@@ -18,7 +18,18 @@ export async function realtimeFixture(overrides = {}, options = {}) {
     organizationId = randomUUID();
   let managerAllowed = true;
   let revision = 0;
+  let upstreamRequests = 0;
+  const seats = Array.from({ length: snapshotSeats }, (_, i) => ({
+    seatId: `r${Math.floor(i / 50) + 1}-s${(i % 50) + 1}`,
+    row: Math.floor(i / 50) + 1,
+    number: (i % 50) + 1,
+    categoryId: 'standard',
+    categoryName: 'Standard',
+    priceMinor: 2500,
+    state: 'AVAILABLE',
+  }));
   const upstream = createServer((req, res) => {
+    upstreamRequests++;
     req.resume();
     const token = req.headers.authorization;
     const allowed =
@@ -31,7 +42,12 @@ export async function realtimeFixture(overrides = {}, options = {}) {
         managerAllowed);
     res.statusCode = allowed ? 200 : 404;
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ revision }));
+    res.end(
+      JSON.stringify({
+        revision,
+        ...(snapshotSeats && req.url === `/api/v1/sales/${saleId}` ? { seats } : {}),
+      }),
+    );
   });
   await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
   const config = readAuthConfig({
@@ -92,6 +108,7 @@ export async function realtimeFixture(overrides = {}, options = {}) {
       managerAllowed = false;
     },
     bump: () => ++revision,
+    requests: () => upstreamRequests,
     async session(replica, sub = 'owner') {
       const id = await replica.store.create({
         user: { sub, email: `${sub}@eventflow.test`, emailVerified: true, name: sub },

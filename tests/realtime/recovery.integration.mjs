@@ -59,3 +59,39 @@ test('a lost session Redis connection fails closed and a restored connection rec
     await fixture.close();
   }
 });
+
+test('a stopped RabbitMQ consumer closes streams without blocking REST and resumes delivery after restart', async () => {
+  const fixture = await realtimeFixture();
+  let stream, reconnected;
+  try {
+    const replica = await fixture.start(),
+      path = `/api/v1/sales/${fixture.saleId}`;
+    stream = await updatesStream(replica.origin + path + '/updates');
+    await stream.wait('ready');
+    await replica.bus.worker.stop();
+    assert.equal(replica.bus.ready, false);
+    const unavailable = await fetch(replica.origin + path + '/updates');
+    assert.equal(unavailable.status, 503);
+    await unavailable.body.cancel();
+    await eventually(() => stream.closed, Boolean);
+    fixture.bump();
+    const snapshot = await fetch(replica.origin + path);
+    assert.equal(snapshot.status, 200);
+    assert.equal((await snapshot.json()).revision, 1);
+    replica.bus.worker.start();
+    await eventually(() => replica.bus.ready, Boolean);
+    reconnected = await updatesStream(replica.origin + path + '/updates');
+    await reconnected.wait('ready');
+    assert.equal((await (await fetch(replica.origin + path)).json()).revision, 1);
+    fixture.bump();
+    await replica.bus.worker.broker.publish(
+      realtimeInvalidation('booking', { scope: 'sale', id: fixture.saleId }),
+    );
+    await reconnected.wait('changed');
+    assert.equal((await (await fetch(replica.origin + path)).json()).revision, 2);
+  } finally {
+    await stream?.close();
+    await reconnected?.close();
+    await fixture.close();
+  }
+});
