@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { Catch, HttpException, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
+import { Telemetry, traceContext, SpanKind, SpanStatusCode } from '@eventflow/telemetry';
 
 export class ApiError extends HttpException {
   constructor(
@@ -25,26 +26,60 @@ export function parseInput<T>(schema: z.ZodType<T>, input: unknown): T {
   throw new ApiError(422, 'VALIDATION_FAILED', 'Проверьте заполненные поля.', fields);
 }
 
-export function requestContext(request: Request, response: Response, next: NextFunction) {
+export function requestContext(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+  telemetry?: Telemetry,
+) {
   const started = performance.now();
   const incoming = request.header('x-request-id');
   const requestId = incoming && z.uuid().safeParse(incoming).success ? incoming : randomUUID();
   const parent = request.header('traceparent');
   const validTrace =
     parent && /^00-(?!0{32}-)[a-f0-9]{32}-(?!0{16}-)[a-f0-9]{16}-0[01]$/.test(parent);
-  const traceId = validTrace ? parent.split('-')[1] : randomBytes(16).toString('hex');
+  const span =
+    telemetry?.config.enabled &&
+    !['/health/live', '/health/ready', '/metrics'].includes(request.path)
+      ? telemetry.start(
+          'http.server',
+          {
+            kind: SpanKind.SERVER,
+            attributes: { 'http.request.method': request.method },
+          },
+          traceContext(parent),
+        )
+      : undefined;
+  const traceId =
+    span?.spanContext().traceId ??
+    (validTrace ? parent.split('-')[1] : randomBytes(16).toString('hex'));
   response.locals.requestId = requestId;
-  response.locals.traceparent = `00-${traceId}-${randomBytes(8).toString('hex')}-01`;
+  response.locals.traceparent = `00-${traceId}-${span?.spanContext().spanId ?? randomBytes(8).toString('hex')}-${span && !(span.spanContext().traceFlags & 1) ? '00' : '01'}`;
   response.setHeader('x-request-id', requestId);
   response.setHeader('traceparent', response.locals.traceparent);
   response.setHeader('x-content-type-options', 'nosniff');
   response.setHeader('referrer-policy', 'no-referrer');
   response.setHeader('cache-control', 'no-store');
+  let ended = false;
+  const finish = (status: number) => {
+    if (ended) return;
+    ended = true;
+    if (span) {
+      span.setAttribute('http.response.status_code', status);
+      if (typeof request.route?.path === 'string')
+        span.setAttribute('http.route', request.route.path);
+      if (status >= 500 || status === 499) span.setStatus({ code: SpanStatusCode.ERROR });
+      span.end();
+    }
+  };
+  response.once('close', () => finish(response.writableFinished ? response.statusCode : 499));
   response.once('finish', () => {
+    finish(response.statusCode);
     if (process.env.EVENTFLOW_LOG_REQUESTS !== '0')
       console.info(JSON.stringify(accessLog(request, response, performance.now() - started)));
   });
-  next();
+  if (span && telemetry) telemetry.within(span, next);
+  else next();
 }
 
 export function accessLog(

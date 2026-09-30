@@ -10,6 +10,8 @@
     "test": "tsx --test tests/*.test.mjs"
   },
   "dependencies": {
+    "@eventflow/telemetry": "workspace:*",
+    "@opentelemetry/api": "1.10.0",
     "@eventflow/api-client": "workspace:*",
     "@eventflow/ui": "workspace:*",
     "@stripe/react-stripe-js": "7.0.1",

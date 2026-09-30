@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   context,
   trace,
+  propagation,
   ROOT_CONTEXT,
   INVALID_SPAN_CONTEXT,
   isSpanContextValid,
@@ -52,8 +53,16 @@ export function currentTelemetry() {
   return owner.getStore() ?? defaultTelemetry;
 }
 export function initializeTelemetry(service: string) {
-  defaultTelemetry ??= new Telemetry(telemetryConfig(service));
+  defaultTelemetry = new Telemetry(telemetryConfig(service));
   return defaultTelemetry;
+}
+export function registerGlobalTelemetry(service: string) {
+  const telemetry = initializeTelemetry(service);
+  if (telemetry.provider) {
+    trace.setGlobalTracerProvider(telemetry.provider);
+    propagation.setGlobalPropagator(propagator);
+  }
+  return telemetry;
 }
 
 export class Telemetry {
@@ -125,5 +134,6 @@ export class Telemetry {
   }
   async shutdown() {
     await this.provider?.shutdown().catch(() => {});
+    if (defaultTelemetry === this) defaultTelemetry = undefined;
   }
 }

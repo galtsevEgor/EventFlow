@@ -172,9 +172,15 @@ importers:
       '@eventflow/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@eventflow/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
       '@eventflow/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@opentelemetry/api':
+        specifier: 1.10.0
+        version: 1.10.0
       '@stripe/react-stripe-js':
         specifier: 7.0.1
         version: 7.0.1(@stripe/stripe-js@10.2.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -227,6 +233,9 @@ importers:
 
   packages/service-runtime:
     dependencies:
+      '@eventflow/telemetry':
+        specifier: workspace:*
+        version: link:../telemetry
       '@nestjs/common':
         specifier: 12.3.2
         version: 12.3.2(reflect-metadata@0.2.2)(rxjs@7.8.2)

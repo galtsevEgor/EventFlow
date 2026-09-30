@@ -3,6 +3,7 @@ export type TelemetryConfig = {
   enabled: boolean;
   endpoint: string;
   sampleRatio: number;
+  internalOrigins: string[];
 };
 
 export function telemetryConfig(
@@ -25,5 +26,12 @@ export function telemetryConfig(
     endpoint.hash
   )
     throw new Error('Invalid trace export endpoint');
-  return { service, enabled, endpoint: endpoint.href, sampleRatio };
+  const internalOrigins = [
+    'BFF_URL',
+    'CATALOG_URL',
+    'BOOKING_URL',
+    'PAYMENTS_URL',
+    'TICKETS_URL',
+  ].flatMap((key) => (env[key] ? [new URL(env[key]).origin] : []));
+  return { service, enabled, endpoint: endpoint.href, sampleRatio, internalOrigins };
 }

@@ -11,6 +11,7 @@
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
+    "@eventflow/telemetry": "workspace:*",
     "@nestjs/common": "12.3.2",
     "@nestjs/core": "12.3.2",
     "@nestjs/platform-express": "12.3.2",
