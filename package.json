@@ -58,7 +58,9 @@
     "cluster": "node scripts/cluster.mjs",
     "test:release": "node tests/release/acceptance.mjs",
     "test:realtime": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/realtime/*.integration.mjs",
-    "test:realtime-load": "node --env-file=.env tests/load/realtime.mjs"
+    "test:realtime-load": "node --env-file=.env tests/load/realtime.mjs",
+    "observability": "node scripts/observability.mjs",
+    "test:telemetry": "node --env-file=.env --test --test-concurrency=1 --test-timeout=45000 tests/telemetry/*.integration.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",
