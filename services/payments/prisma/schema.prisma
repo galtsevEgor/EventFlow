@@ -23,6 +23,7 @@ enum RefundState {
   REQUIRES_REVIEW
 }
 model PaymentAttempt {
+  traceparent String? @db.VarChar(55)
   id String @id @db.Uuid
   orderId String @unique @db.Uuid
   buyerSubject String @db.VarChar(255)
@@ -54,6 +55,7 @@ model PaymentRequest {
   @@id([buyerSubject, key])
 }
 model RefundOperation {
+  traceparent String? @db.VarChar(55)
   id String @id @db.Uuid
   attemptId String @unique @db.Uuid
   orderId String @db.Uuid
@@ -71,6 +73,7 @@ model RefundOperation {
   failures Int @default(0)
 }
 model ProviderWebhook {
+  traceparent String? @db.VarChar(55)
   nextRunAt DateTime @default(now()) @db.Timestamptz(3)
   failures Int @default(0)
   eventId String @id @db.VarChar(255)

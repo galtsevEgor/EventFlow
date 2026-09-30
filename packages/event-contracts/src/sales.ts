@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { currentTraceparent } from '@eventflow/telemetry';
 import { z } from 'zod';
 import type { EventEnvelope } from './index.js';
 
@@ -49,6 +50,7 @@ export function message(
   data: EventEnvelope['data'],
   cause?: EventEnvelope,
 ): EventEnvelope {
+  const traceparent = currentTraceparent() ?? cause?.traceparent;
   return {
     eventId: randomUUID(),
     eventType,
@@ -60,6 +62,6 @@ export function message(
     producer,
     correlationId: cause?.correlationId ?? randomUUID(),
     ...(cause ? { causationId: cause.eventId } : {}),
-    ...(cause?.traceparent ? { traceparent: cause.traceparent } : {}),
+    ...(traceparent ? { traceparent } : {}),
   };
 }

@@ -8,6 +8,7 @@ import {
 import { PermanentMessageError } from '@eventflow/messaging';
 import type { Database } from './database';
 import type { Ticket } from './generated/client';
+import { currentTraceparent } from '@eventflow/telemetry';
 
 export class TicketRefunds {
   constructor(private readonly db: Database) {}
@@ -130,7 +131,13 @@ export class TicketRefunds {
         where: { id: data.orderId, state: { in: ['PENDING', 'DEAD'] } },
         data: { state: 'SKIPPED', lease: null },
       });
-      await tx.deliveryJob.createMany({ data: { id: data.operationId }, skipDuplicates: true });
+      await tx.deliveryJob.createMany({
+        data: {
+          id: data.operationId,
+          traceparent: currentTraceparent() ?? event.traceparent ?? null,
+        },
+        skipDuplicates: true,
+      });
       await tx.inbox.create({ data: { eventId: event.eventId } });
     });
   }

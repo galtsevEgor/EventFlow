@@ -1,5 +1,11 @@
 import { eventually } from './eventually.mjs';
 
+export function traceHex(value) {
+  return /^[a-f0-9]{32}$/i.test(value)
+    ? value.toLowerCase()
+    : Buffer.from(value, 'base64').toString('hex');
+}
+
 export async function readTrace(id, accept = () => true) {
   return eventually(
     async () => {

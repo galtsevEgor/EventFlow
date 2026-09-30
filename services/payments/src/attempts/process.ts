@@ -9,6 +9,13 @@ import {
 } from '../providers/provider';
 import type { PaymentAttempt } from '../generated/client';
 import { paymentUpdate } from '../updates';
+import {
+  currentTelemetry,
+  observedJob,
+  operation,
+  traceFailure,
+  type Telemetry,
+} from '@eventflow/telemetry';
 
 export function matches(attempt: PaymentAttempt, payment: ProviderPayment) {
   return (
@@ -20,6 +27,10 @@ export function matches(attempt: PaymentAttempt, payment: ProviderPayment) {
   );
 }
 export class ProcessAttempt {
+  private telemetry: Telemetry | undefined;
+  onModuleInit() {
+    this.telemetry = currentTelemetry();
+  }
   constructor(
     private readonly db: Database,
     private readonly booking: BookingClient,
@@ -36,95 +47,115 @@ export class ProcessAttempt {
         AND (state <> 'SUCCEEDED' OR "bookingState" = 'PENDING')
         ORDER BY "nextRunAt", id FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *`;
     if (!attempt) return false;
-    try {
-      if (attempt.provider !== this.provider.name) throw new ProviderMismatch();
-      if (!attempt.authorized) {
-        const order = await this.booking.authorize(
-          attempt.orderId,
-          attempt.id,
-          attempt.buyerSubject,
-          this.provider.name,
-        );
-        if (order.state !== 'HELD') {
+    await observedJob(
+      this.telemetry ?? currentTelemetry(),
+      'payment.process',
+      async () => {
+        try {
+          if (attempt.provider !== this.provider.name) throw new ProviderMismatch();
+          if (!attempt.authorized) {
+            const order = await this.booking.authorize(
+              attempt.orderId,
+              attempt.id,
+              attempt.buyerSubject,
+              this.provider.name,
+            );
+            if (order.state !== 'HELD') {
+              await this.db.$transaction(async (tx) => {
+                const changed = await tx.paymentAttempt.updateMany({
+                  where: { id: attempt.id, lease },
+                  data: { state: 'CANCELLED', lease: null, leaseUntil: null },
+                });
+                if (changed.count) await paymentUpdate(tx, attempt.orderId);
+              });
+              return true;
+            }
+            if (
+              order.amountMinor !== attempt.amountMinor ||
+              order.currency !== attempt.currency ||
+              order.buyerSubject !== attempt.buyerSubject
+            )
+              throw new ProviderMismatch();
+            const saved = await this.db.paymentAttempt.updateMany({
+              where: { id: attempt.id, lease },
+              data: { authorized: true },
+            });
+            if (!saved.count) return true;
+          }
+          // Never reuse a possibly pruned provider key to create a new payment after 23 hours.
+          if (!attempt.providerPaymentId && Date.now() - +attempt.createdAt >= 23 * 3600_000)
+            throw new ProviderMismatch();
+          const providerPaymentId = attempt.providerPaymentId;
+          let payment = providerPaymentId
+            ? await operation('payment.provider.retrieve', () =>
+                this.provider.retrieve(providerPaymentId),
+              )
+            : await operation('payment.provider.create', () =>
+                this.provider.create({
+                  attemptId: attempt.id,
+                  orderId: attempt.orderId,
+                  amountMinor: attempt.amountMinor,
+                  currency: attempt.currency,
+                }),
+              );
+          if (!matches(attempt, payment)) throw new ProviderMismatch();
+          await this.db.paymentAttempt.updateMany({
+            where: { id: attempt.id, lease },
+            data: { providerPaymentId: payment.id },
+          });
+          if (payment.status !== 'succeeded' && payment.status !== 'cancelled') {
+            const order = await this.booking.state(attempt.orderId);
+            const closed = await this.db.closedOrder.findUnique({
+              where: { orderId: attempt.orderId },
+            });
+            if (attempt.cancelRequested || closed || order.state !== 'HELD')
+              payment = await operation('payment.provider.cancel', () =>
+                this.provider.cancel(payment.id),
+              );
+          }
+          await this.accept(attempt.id, lease, payment);
+        } catch (error) {
+          traceFailure();
+          const review = error instanceof ProviderMismatch || attempt.failures >= 7;
           await this.db.$transaction(async (tx) => {
             const changed = await tx.paymentAttempt.updateMany({
               where: { id: attempt.id, lease },
-              data: { state: 'CANCELLED', lease: null, leaseUntil: null },
+              data: {
+                ...(!attempt.successPublished
+                  ? { state: review ? 'REQUIRES_REVIEW' : 'NEEDS_RECONCILIATION' }
+                  : {}),
+                ...(review
+                  ? {
+                      ...(attempt.successPublished && attempt.bookingState === 'PENDING'
+                        ? { bookingState: 'REQUIRES_REVIEW' }
+                        : {}),
+                      reviewCode:
+                        error instanceof ProviderMismatch
+                          ? 'PROVIDER_BINDING_MISMATCH'
+                          : 'RETRY_LIMIT',
+                    }
+                  : {}),
+                failures: { increment: 1 },
+                nextRunAt: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** attempt.failures)),
+                lease: null,
+                leaseUntil: null,
+              },
             });
-            if (changed.count) await paymentUpdate(tx, attempt.orderId);
+            const next = review ? 'REQUIRES_REVIEW' : 'NEEDS_RECONCILIATION';
+            if (
+              changed.count &&
+              ((!attempt.successPublished && attempt.state !== next) ||
+                (review && attempt.bookingState === 'PENDING'))
+            )
+              await paymentUpdate(tx, attempt.orderId);
           });
-          return true;
         }
-        if (
-          order.amountMinor !== attempt.amountMinor ||
-          order.currency !== attempt.currency ||
-          order.buyerSubject !== attempt.buyerSubject
-        )
-          throw new ProviderMismatch();
-        const saved = await this.db.paymentAttempt.updateMany({
-          where: { id: attempt.id, lease },
-          data: { authorized: true },
-        });
-        if (!saved.count) return true;
-      }
-      // Never reuse a possibly pruned provider key to create a new payment after 23 hours.
-      if (!attempt.providerPaymentId && Date.now() - +attempt.createdAt >= 23 * 3600_000)
-        throw new ProviderMismatch();
-      let payment = attempt.providerPaymentId
-        ? await this.provider.retrieve(attempt.providerPaymentId)
-        : await this.provider.create({
-            attemptId: attempt.id,
-            orderId: attempt.orderId,
-            amountMinor: attempt.amountMinor,
-            currency: attempt.currency,
-          });
-      if (!matches(attempt, payment)) throw new ProviderMismatch();
-      await this.db.paymentAttempt.updateMany({
-        where: { id: attempt.id, lease },
-        data: { providerPaymentId: payment.id },
-      });
-      if (payment.status !== 'succeeded' && payment.status !== 'cancelled') {
-        const order = await this.booking.state(attempt.orderId);
-        const closed = await this.db.closedOrder.findUnique({
-          where: { orderId: attempt.orderId },
-        });
-        if (attempt.cancelRequested || closed || order.state !== 'HELD')
-          payment = await this.provider.cancel(payment.id);
-      }
-      await this.accept(attempt.id, lease, payment);
-    } catch (error) {
-      const review = error instanceof ProviderMismatch || attempt.failures >= 7;
-      await this.db.$transaction(async (tx) => {
-        const changed = await tx.paymentAttempt.updateMany({
-          where: { id: attempt.id, lease },
-          data: {
-            ...(!attempt.successPublished
-              ? { state: review ? 'REQUIRES_REVIEW' : 'NEEDS_RECONCILIATION' }
-              : {}),
-            ...(review
-              ? {
-                  ...(attempt.successPublished && attempt.bookingState === 'PENDING'
-                    ? { bookingState: 'REQUIRES_REVIEW' }
-                    : {}),
-                  reviewCode:
-                    error instanceof ProviderMismatch ? 'PROVIDER_BINDING_MISMATCH' : 'RETRY_LIMIT',
-                }
-              : {}),
-            failures: { increment: 1 },
-            nextRunAt: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** attempt.failures)),
-            lease: null,
-            leaseUntil: null,
-          },
-        });
-        const next = review ? 'REQUIRES_REVIEW' : 'NEEDS_RECONCILIATION';
-        if (
-          changed.count &&
-          ((!attempt.successPublished && attempt.state !== next) ||
-            (review && attempt.bookingState === 'PENDING'))
-        )
-          await paymentUpdate(tx, attempt.orderId);
-      });
-    }
+      },
+      {
+        parent: attempt.traceparent,
+        attempt: attempt.state === 'CREATED' ? 0 : Math.max(1, attempt.failures),
+      },
+    );
     return true;
   }
   private async accept(id: string, lease: string, payment: ProviderPayment) {

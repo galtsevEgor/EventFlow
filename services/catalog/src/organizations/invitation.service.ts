@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { ApiError, type SecretBox, type UserIdentity } from '@eventflow/service-runtime';
 import { Database } from '../database';
 import { lockOrganization, requireMembership } from './access';
+import { currentTraceparent } from '@eventflow/telemetry';
 
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
 
@@ -70,7 +71,7 @@ export class InvitationService {
           expiresAt: new Date(now.getTime() + 86400000),
         },
       });
-      await tx.deliveryJob.create({ data: { id } });
+      await tx.deliveryJob.create({ data: { id, traceparent: currentTraceparent() ?? null } });
       await tx.auditEntry.create({
         data: {
           organizationId,

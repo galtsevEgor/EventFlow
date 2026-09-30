@@ -1,5 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import {
+  currentTraceparent,
+  observedJob,
+  traceContext,
+  validTraceparent,
+  SpanKind,
+  type Telemetry,
+} from '@eventflow/telemetry';
+import {
   connect,
   type ChannelModel,
   type ConfirmChannel,
@@ -18,6 +26,7 @@ export type BrokerConfig = {
 };
 
 export class Broker {
+  telemetry: Telemetry | undefined;
   private connection: ChannelModel | undefined;
   private channel: ConfirmChannel | undefined;
   private pending = new Map<string, { returned: boolean }>();
@@ -93,9 +102,27 @@ export class Broker {
     this.ready = true;
   }
   async publish(event: EventEnvelope) {
-    await this.confirm(this.exchange, event.eventType, Buffer.from(JSON.stringify(event)), {
-      messageId: event.eventId,
-    });
+    const send = async () => {
+      const parent = currentTraceparent() ?? validTraceparent(event.traceparent);
+      await this.confirm(this.exchange, event.eventType, Buffer.from(JSON.stringify(event)), {
+        messageId: event.eventId,
+        ...(parent ? { headers: { traceparent: parent } } : {}),
+      });
+    };
+    if (this.telemetry?.config.enabled)
+      await this.telemetry.run(
+        'messaging.send',
+        send,
+        {
+          kind: SpanKind.PRODUCER,
+          attributes: {
+            'eventflow.consumer': this.config.consumer,
+            'eventflow.event_type': event.eventType,
+          },
+        },
+        traceContext(event.traceparent),
+      );
+    else await send();
   }
   private async confirm(exchange: string, route: string, body: Buffer, options: Options.Publish) {
     const channel = this.channel;
@@ -139,6 +166,9 @@ export class Broker {
     message: ConsumeMessage,
     handle: (event: EventEnvelope) => Promise<void>,
   ) {
+    const raw = message.properties.headers?.['x-attempt'];
+    const attempt = typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : 0;
+    let retryParent = validTraceparent(message.properties.headers?.traceparent);
     try {
       if (message.content.length > 1024 * 1024)
         throw new PermanentMessageError('Oversized message');
@@ -148,16 +178,26 @@ export class Broker {
       } catch {
         throw new PermanentMessageError('Invalid envelope');
       }
-      await handle(event);
+      retryParent ??= validTraceparent(event.traceparent);
+      await observedJob(
+        this.telemetry,
+        'messaging.process',
+        async () => {
+          retryParent = currentTraceparent() ?? retryParent;
+          await handle(event);
+        },
+        { parent: retryParent, attempt, kind: SpanKind.CONSUMER },
+      );
     } catch (error) {
-      const raw = message.properties.headers?.['x-attempt'];
-      const attempt = typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : 0;
       const delay = retryDelays[attempt];
       const dead = error instanceof PermanentMessageError || delay === undefined;
       const target = dead ? `${this.queue()}.dlq` : `${this.queue()}.retry.${delay}`;
       // Confirm the copy before acknowledging the original, including on the DLQ path.
       await this.confirm('', target, message.content, {
-        headers: { 'x-attempt': attempt + 1 },
+        headers: {
+          'x-attempt': attempt + 1,
+          ...(typeof retryParent === 'string' ? { traceparent: retryParent } : {}),
+        },
         ...(!dead && delay !== undefined
           ? { expiration: String(delay + Math.floor(Math.random() * delay * 0.2)) }
           : {}),

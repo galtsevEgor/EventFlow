@@ -10,6 +10,7 @@ datasource db {
 }
 
 model DeliveryJob {
+  traceparent String? @db.VarChar(55)
   id String @id @db.Uuid
   state String @default("PENDING") @db.VarChar(10)
   attempts Int @default(0)

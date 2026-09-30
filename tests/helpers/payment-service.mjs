@@ -26,7 +26,7 @@ export async function paymentService(namespace, bookingUrl, overrides = {}) {
         PAYMENT_PROVIDER: 'fake',
         ...overrides,
       }),
-      { rawBody: true },
+      { rawBody: true, name: 'payments' },
     );
     app.useLogger(false);
     await app.listen(0, '127.0.0.1');

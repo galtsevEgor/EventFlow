@@ -33,6 +33,7 @@ export async function paymentsFixture() {
         PAYMENTS_CLIENT_SECRET: identity.serviceSecret,
         PAYMENT_PROVIDER: 'fake',
       }),
+      { name: 'payments' },
     );
     app.useLogger(false);
     await app.listen(0, '127.0.0.1');

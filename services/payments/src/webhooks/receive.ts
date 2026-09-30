@@ -1,6 +1,7 @@
 import { ApiError } from '@eventflow/service-runtime';
 import type { Database } from '../database';
 import { InvalidWebhook, type PaymentProvider } from '../providers/provider';
+import { currentTraceparent } from '@eventflow/telemetry';
 
 export class ReceiveWebhook {
   constructor(
@@ -18,8 +19,9 @@ export class ReceiveWebhook {
         throw new ApiError(400, 'INVALID_WEBHOOK', 'Недействительное уведомление.');
       throw error;
     }
-    await this.db.$executeRaw`INSERT INTO "ProviderWebhook" ("eventId", "objectId", type)
-      VALUES (${pointer.eventId}, ${pointer.objectId}, ${pointer.type}) ON CONFLICT ("eventId") DO NOTHING`;
+    await this.db
+      .$executeRaw`INSERT INTO "ProviderWebhook" ("eventId", "objectId", type, traceparent)
+      VALUES (${pointer.eventId}, ${pointer.objectId}, ${pointer.type}, ${currentTraceparent() ?? null}) ON CONFLICT ("eventId") DO NOTHING`;
     const saved = await this.db.providerWebhook.findUniqueOrThrow({
       where: { eventId: pointer.eventId },
     });

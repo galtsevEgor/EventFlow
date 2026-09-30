@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@eventflow/telemetry": "workspace:*",
     "@eventflow/event-contracts": "workspace:*",
     "amqplib": "2.2.0"
   }

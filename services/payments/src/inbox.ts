@@ -9,6 +9,7 @@ import {
 import { PermanentMessageError } from '@eventflow/messaging';
 import type { Database } from './database';
 import { paymentUpdate } from './updates';
+import { currentTraceparent } from '@eventflow/telemetry';
 
 export class PaymentInbox {
   constructor(private readonly db: Database) {}
@@ -95,6 +96,7 @@ export class PaymentInbox {
               await tx.refundOperation.create({
                 data: {
                   id: refund.operationId,
+                  traceparent: currentTraceparent() ?? event.traceparent ?? null,
                   attemptId: attempt.id,
                   orderId,
                   providerPaymentId: refund.providerPaymentId,

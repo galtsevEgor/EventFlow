@@ -31,11 +31,14 @@ const validParent = /^00-(?!0{32}-)[a-f0-9]{32}-(?!0{16}-)[a-f0-9]{16}-0[01]$/;
 let contextReady = false;
 let defaultTelemetry: Telemetry | undefined;
 
+export function validTraceparent(parent: unknown): string | undefined {
+  return typeof parent === 'string' && validParent.test(parent) ? parent : undefined;
+}
 export function traceContext(parent: unknown): Context {
-  return typeof parent === 'string' && validParent.test(parent)
+  return validTraceparent(parent)
     ? propagator.extract(
         ROOT_CONTEXT,
-        { traceparent: parent },
+        { traceparent: String(parent) },
         {
           keys: () => ['traceparent'],
           get: (carrier, key) => carrier[key as keyof typeof carrier],

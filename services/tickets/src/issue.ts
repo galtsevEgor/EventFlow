@@ -8,6 +8,7 @@ import {
 import { PermanentMessageError } from '@eventflow/messaging';
 import { Database } from './database';
 import { QrCredentials } from './qr-credentials';
+import { currentTraceparent } from '@eventflow/telemetry';
 
 @Injectable()
 export class IssueTickets {
@@ -59,7 +60,10 @@ export class IssueTickets {
           };
         }),
       });
-      if (gate?.state !== 'LOCKED') await tx.deliveryJob.create({ data: { id: orderId } });
+      if (gate?.state !== 'LOCKED')
+        await tx.deliveryJob.create({
+          data: { id: orderId, traceparent: currentTraceparent() ?? event.traceparent ?? null },
+        });
       const update = realtimeInvalidation('tickets', { scope: 'order', id: orderId });
       await tx.outbox.create({ data: { id: update.eventId, envelope: update } });
     });

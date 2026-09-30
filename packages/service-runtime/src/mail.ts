@@ -4,11 +4,18 @@ import { createTransport } from 'nodemailer';
 import { z } from 'zod';
 import { ApiError, parseInput } from './http';
 import { TokenVerifier } from './identity';
+import {
+  currentTelemetry,
+  observedJob,
+  operation,
+  traceFailure,
+  type Telemetry,
+} from '@eventflow/telemetry';
 
 const delays = [5000, 30_000, 120_000];
 const maxAttempts = delays.length + 1;
 type Query = <T>(sql: string, ...values: unknown[]) => Promise<T>;
-type Job = { id: string; lease: string; attempts: number };
+type Job = { id: string; lease: string; attempts: number; traceparent: string | null };
 type Send = (id: string) => Promise<'SENT' | 'SKIPPED'>;
 
 export const mailConfig = {
@@ -40,13 +47,15 @@ export class Mailpit {
   }
 
   async send(id: string, to: string, subject: string, text: string) {
-    const result = await this.transport.sendMail({
-      from: 'EventFlow <hello@eventflow.test>',
-      to: { name: '', address: to },
-      subject,
-      text,
-      messageId: `<${this.source}-${id}@eventflow.test>`,
-    });
+    const result = await operation('mail.smtp', () =>
+      this.transport.sendMail({
+        from: 'EventFlow <hello@eventflow.test>',
+        to: { name: '', address: to },
+        subject,
+        text,
+        messageId: `<${this.source}-${id}@eventflow.test>`,
+      }),
+    );
     if (result.accepted.length !== 1) throw new Error('Message was not accepted');
     return 'SENT' as const;
   }
@@ -68,7 +77,7 @@ export class MailQueue {
        )
        UPDATE "DeliveryJob" AS job
          SET lease = $2::uuid, attempts = job.attempts + 1, "nextRunAt" = now() + interval '60 seconds'
-         FROM candidate WHERE job.id = candidate.id RETURNING job.id, job.lease, job.attempts`,
+         FROM candidate WHERE job.id = candidate.id RETURNING job.id, job.lease, job.attempts, job.traceparent`,
       maxAttempts,
       randomUUID(),
     );
@@ -121,6 +130,7 @@ export class MailQueue {
 }
 
 export class MailWorker {
+  private telemetry: Telemetry | undefined;
   private stopped = true;
   private timer?: NodeJS.Timeout;
   private running?: Promise<void>;
@@ -133,6 +143,7 @@ export class MailWorker {
 
   onModuleInit() {
     if (!this.enabled) return;
+    this.telemetry = currentTelemetry();
     this.stopped = false;
     this.schedule();
   }
@@ -148,12 +159,26 @@ export class MailWorker {
     try {
       const job = await this.queue.claim();
       if (!job) return;
-      const result = await this.send(job.id).catch(() => undefined);
-      await this.queue.settle(job, result);
-      if (!result)
-        console.warn(
-          JSON.stringify({ kind: 'mail_delivery_failed', jobId: job.id, attempt: job.attempts }),
-        );
+      await observedJob(
+        this.telemetry,
+        'mail.delivery',
+        async () => {
+          const result = await this.send(job.id).catch(() => {
+            traceFailure();
+            return undefined;
+          });
+          await this.queue.settle(job, result);
+          if (!result)
+            console.warn(
+              JSON.stringify({
+                kind: 'mail_delivery_failed',
+                jobId: job.id,
+                attempt: job.attempts,
+              }),
+            );
+        },
+        { parent: job.traceparent, attempt: job.attempts - 1 },
+      );
     } catch {
       console.warn(JSON.stringify({ kind: 'mail_queue_unavailable' }));
     } finally {

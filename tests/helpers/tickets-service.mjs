@@ -21,7 +21,7 @@ export async function ticketsService(namespace, overrides = {}) {
       MESSAGE_NAMESPACE: namespace,
       ...overrides,
     });
-    app = await createApplication(AppModule.configure(config));
+    app = await createApplication(AppModule.configure(config), { name: 'tickets' });
     await app.listen(0, '127.0.0.1');
     return {
       db: fixture.db,

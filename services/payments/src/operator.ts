@@ -3,6 +3,7 @@ import { ApiError, parseInput, TokenVerifier } from '@eventflow/service-runtime'
 import { z } from 'zod';
 import { Database } from './database';
 import type { PaymentAttempt, RefundOperation } from './generated/client';
+import { linkTrace } from '@eventflow/telemetry';
 
 @Controller('internal/payments')
 export class PaymentOperator {
@@ -46,6 +47,7 @@ export class PaymentOperator {
           RefundOperation[]
         >`SELECT * FROM "RefundOperation" WHERE id = ${targetId}::uuid FOR UPDATE`;
         if (!refund) throw new ApiError(404, 'NOT_FOUND', 'Возврат не найден.');
+        linkTrace(refund.traceparent);
         if (refund.state !== 'SUCCEEDED') {
           await tx.refundOperation.update({
             where: { id: targetId },
@@ -66,6 +68,7 @@ export class PaymentOperator {
           PaymentAttempt[]
         >`SELECT * FROM "PaymentAttempt" WHERE id = ${targetId}::uuid FOR UPDATE`;
         if (!attempt) throw new ApiError(404, 'NOT_FOUND', 'Платёж не найден.');
+        linkTrace(attempt.traceparent);
         if (attempt.reviewCode === 'BOOKING_BINDING_REVIEW')
           throw new ApiError(
             409,

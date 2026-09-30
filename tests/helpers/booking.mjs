@@ -41,6 +41,7 @@ export async function bookingFixture(namespace, port = 0, overrides = {}) {
         BOOKING_CONTACT_KEY: process.env.BOOKING_CONTACT_KEY,
         ...overrides,
       }),
+      { name: 'booking' },
     );
     app.useLogger(false);
     await app.listen(port, '127.0.0.1');

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { currentTraceparent } from '@eventflow/telemetry';
 import { ApiError, parseInput } from '@eventflow/service-runtime';
 import { z } from 'zod';
 import type { Database } from '../database';
@@ -51,6 +52,7 @@ export class CreateAttempt {
         attempt = await tx.paymentAttempt.create({
           data: {
             id: randomUUID(),
+            traceparent: currentTraceparent() ?? null,
             orderId,
             buyerSubject: buyer,
             amountMinor: order.amountMinor,

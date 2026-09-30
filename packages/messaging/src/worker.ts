@@ -1,6 +1,7 @@
 import type { EventEnvelope } from '@eventflow/event-contracts';
 import { Broker } from './broker';
 import { Outbox } from './outbox';
+import { currentTelemetry } from '@eventflow/telemetry';
 
 export class MessageWorker {
   private stopped = true;
@@ -16,6 +17,7 @@ export class MessageWorker {
   }
   start() {
     if (!this.stopped) return;
+    this.broker.telemetry ??= currentTelemetry();
     this.stopped = false;
     this.schedule(0);
   }
