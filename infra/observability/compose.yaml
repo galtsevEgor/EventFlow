@@ -1,6 +1,7 @@
 name: eventflow-observability
 services:
   collector:
+    labels: { eventflow.config: '${EVENTFLOW_OBSERVABILITY_CONFIG_SHA:-unversioned}' }
     image: otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
     command: ['--config=/etc/collector.yaml']
     volumes: ['./infra/observability/collector.yaml:/etc/collector.yaml:ro']
@@ -8,6 +9,7 @@ services:
     mem_limit: 256m
     cpus: 0.5
   tempo:
+    labels: { eventflow.config: '${EVENTFLOW_OBSERVABILITY_CONFIG_SHA:-unversioned}' }
     image: grafana/tempo:3.1.1@sha256:64e2fbd56d9c2b3412a4b430a58ea59e91a670b1e75f920a0c702213ad145044
     command: ['-config.file=/etc/tempo.yaml']
     volumes: ['./infra/observability/tempo.yaml:/etc/tempo.yaml:ro', 'tempo-data:/var/tempo']
@@ -15,6 +17,7 @@ services:
     mem_limit: 512m
     cpus: 0.5
   prometheus:
+    labels: { eventflow.config: '${EVENTFLOW_OBSERVABILITY_CONFIG_SHA:-unversioned}' }
     image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     command:
       [
@@ -25,6 +28,8 @@ services:
     volumes:
       [
         './infra/observability/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro',
+        './infra/observability/alerts.yaml:/etc/prometheus/alerts.yaml:ro',
+        './infra/observability/deployments.yaml:/etc/prometheus/deployments.yaml:ro',
         'prometheus-data:/prometheus',
       ]
     extra_hosts: ['host.docker.internal:host-gateway']
@@ -32,6 +37,7 @@ services:
     mem_limit: 256m
     cpus: 0.5
   grafana:
+    labels: { eventflow.config: '${EVENTFLOW_OBSERVABILITY_CONFIG_SHA:-unversioned}' }
     image: grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Use pnpm observability up}
@@ -47,6 +53,8 @@ services:
     volumes:
       [
         './infra/observability/datasources.yaml:/etc/grafana/provisioning/datasources/eventflow.yaml:ro',
+        './infra/observability/dashboards.yaml:/etc/grafana/provisioning/dashboards/eventflow.yaml:ro',
+        './infra/observability/dashboards:/etc/grafana/eventflow-dashboards:ro',
         'grafana-data:/var/lib/grafana',
       ]
     ports: ['127.0.0.1:13000:3000']

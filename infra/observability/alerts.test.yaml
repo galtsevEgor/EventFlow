@@ -1,0 +1,317 @@
+rule_files:
+  - 'alerts.yaml'
+evaluation_interval: '1m'
+tests:
+  - name: 'EventFlowCollectorDown fires after its hold'
+    interval: '1m'
+    input_series:
+      - series: 'up{job="eventflow",instance="collector:8889"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: '0m'
+        alertname: 'EventFlowCollectorDown'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowCollectorDown'
+        exp_alerts:
+          - exp_labels:
+              job: 'eventflow'
+              instance: 'collector:8889'
+              severity: 'critical'
+            exp_annotations:
+              summary: 'Collector metrics endpoint is unavailable'
+  - name: 'EventFlowCollectorDown remains clear when healthy'
+    interval: '1m'
+    input_series:
+      - series: 'up{job="eventflow",instance="collector:8889"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowCollectorDown'
+        exp_alerts: []
+  - name: 'EventFlowDependencyDown fires after its hold'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_dependency_up{service_name="bff",deployment_environment_name="local",component="rabbitmq"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: '0m'
+        alertname: 'EventFlowDependencyDown'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowDependencyDown'
+        exp_alerts:
+          - exp_labels:
+              service_name: 'bff'
+              deployment_environment_name: 'local'
+              component: 'rabbitmq'
+              severity: 'warning'
+            exp_annotations:
+              summary: 'A service dependency is unavailable'
+  - name: 'EventFlowDependencyDown remains clear when healthy'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_dependency_up{service_name="bff",deployment_environment_name="local",component="rabbitmq"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowDependencyDown'
+        exp_alerts: []
+  - name: 'EventFlowHttpErrors fires after its hold'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_http_requests_total{service_name="bff",deployment_environment_name="local",status="200"}'
+        values: '0+60x10'
+      - series: 'eventflow_http_requests_total{service_name="bff",deployment_environment_name="local",status="503"}'
+        values: '0+12x10'
+    alert_rule_test:
+      - eval_time: '0m'
+        alertname: 'EventFlowHttpErrors'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowHttpErrors'
+        exp_alerts:
+          - exp_labels:
+              service_name: 'bff'
+              deployment_environment_name: 'local'
+              severity: 'warning'
+            exp_annotations:
+              summary: 'HTTP server errors exceed five percent with sufficient traffic'
+  - name: 'EventFlowHttpErrors remains clear when healthy'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_http_requests_total{service_name="bff",deployment_environment_name="local",status="200"}'
+        values: '0+60x10'
+      - series: 'eventflow_http_requests_total{service_name="bff",deployment_environment_name="local",status="503"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowHttpErrors'
+        exp_alerts: []
+  - name: 'EventFlowOutboxStalled fires after its hold'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_outbox_oldest_seconds{service_name="bff",deployment_environment_name="local"}'
+        values: '120+0x10'
+    alert_rule_test:
+      - eval_time: '0m'
+        alertname: 'EventFlowOutboxStalled'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowOutboxStalled'
+        exp_alerts:
+          - exp_labels:
+              service_name: 'bff'
+              deployment_environment_name: 'local'
+              severity: 'warning'
+            exp_annotations:
+              summary: 'An unpublished outbox message is older than one minute'
+  - name: 'EventFlowOutboxStalled remains clear when healthy'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_outbox_oldest_seconds{service_name="bff",deployment_environment_name="local"}'
+        values: '10+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowOutboxStalled'
+        exp_alerts: []
+  - name: 'EventFlowFinancialWorkStalled fires after its hold'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_refund_oldest_seconds{service_name="bff",deployment_environment_name="local"}'
+        values: '600+0x10'
+    alert_rule_test:
+      - eval_time: '0m'
+        alertname: 'EventFlowFinancialWorkStalled'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowFinancialWorkStalled'
+        exp_alerts:
+          - exp_labels:
+              service_name: 'bff'
+              deployment_environment_name: 'local'
+              severity: 'warning'
+            exp_annotations:
+              summary: 'Payment or refund processing is overdue by five minutes'
+  - name: 'EventFlowFinancialWorkStalled remains clear when healthy'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_refund_oldest_seconds{service_name="bff",deployment_environment_name="local"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowFinancialWorkStalled'
+        exp_alerts: []
+  - name: 'EventFlowFinancialReview fires after its hold'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_payment_review{service_name="bff",deployment_environment_name="local"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: '0m'
+        alertname: 'EventFlowFinancialReview'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowFinancialReview'
+        exp_alerts:
+          - exp_labels:
+              service_name: 'bff'
+              deployment_environment_name: 'local'
+              severity: 'warning'
+            exp_annotations:
+              summary: 'Payment or refund requires operator review'
+  - name: 'EventFlowFinancialReview remains clear when healthy'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_payment_review{service_name="bff",deployment_environment_name="local"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowFinancialReview'
+        exp_alerts: []
+  - name: 'EventFlowMailDead fires after its hold'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_mail_dead{service_name="bff",deployment_environment_name="local"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: '0m'
+        alertname: 'EventFlowMailDead'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowMailDead'
+        exp_alerts:
+          - exp_labels:
+              service_name: 'bff'
+              deployment_environment_name: 'local'
+              severity: 'warning'
+            exp_annotations:
+              summary: 'A mail job exhausted its delivery attempts'
+  - name: 'EventFlowMailDead remains clear when healthy'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_mail_dead{service_name="bff",deployment_environment_name="local"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowMailDead'
+        exp_alerts: []
+  - name: 'EventFlowMessageDead fires after its hold'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_messages_total{service_name="bff",deployment_environment_name="local",operation="dead",outcome="ok"}'
+        values: '0+1x10'
+    alert_rule_test:
+      - eval_time: '0m'
+        alertname: 'EventFlowMessageDead'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowMessageDead'
+        exp_alerts:
+          - exp_labels:
+              service_name: 'bff'
+              deployment_environment_name: 'local'
+              severity: 'warning'
+            exp_annotations:
+              summary: 'A message was routed to a dead letter queue'
+  - name: 'EventFlowMessageDead remains clear when healthy'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_messages_total{service_name="bff",deployment_environment_name="local",operation="dead",outcome="ok"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowMessageDead'
+        exp_alerts: []
+  - name: 'HTTP low volume does not page'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_http_requests_total{service_name="bff",deployment_environment_name="local",status="503"}'
+        values: '0+1x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowHttpErrors'
+        exp_alerts: []
+  - name: 'missing service is detected without losing the expected baseline'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow:service_expected{service_name="bff",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="catalog",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="booking",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="payments",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="tickets",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="storefront",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="catalog",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="booking",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="payments",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="tickets",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="storefront",deployment_environment_name="staging"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: '0m'
+        alertname: 'EventFlowServiceMissing'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowServiceMissing'
+        exp_alerts:
+          - exp_labels:
+              service_name: 'bff'
+              deployment_environment_name: 'staging'
+              severity: 'critical'
+            exp_annotations:
+              summary: 'An expected deployment service stopped reporting metrics'
+  - name: 'all expected services are present'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow:service_expected{service_name="bff",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="catalog",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="booking",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="payments",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="tickets",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow:service_expected{service_name="storefront",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="bff",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="catalog",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="booking",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="payments",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="tickets",deployment_environment_name="staging"}'
+        values: '1+0x10'
+      - series: 'eventflow_service_up{service_name="storefront",deployment_environment_name="staging"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowServiceMissing'
+        exp_alerts: []
+  - name: 'ephemeral test faults do not page operators'
+    interval: '1m'
+    input_series:
+      - series: 'eventflow_outbox_oldest_seconds{service_name="bff",deployment_environment_name="test"}'
+        values: '600+0x10'
+      - series: 'eventflow_dependency_up{service_name="bff",deployment_environment_name="test",component="database"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: '8m'
+        alertname: 'EventFlowOutboxStalled'
+        exp_alerts: []
+      - eval_time: '8m'
+        alertname: 'EventFlowDependencyDown'
+        exp_alerts: []

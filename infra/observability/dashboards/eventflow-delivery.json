@@ -1,0 +1,591 @@
+{
+  "uid": "eventflow-delivery",
+  "title": "EventFlow — delivery and realtime",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "tags": ["eventflow"],
+  "refresh": "5s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "links": [
+    {
+      "title": "Trace explorer",
+      "type": "link",
+      "url": "/explore?left=%7B%22datasource%22%3A%22eventflow-tempo%22%7D"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "type": "custom",
+        "query": "local,staging,demo,test",
+        "current": {
+          "text": "staging",
+          "value": "staging"
+        },
+        "options": [
+          {
+            "text": "local",
+            "value": "local",
+            "selected": false
+          },
+          {
+            "text": "staging",
+            "value": "staging",
+            "selected": true
+          },
+          {
+            "text": "demo",
+            "value": "demo",
+            "selected": false
+          },
+          {
+            "text": "test",
+            "value": "test",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Unpublished outbox messages",
+      "description": "Replicas observe one database; maximum avoids counting the same rows twice.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "max by (service_name) (eventflow_outbox_pending{deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Oldest unpublished message",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "max by (service_name) (eventflow_outbox_oldest_seconds{deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Message operations / second",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "sum by (service_name, operation, outcome) (rate(eventflow_messages_total{deployment_environment_name=\"$environment\"}[5m]))",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Messages sent to DLQ in five minutes",
+      "description": "Confirmed DLQ routing events in this window, not current queue depth.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "sum by (service_name) (increase(eventflow_messages_total{deployment_environment_name=\"$environment\",operation=\"dead\",outcome=\"ok\"}[5m]))",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Pending payments and refunds",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "max by (service_name, __name__) ({__name__=~\"eventflow_(payment|refund)_pending\",deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Payment / refund processing lag",
+      "description": "Seconds past nextRunAt; time spent waiting for the customer is excluded.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "max by (service_name, __name__) ({__name__=~\"eventflow_(payment|refund)_oldest_seconds\",deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Financial review required",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "max by (service_name, __name__) ({__name__=~\"eventflow_(payment|refund)_review\",deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Pending / dead mail jobs",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "max by (service_name, __name__) ({__name__=~\"eventflow_mail_(pending|dead)\",deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Mail results / second",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "sum by (service_name, outcome) (rate(eventflow_mail_deliveries_total{deployment_environment_name=\"$environment\"}[5m]))",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Active / opening SSE connections",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "sum by (__name__) ({__name__=~\"eventflow_sse_(active|opening)\",deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "SSE readiness",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "min(eventflow_sse_ready{deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "SSE events / second",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "sum by (kind) (rate(eventflow_sse_events_total{deployment_environment_name=\"$environment\"}[5m]))",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Admitted tickets",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "max by (service_name) (eventflow_tickets_used{deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    }
+  ]
+}

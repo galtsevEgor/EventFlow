@@ -1,0 +1,21 @@
+groups:
+  - name: expected-staging-services
+    rules:
+      - record: eventflow:service_expected
+        expr: vector(1)
+        labels: { service_name: bff, deployment_environment_name: staging }
+      - record: eventflow:service_expected
+        expr: vector(1)
+        labels: { service_name: catalog, deployment_environment_name: staging }
+      - record: eventflow:service_expected
+        expr: vector(1)
+        labels: { service_name: booking, deployment_environment_name: staging }
+      - record: eventflow:service_expected
+        expr: vector(1)
+        labels: { service_name: payments, deployment_environment_name: staging }
+      - record: eventflow:service_expected
+        expr: vector(1)
+        labels: { service_name: tickets, deployment_environment_name: staging }
+      - record: eventflow:service_expected
+        expr: vector(1)
+        labels: { service_name: storefront, deployment_environment_name: staging }
