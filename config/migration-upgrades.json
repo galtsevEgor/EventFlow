@@ -1,0 +1,30 @@
+{
+  "services/booking/prisma/migrations/202611050001_order_statistics/migration.sql": {
+    "sha256": "80aea95a6d499bed48e0610afd920e206ecdee0dd18a0ea6163b42bfbb6b9f28",
+    "backwardCompatible": true
+  },
+  "services/booking/prisma/migrations/202611050002_order_refunds/migration.sql": {
+    "sha256": "6351da975feb42bdc98331121ea8d42646e73258845f204605e7674c20677d37",
+    "backwardCompatible": false
+  },
+  "services/catalog/prisma/migrations/202611050001_sales_statistics/migration.sql": {
+    "sha256": "175d1fee00ff00d24f442cd1f157262409155ac0f380ff3a3c2acff26bbf31f1",
+    "backwardCompatible": true
+  },
+  "services/catalog/prisma/migrations/202611050002_refunded_statistics/migration.sql": {
+    "sha256": "11a25327c2c1b5e8a059ebefd85fc67cd4bcff3f127a26f3b961e942dff541dc",
+    "backwardCompatible": false
+  },
+  "services/payments/prisma/migrations/202611050001_statistics_replay/migration.sql": {
+    "sha256": "4bdcb6629495326006c7b356c281cf915cca09ed7ac870961b5c6e86966d1a59",
+    "backwardCompatible": true
+  },
+  "services/tickets/prisma/migrations/202611050001_refund_gate/migration.sql": {
+    "sha256": "2f069559420ecded2634d4b3d08de9d077951bdeffeb927729908fdfcd737b8f",
+    "backwardCompatible": false
+  },
+  "services/tickets/prisma/migrations/202611050002_refund_admission/migration.sql": {
+    "sha256": "113ba839fc33a27a00aa190719217e37151facdf9a7f57445d063c3f0e893a4b",
+    "backwardCompatible": false
+  }
+}

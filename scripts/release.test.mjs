@@ -6,11 +6,45 @@ import { join } from 'node:path';
 import test from 'node:test';
 import {
   assertExpansion,
+  assertUpgrade,
+  assertApplicationSchema,
+  migrationHash,
   replaceApplication,
   withEnvironmentLock,
 } from './release/compatibility.mjs';
 import { decryptBackup, encryptBackup } from './release/backup.mjs';
 import { alerts, traffic } from './release/traffic.mjs';
+import { composeFiles, telemetrySettings } from './release/telemetry.mjs';
+
+test('reviewed upgrades require exact SQL and forbid old applications after an incompatible expansion', () => {
+  const baseline = new Map([['initial', 'CREATE TABLE "Baseline" (id UUID);']]);
+  const sql = 'ALTER TYPE "OrderState" ADD VALUE \'REFUNDED\';';
+  const expanded = new Map([...baseline, ['refunds', sql]]);
+  const reviews = { refunds: { sha256: migrationHash(sql), backwardCompatible: false } };
+  assert.throws(() => assertExpansion(baseline, expanded), /review/);
+  assert.throws(() => assertUpgrade(baseline, expanded, {}), /review/);
+  assert.throws(
+    () => assertUpgrade(baseline, expanded, { refunds: { sha256: migrationHash(sql) } }),
+    /review/,
+  );
+  assert.doesNotThrow(() => assertUpgrade(baseline, expanded, reviews));
+  assert.throws(
+    () =>
+      assertUpgrade(
+        baseline,
+        new Map([...baseline, ['refunds', sql + ' DROP TABLE "Baseline";']]),
+        reviews,
+      ),
+    /review/,
+  );
+  assert.throws(() => assertApplicationSchema(baseline, expanded, reviews), /cannot read/);
+  assert.doesNotThrow(() => assertApplicationSchema(expanded, expanded, reviews));
+  assert.throws(
+    () => assertUpgrade(baseline, new Map([['initial', 'changed']]), reviews),
+    /changed/,
+  );
+  assert.equal(migrationHash('one\r\ntwo'), migrationHash('one\ntwo'));
+});
 
 test('deployment lock excludes overlap and is released even after failure', async () => {
   const target = { name: 'fixture', directory: mkdtempSync(join(tmpdir(), 'eventflow-lock-')) };
@@ -41,6 +75,20 @@ test('applied migrations are immutable and automatic rollback accepts only revie
   assert.doesNotThrow(() =>
     assertExpansion(old, extend('ALTER TABLE "Ticket" ADD COLUMN "note" TEXT;')),
   );
+  assert.doesNotThrow(() =>
+    assertExpansion(
+      old,
+      extend('ALTER TABLE "PaymentAttempt" ADD COLUMN traceparent varchar(55);'),
+    ),
+  );
+  assert.throws(
+    () =>
+      assertExpansion(
+        old,
+        extend('ALTER TABLE "PaymentAttempt" ADD COLUMN traceparent varchar(55) NOT NULL;'),
+      ),
+    /review/,
+  );
   assert.throws(
     () => assertExpansion(old, extend('ALTER TABLE "Ticket" DROP COLUMN "usedAt";')),
     /review/,
@@ -51,6 +99,31 @@ test('applied migrations are immutable and automatic rollback accepts only revie
   );
   assert.throws(() => assertExpansion(old, new Map([['init', 'changed']])), /changed/);
   assert.throws(() => assertExpansion(old, new Map()), /disappeared/);
+});
+
+test('release telemetry settings preserve secrets and sampling, replace prior endpoints and remain idempotent', () => {
+  const source =
+    '# local settings\nSECRET="synthetic-value"\nEVENTFLOW_TRACE_SAMPLE_RATIO=0.25\nEVENTFLOW_TELEMETRY_ENABLED=false\nOTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://old:4318/v1/traces\n';
+  const enabled = telemetrySettings(source, 'staging', true);
+  assert.ok(enabled.includes('SECRET="synthetic-value"'));
+  assert.ok(enabled.includes('EVENTFLOW_TRACE_SAMPLE_RATIO=0.25'));
+  assert.ok(enabled.includes('http://collector:4318/v1/traces'));
+  assert.ok(!enabled.includes('http://old'));
+  assert.equal(enabled.match(/EVENTFLOW_TELEMETRY_ENABLED=/g).length, 1);
+  assert.equal(telemetrySettings(enabled, 'staging', true), enabled);
+  assert.ok(
+    telemetrySettings(enabled, 'staging', false).includes('EVENTFLOW_TELEMETRY_ENABLED=false'),
+  );
+  assert.throws(() => telemetrySettings(source, 'recovery', true));
+});
+
+test('only telemetry-enabled releases require the external observability network', () => {
+  assert.deepEqual(composeFiles({}), ['infra/compose/compose.yaml', 'infra/release/compose.yaml']);
+  assert.deepEqual(composeFiles({ EVENTFLOW_TELEMETRY_ENABLED: 'false' }), composeFiles({}));
+  assert.deepEqual(composeFiles({ EVENTFLOW_TELEMETRY_ENABLED: 'true' }), [
+    ...composeFiles({}),
+    'infra/release/observability.yaml',
+  ]);
 });
 
 test('smoke failure returns the release error even after the previous app has recovered', async () => {

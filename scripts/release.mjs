@@ -16,12 +16,14 @@ import {
   writeJson,
 } from './release/local.mjs';
 import {
-  assertExpansion,
+  assertUpgrade,
+  assertApplicationSchema,
   migrationTree,
   replaceApplication,
   withEnvironmentLock,
 } from './release/compatibility.mjs';
 import { backup, restore } from './release/backup.mjs';
+import { telemetrySettings } from './release/telemetry.mjs';
 
 function build() {
   run('git', ['diff', '--quiet']);
@@ -90,7 +92,7 @@ async function deploy(target, id) {
     if (id !== previous?.id) {
       if (previous && release.createdAt < previous.createdAt)
         throw new Error('Use rollback for an older release.');
-      if (schemaId) assertExpansion(migrationTree(schemaId), migrationTree(id));
+      if (schemaId) assertUpgrade(migrationTree(schemaId), migrationTree(id));
       // Record intent first because a migration may succeed in one DB before another fails.
       writeJson(schemaPath, { id });
       prepare(target, release.image);
@@ -100,7 +102,18 @@ async function deploy(target, id) {
     await replaceApplication(
       () => rollOut(target, release.image),
       async () => {
-        if (previous && previous.id !== id) {
+        let compatible = false;
+        if (previous) {
+          try {
+            assertApplicationSchema(migrationTree(previous.id), migrationTree(id));
+            compatible = true;
+          } catch {
+            console.warn(
+              'The previous application cannot read the upgraded schema; use a forward fix or the pre-upgrade backup.',
+            );
+          }
+        }
+        if (previous && previous.id !== id && compatible) {
           await rollOut(target, previous.image);
           console.warn(`Restored previous application ${previous.id}; expanded schema retained.`);
         } else compose(target, ['stop', 'app'], { image: release.image });
@@ -130,7 +143,7 @@ async function rollback(target) {
     const schemaId = existsSync(schemaPath)
       ? JSON.parse(readFileSync(schemaPath, 'utf8')).id
       : current.id;
-    assertExpansion(migrationTree(previous.id), migrationTree(schemaId));
+    assertApplicationSchema(migrationTree(previous.id), migrationTree(schemaId));
     startDependencies(target, current.image);
     await replaceApplication(
       () => rollOut(target, previous.image),
@@ -144,6 +157,21 @@ const [command, first, second, ...extra] = process.argv.slice(2);
 if (!extra.length && command === 'build' && !first) {
   const release = build();
   console.log(`Release ${release.id} ${release.image}`);
+} else if (
+  !extra.length &&
+  command === 'telemetry' &&
+  ['staging', 'demo'].includes(first) &&
+  ['on', 'off'].includes(second)
+) {
+  const target = environment(first);
+  await withEnvironmentLock(target, () => {
+    writeFileSync(
+      target.envPath,
+      telemetrySettings(readFileSync(target.envPath, 'utf8'), first, second === 'on'),
+      { mode: 0o600 },
+    );
+  });
+  console.log(`${first}: telemetry ${second}; settings apply on the next deploy.`);
 } else if (!extra.length && command === 'deploy' && first === 'staging' && second) {
   await deploy(environment(first), second);
 } else if (!extra.length && command === 'promote' && first && !second) {
@@ -180,6 +208,6 @@ if (!extra.length && command === 'build' && !first) {
     );
 } else {
   throw new Error(
-    'Use release build | deploy staging ID | promote ID | rollback ENV | backup ENV | restore ID | monitor ENV | status ENV | stop ENV.',
+    'Use release build | deploy staging ID | promote ID | rollback ENV | backup ENV | restore ID | monitor ENV | telemetry staging|demo on|off | status ENV | stop ENV.',
   );
 }

@@ -1,0 +1,7 @@
+services:
+  app:
+    networks: [default, observability]
+networks:
+  observability:
+    external: true
+    name: eventflow-observability_default

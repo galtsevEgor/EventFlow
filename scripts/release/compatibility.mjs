@@ -1,6 +1,42 @@
-import { openSync, closeSync, unlinkSync, writeFileSync } from 'node:fs';
+import { openSync, closeSync, unlinkSync, writeFileSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { output, run } from './local.mjs';
+const migrationReviews = JSON.parse(
+  readFileSync(new URL('../../config/migration-upgrades.json', import.meta.url), 'utf8'),
+);
+export function migrationHash(sql) {
+  return createHash('sha256').update(sql.replaceAll('\r\n', '\n')).digest('hex');
+}
+
+export function assertUpgrade(previous, next, reviews = migrationReviews) {
+  for (const [path, sql] of previous)
+    if (next.get(path) !== sql)
+      throw new Error(`Applied migration changed or disappeared: ${path}`);
+  for (const [path, sql] of next) {
+    if (previous.has(path)) continue;
+    try {
+      assertExpansion(new Map(), new Map([[path, sql]]));
+    } catch (error) {
+      const review = reviews[path];
+      if (typeof review?.backwardCompatible !== 'boolean' || review.sha256 !== migrationHash(sql))
+        throw error;
+    }
+  }
+}
+
+export function assertApplicationSchema(application, schema, reviews = migrationReviews) {
+  assertUpgrade(application, schema, reviews);
+  for (const [path, sql] of schema) {
+    const review = reviews[path];
+    if (
+      review?.backwardCompatible === false &&
+      review.sha256 === migrationHash(sql) &&
+      !application.has(path)
+    )
+      throw new Error(`Application cannot read the upgraded schema: ${path}`);
+  }
+}
 
 export function migrationTree(id) {
   if (!/^[a-f0-9]{40}$/.test(id)) throw new Error('Invalid migration tree ID.');
@@ -41,7 +77,7 @@ export function assertExpansion(previous, next) {
           /^CREATE INDEX (?:IF NOT EXISTS )?"[a-z0-9_]+" ON "[a-z0-9_]+"\s*\("[a-z0-9_]+"(?:,\s*"[a-z0-9_]+")*\)(?: WHERE "[a-z0-9_]+" IN \('[a-z0-9_]+'(?:,\s*'[a-z0-9_]+')*\))?$/i.test(
             statement,
           ) ||
-          /^ALTER TABLE "[a-z0-9_]+" ADD COLUMN "[a-z0-9_]+" (?:TEXT|INTEGER|BOOLEAN|BYTEA|UUID|TIMESTAMPTZ(?:\([0-6]\))?)$/i.test(
+          /^ALTER TABLE "[a-z0-9_]+" ADD COLUMN (?:"[a-z0-9_]+"|[a-z_][a-z0-9_]*) (?:TEXT|INTEGER|BOOLEAN|BYTEA|UUID|VARCHAR\([1-9][0-9]{0,3}\)|TIMESTAMPTZ(?:\([0-6]\))?)$/i.test(
             statement,
           ),
       )

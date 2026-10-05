@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { parseEnv } from 'node:util';
 import { initializeEnvironment } from '../local-env.mjs';
+import { composeFiles } from './telemetry.mjs';
 
 export const root = resolve('work/release');
 export const images = resolve(root, 'images');
@@ -67,6 +68,8 @@ export function environment(name) {
       RELEASE_MONITOR_PORT: String(monitor),
       RELEASE_DATA_DIR: resolve(directory, 'work').replaceAll('\\', '/'),
       RELEASE_MAIL_DISABLED: name === 'recovery' ? 'true' : 'false',
+      EVENTFLOW_ENVIRONMENT: name,
+      ...(name === 'recovery' ? { EVENTFLOW_TELEMETRY_ENABLED: 'false' } : {}),
     },
   };
 }
@@ -82,10 +85,7 @@ export function compose(target, args, options = {}) {
       '.',
       '--env-file',
       target.envPath,
-      '-f',
-      'infra/compose/compose.yaml',
-      '-f',
-      'infra/release/compose.yaml',
+      ...composeFiles(target.env).flatMap((file) => ['-f', file]),
       ...args,
     ],
     {

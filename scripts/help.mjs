@@ -27,6 +27,9 @@ pnpm browser:install   Install the Chromium browser used by identity and E2E tes
 pnpm storybook         Open UI component development server on port 6006
 pnpm storybook:build   Build the UI component gallery
 pnpm test:spikes       Check Prisma concurrency and fake payment cancellation
+pnpm observability up|down|status|check  Manage the local Collector, Tempo, Prometheus and Grafana
+pnpm test:telemetry    Verify real traces, metrics, dashboards and dependency recovery
+pnpm test:telemetry-load [--smoke]  Compare telemetry off/on; full run uses the same CPU core
 pnpm tools:setup       Install checksum-pinned local quality tools
 pnpm check:workflow    Validate GitHub Actions syntax
 pnpm check:secrets     Scan Git history and tracked working files
@@ -35,6 +38,7 @@ pnpm ci:local          Run all local gates, including fake payments (Docker requ
 pnpm release build    Build the staged Git snapshot and save its local image manifest
 pnpm release deploy staging ID | promote ID | rollback ENV
 pnpm release backup ENV | restore ID | monitor ENV | status ENV | stop ENV
+pnpm release telemetry staging|demo on|off  Configure export for the next deployment
 pnpm test:release seed staging|cluster | mark staging | verify staging|recovery|cluster
 pnpm cluster check | status
 pnpm cluster up ID [single|replicas|autoscale]  Deploy an image to the isolated local k3d cluster
