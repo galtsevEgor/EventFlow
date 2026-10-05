@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { currentTelemetry } from '@eventflow/telemetry';
 import { ApiError } from '@eventflow/service-runtime';
 import type { RealtimeHint } from '@eventflow/event-contracts';
 import type { Request, Response } from 'express';
@@ -22,6 +23,7 @@ export class RealtimeHub {
   private readonly connections = new Set<UpdatesConnection>();
   private opening = 0;
   private report: NodeJS.Timeout | undefined;
+  private removeMetrics: (() => void) | undefined;
   constructor(
     private readonly config: AuthConfig,
     private readonly bus: RealtimeBus,
@@ -37,6 +39,24 @@ export class RealtimeHub {
     };
   }
   onModuleInit() {
+    this.removeMetrics = currentTelemetry()?.metrics?.supply(
+      [
+        'eventflow_sse_active',
+        'eventflow_sse_opening',
+        'eventflow_sse_ready',
+        'eventflow_sse_events',
+      ],
+      () => [
+        { name: 'eventflow_sse_active', value: this.connections.size },
+        { name: 'eventflow_sse_opening', value: this.opening },
+        { name: 'eventflow_sse_ready', value: Number(this.bus.ready) },
+        ...Object.entries(this.metrics).map(([kind, value]) => ({
+          name: 'eventflow_sse_events' as const,
+          value,
+          attributes: { kind },
+        })),
+      ],
+    );
     this.report = setInterval(() => {
       if (this.metrics.opened)
         console.log(JSON.stringify({ kind: 'realtime_metrics', ...this.snapshot() }));
@@ -98,6 +118,7 @@ export class RealtimeHub {
     }
   }
   onModuleDestroy() {
+    this.removeMetrics?.();
     clearInterval(this.report);
     for (const connection of [...this.connections]) connection.close();
   }

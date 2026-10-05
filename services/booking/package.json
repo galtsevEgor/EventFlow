@@ -11,6 +11,7 @@
     "generate": "prisma generate"
   },
   "dependencies": {
+    "@eventflow/telemetry": "workspace:*",
     "@eventflow/event-contracts": "workspace:*",
     "@eventflow/messaging": "workspace:*",
     "@eventflow/service-runtime": "workspace:*",

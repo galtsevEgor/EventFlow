@@ -8,3 +8,4 @@ export { SecretBox } from './secret-box';
 export { ClientCredentials } from './client-credentials';
 export { Mailpit, MailQueue, MailWorker, MailOperator, mailConfig } from './mail';
 export { workloadConfig } from './workload';
+export { observeDatabase } from './database-metrics';

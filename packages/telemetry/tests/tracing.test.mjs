@@ -11,7 +11,7 @@ test('concurrent operations retain their parent and exported data excludes priva
       EVENTFLOW_TELEMETRY_ENABLED: 'true',
       EVENTFLOW_TRACE_SAMPLE_RATIO: '1',
     }),
-    exporter,
+    { traces: exporter, metrics: false },
   );
   try {
     const parents = await Promise.all(
@@ -44,7 +44,7 @@ test('concurrent operations retain their parent and exported data excludes priva
 
 test('disabled telemetry exports nothing and malformed parents cannot join another trace', async () => {
   const exporter = new InMemorySpanExporter();
-  const disabled = new Telemetry(telemetryConfig('test', {}), exporter);
+  const disabled = new Telemetry(telemetryConfig('test', {}), { traces: exporter, metrics: false });
   await disabled.run('order.reserve', async () => {});
   assert.equal(exporter.getFinishedSpans().length, 0);
   const enabled = new Telemetry(
@@ -52,7 +52,7 @@ test('disabled telemetry exports nothing and malformed parents cannot join anoth
       EVENTFLOW_TELEMETRY_ENABLED: 'true',
       EVENTFLOW_TRACE_SAMPLE_RATIO: '1',
     }),
-    exporter,
+    { traces: exporter, metrics: false },
   );
   try {
     await enabled.run(
@@ -80,7 +80,7 @@ test('export failure cannot change a successful business operation', async () =>
       EVENTFLOW_TELEMETRY_ENABLED: 'true',
       EVENTFLOW_TRACE_SAMPLE_RATIO: '1',
     }),
-    exporter,
+    { traces: exporter, metrics: false },
   );
   try {
     assert.equal(await telemetry.run('order.reserve', async () => 'committed'), 'committed');

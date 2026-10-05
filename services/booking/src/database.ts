@@ -1,5 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { currentTelemetry, type Metrics } from '@eventflow/telemetry';
+import { observeDatabase } from '@eventflow/service-runtime';
 import { PrismaClient, type Prisma } from './generated/client';
 
 export class Database extends PrismaClient<
@@ -8,6 +10,8 @@ export class Database extends PrismaClient<
   }
 > {
   private readonly pool: Pool;
+  private metrics: Metrics | undefined;
+  private removeMetrics: (() => void) | undefined;
   private queries = { count: 0, slow: 0, maxMs: 0 };
   constructor(connectionString: string, max = 12) {
     const pool = new Pool({
@@ -24,6 +28,7 @@ export class Database extends PrismaClient<
     });
     this.pool = pool;
     this.$on('query', (event) => {
+      this.metrics?.query(event.duration);
       this.queries.count++;
       if (event.duration >= 100) this.queries.slow++;
       this.queries.maxMs = Math.max(this.queries.maxMs, event.duration);
@@ -46,8 +51,21 @@ export class Database extends PrismaClient<
   }
   async onModuleInit() {
     await this.$connect();
+    this.metrics = currentTelemetry()?.metrics;
+    this.removeMetrics = observeDatabase(
+      'booking',
+      (sql) => this.$queryRawUnsafe(sql),
+      () => ({
+        limit: this.pool.options.max,
+        total: this.pool.totalCount,
+        idle: this.pool.idleCount,
+        waiting: this.pool.waitingCount,
+      }),
+    );
   }
   async onApplicationShutdown() {
+    this.removeMetrics?.();
+    this.metrics = undefined;
     await this.$disconnect();
   }
 }

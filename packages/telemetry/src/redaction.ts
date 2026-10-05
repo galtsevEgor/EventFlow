@@ -39,9 +39,21 @@ export function cleanSpan(span: ReadableSpan): ReadableSpan {
     ),
     events: [],
     links: span.links.slice(0, 4).map(({ context }) => ({ context })),
-    resource: resourceFromAttributes({
-      'service.name': span.resource.attributes['service.name'] ?? 'unknown',
-    }),
+    resource: resourceFromAttributes(
+      Object.fromEntries(
+        Object.entries(span.resource.attributes).filter(
+          ([key, value]) =>
+            [
+              'service.name',
+              'service.instance.id',
+              'deployment.environment.name',
+              'service.version',
+            ].includes(key) &&
+            typeof value === 'string' &&
+            value.length <= 128,
+        ),
+      ),
+    ),
     instrumentationScope: { name: 'eventflow' },
   };
 }

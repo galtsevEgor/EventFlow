@@ -17,9 +17,14 @@ test(
   'payment and mail retries restore durable context across new processors without exposing provider failures or email',
   { timeout: 120000 },
   async () => {
-    const keys = ['EVENTFLOW_TELEMETRY_ENABLED', 'EVENTFLOW_TRACE_SAMPLE_RATIO'];
+    const keys = [
+      'EVENTFLOW_TELEMETRY_ENABLED',
+      'EVENTFLOW_TRACE_SAMPLE_RATIO',
+      'EVENTFLOW_ENVIRONMENT',
+    ];
     const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
     process.env.EVENTFLOW_TELEMETRY_ENABLED = 'true';
+    process.env.EVENTFLOW_ENVIRONMENT = 'test';
     process.env.EVENTFLOW_TRACE_SAMPLE_RATIO = '1';
     let fixture, tickets, mailWorker;
     const mailContexts = [];

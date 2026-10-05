@@ -62,7 +62,7 @@ export async function realtimeFixture(overrides = {}, { snapshotSeats = 0, ...op
   });
   const replicas = [];
   async function start() {
-    const app = await createApplication(AppModule.configure(config), options);
+    const app = await createApplication(AppModule.configure(config), { name: 'bff', ...options });
     app.useLogger(false);
     await app.listen(0, '127.0.0.1');
     const replica = {

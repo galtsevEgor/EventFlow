@@ -12,9 +12,15 @@ const require = createRequire(
 const { Module, Controller, Get, Param, Req } = require('@nestjs/common');
 
 test('concurrent Nest requests propagate separate traces through internal fetch and redact failed requests', async () => {
-  const keys = ['EVENTFLOW_TELEMETRY_ENABLED', 'EVENTFLOW_TRACE_SAMPLE_RATIO', 'BOOKING_URL'];
+  const keys = [
+    'EVENTFLOW_TELEMETRY_ENABLED',
+    'EVENTFLOW_TRACE_SAMPLE_RATIO',
+    'BOOKING_URL',
+    'EVENTFLOW_ENVIRONMENT',
+  ];
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
   process.env.EVENTFLOW_TELEMETRY_ENABLED = 'true';
+  process.env.EVENTFLOW_ENVIRONMENT = 'test';
   process.env.EVENTFLOW_TRACE_SAMPLE_RATIO = '1';
   let downstream, upstream;
   try {

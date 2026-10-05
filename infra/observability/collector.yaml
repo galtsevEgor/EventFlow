@@ -13,6 +13,12 @@ processors:
     send_batch_size: 64
     send_batch_max_size: 128
 exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    enable_open_metrics: true
+    metric_expiration: 30s
+    resource_to_telemetry_conversion:
+      enabled: true
   otlp_http/tempo:
     endpoint: http://tempo:4318
     timeout: 2s
@@ -29,6 +35,10 @@ extensions:
 service:
   extensions: [health_check]
   pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]

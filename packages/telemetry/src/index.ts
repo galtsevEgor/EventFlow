@@ -11,3 +11,5 @@ export { telemetryConfig, type TelemetryConfig } from './config';
 export { instrumentFetch } from './fetch';
 export { SpanKind, SpanStatusCode } from '@opentelemetry/api';
 export { observedJob, operation, traceFailure, linkTrace } from './operations';
+export { Metrics } from './metrics';
+export type { Measurement, SnapshotName } from './metric-definitions';

@@ -4,6 +4,9 @@ export type TelemetryConfig = {
   endpoint: string;
   sampleRatio: number;
   internalOrigins: string[];
+  metricsEndpoint: string;
+  environment: string;
+  version: string;
 };
 
 export function telemetryConfig(
@@ -33,5 +36,31 @@ export function telemetryConfig(
     'PAYMENTS_URL',
     'TICKETS_URL',
   ].flatMap((key) => (env[key] ? [new URL(env[key]).origin] : []));
-  return { service, enabled, endpoint: endpoint.href, sampleRatio, internalOrigins };
+  const metricsEndpoint = new URL(
+    env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'] ??
+      endpoint.href.replace(/\/v1\/traces$/, '/v1/metrics'),
+  );
+  if (
+    !['http:', 'https:'].includes(metricsEndpoint.protocol) ||
+    metricsEndpoint.username ||
+    metricsEndpoint.password ||
+    metricsEndpoint.search ||
+    metricsEndpoint.hash
+  )
+    throw new Error('Invalid metrics export endpoint');
+  const environment = env['EVENTFLOW_ENVIRONMENT'] ?? 'local';
+  if (!['local', 'test', 'staging', 'demo', 'recovery'].includes(environment))
+    throw new Error('Invalid telemetry environment');
+  const build = env['EVENTFLOW_BUILD_ID'] ?? '';
+  const version = /^[a-f0-9]{40}$/.test(build) ? build : 'dev';
+  return {
+    service,
+    enabled,
+    endpoint: endpoint.href,
+    sampleRatio,
+    internalOrigins,
+    metricsEndpoint: metricsEndpoint.href,
+    environment,
+    version,
+  };
 }

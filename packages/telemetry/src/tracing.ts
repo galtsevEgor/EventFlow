@@ -1,4 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
+import type { PushMetricExporter } from '@opentelemetry/sdk-metrics';
 import {
   context,
   trace,
@@ -20,10 +22,12 @@ import {
   BatchSpanProcessor,
   ParentBasedSampler,
   TraceIdRatioBasedSampler,
+  createAlwaysRecordSampler,
   type SpanExporter,
 } from '@opentelemetry/sdk-trace';
 import { telemetryConfig, type TelemetryConfig } from './config';
 import { RedactingExporter } from './redaction';
+import { Metrics } from './metrics';
 
 const owner = new AsyncLocalStorage<Telemetry>();
 const propagator = new W3CTraceContextPropagator();
@@ -70,18 +74,34 @@ export function registerGlobalTelemetry(service: string) {
 
 export class Telemetry {
   readonly provider: TracerProvider | undefined;
+  readonly metrics: Metrics | undefined;
+  readonly instanceId = randomUUID();
   constructor(
     readonly config: TelemetryConfig,
-    exporter?: SpanExporter,
+    exporters: { traces?: SpanExporter; metrics?: PushMetricExporter | false } = {},
   ) {
     if (!config.enabled) return;
     if (!contextReady) {
       context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
       contextReady = true;
     }
+    const resource = resourceFromAttributes({
+      'service.name': config.service,
+      'service.instance.id': this.instanceId,
+      'deployment.environment.name': config.environment,
+      'service.version': config.version,
+    });
+    if (exporters.metrics !== false)
+      this.metrics = new Metrics(resource, config.metricsEndpoint, exporters.metrics);
+    const sampler = new ParentBasedSampler({
+      root: new TraceIdRatioBasedSampler(config.sampleRatio),
+    });
     this.provider = new TracerProvider({
-      resource: resourceFromAttributes({ 'service.name': config.service }),
-      sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(config.sampleRatio) }),
+      resource,
+      sampler:
+        config.service === 'storefront' && this.metrics
+          ? createAlwaysRecordSampler(sampler)
+          : sampler,
       spanLimits: {
         attributeCountLimit: 16,
         attributeValueLengthLimit: 128,
@@ -91,7 +111,7 @@ export class Telemetry {
       spanProcessors: [
         new BatchSpanProcessor({
           exporter: new RedactingExporter(
-            exporter ??
+            exporters.traces ??
               new OTLPTraceExporter({
                 url: config.endpoint,
                 timeoutMillis: 1000,
@@ -104,6 +124,7 @@ export class Telemetry {
           scheduledDelayMillis: 500,
           exportTimeoutMillis: 1500,
         }),
+        ...(config.service === 'storefront' && this.metrics ? [this.metrics.ssrProcessor()] : []),
       ],
     });
   }
@@ -133,10 +154,13 @@ export class Telemetry {
     }
   }
   async flush() {
-    await this.provider?.forceFlush({ timeoutMillis: 2000 }).catch(() => {});
+    await Promise.all([
+      this.provider?.forceFlush({ timeoutMillis: 2000 }).catch(() => {}),
+      this.metrics?.flush(),
+    ]);
   }
   async shutdown() {
-    await this.provider?.shutdown().catch(() => {});
+    await Promise.all([this.provider?.shutdown().catch(() => {}), this.metrics?.shutdown()]);
     if (defaultTelemetry === this) defaultTelemetry = undefined;
   }
 }

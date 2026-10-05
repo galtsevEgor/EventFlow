@@ -168,6 +168,15 @@ export class MailWorker {
             return undefined;
           });
           await this.queue.settle(job, result);
+          this.telemetry?.metrics?.delivery(
+            result === 'SENT'
+              ? 'sent'
+              : result === 'SKIPPED'
+                ? 'skipped'
+                : job.attempts >= maxAttempts
+                  ? 'dead'
+                  : 'retry',
+          );
           if (!result)
             console.warn(
               JSON.stringify({
@@ -180,6 +189,7 @@ export class MailWorker {
         { parent: job.traceparent, attempt: job.attempts - 1 },
       );
     } catch {
+      this.telemetry?.metrics?.delivery('queue_error');
       console.warn(JSON.stringify({ kind: 'mail_queue_unavailable' }));
     } finally {
       this.schedule();

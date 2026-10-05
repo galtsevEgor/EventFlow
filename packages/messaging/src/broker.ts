@@ -104,10 +104,16 @@ export class Broker {
   async publish(event: EventEnvelope) {
     const send = async () => {
       const parent = currentTraceparent() ?? validTraceparent(event.traceparent);
-      await this.confirm(this.exchange, event.eventType, Buffer.from(JSON.stringify(event)), {
-        messageId: event.eventId,
-        ...(parent ? { headers: { traceparent: parent } } : {}),
-      });
+      try {
+        await this.confirm(this.exchange, event.eventType, Buffer.from(JSON.stringify(event)), {
+          messageId: event.eventId,
+          ...(parent ? { headers: { traceparent: parent } } : {}),
+        });
+        this.telemetry?.metrics?.message('send', 'ok', this.config.consumer);
+      } catch (error) {
+        this.telemetry?.metrics?.message('send', 'error', this.config.consumer);
+        throw error;
+      }
     };
     if (this.telemetry?.config.enabled)
       await this.telemetry.run(
@@ -185,10 +191,12 @@ export class Broker {
         async () => {
           retryParent = currentTraceparent() ?? retryParent;
           await handle(event);
+          this.telemetry?.metrics?.message('consume', 'ok', this.config.consumer);
         },
         { parent: retryParent, attempt, kind: SpanKind.CONSUMER },
       );
     } catch (error) {
+      this.telemetry?.metrics?.message('consume', 'error', this.config.consumer);
       const delay = retryDelays[attempt];
       const dead = error instanceof PermanentMessageError || delay === undefined;
       const target = dead ? `${this.queue()}.dlq` : `${this.queue()}.retry.${delay}`;
@@ -209,6 +217,7 @@ export class Broker {
           attempt: attempt + 1,
         }),
       );
+      this.telemetry?.metrics?.message(dead ? 'dead' : 'retry', 'ok', this.config.consumer);
     }
     channel.ack(message);
   }

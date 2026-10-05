@@ -64,6 +64,17 @@ export function requestContext(
   const finish = (status: number) => {
     if (ended) return;
     ended = true;
+    if (!['/health/live', '/health/ready', '/metrics'].includes(request.path)) {
+      const record = () =>
+        telemetry?.metrics?.http(
+          request.method,
+          request.route?.path,
+          status,
+          (performance.now() - started) / 1000,
+        );
+      if (span && telemetry) telemetry.within(span, record);
+      else record();
+    }
     if (span) {
       span.setAttribute('http.response.status_code', status);
       if (typeof request.route?.path === 'string')

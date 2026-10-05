@@ -7,6 +7,7 @@ export class MessageWorker {
   private stopped = true;
   private timer: NodeJS.Timeout | undefined;
   private running: Promise<void> = Promise.resolve();
+  private removeMetrics: (() => void) | undefined;
   constructor(
     readonly broker: Broker,
     private readonly outbox: Outbox | undefined,
@@ -18,6 +19,16 @@ export class MessageWorker {
   start() {
     if (!this.stopped) return;
     this.broker.telemetry ??= currentTelemetry();
+    this.removeMetrics ??= this.broker.telemetry?.metrics?.supply(
+      ['eventflow_dependency_up'],
+      () => [
+        {
+          name: 'eventflow_dependency_up',
+          value: Number(this.broker.ready),
+          attributes: { component: 'rabbitmq', consumer: this.broker.config.consumer },
+        },
+      ],
+    );
     this.stopped = false;
     this.schedule(0);
   }
@@ -62,6 +73,7 @@ export class MessageWorker {
   }
   async onModuleDestroy() {
     await this.stop();
+    this.removeMetrics?.();
   }
   async stop() {
     this.stopped = true;

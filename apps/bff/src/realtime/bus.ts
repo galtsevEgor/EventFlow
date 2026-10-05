@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { currentTelemetry } from '@eventflow/telemetry';
 import { Broker, MessageWorker } from '@eventflow/messaging';
 import { commerceRoutes, realtimeHintSchema, type RealtimeHint } from '@eventflow/event-contracts';
 import { SessionStore } from '../auth/session-store';
@@ -15,6 +16,7 @@ export class RealtimeBus {
   private stopped = true;
   private timer?: NodeJS.Timeout;
   private running?: Promise<void>;
+  private removeMetrics: (() => void) | undefined;
 
   constructor(
     config: AuthConfig,
@@ -83,6 +85,13 @@ export class RealtimeBus {
     };
   }
   onModuleInit() {
+    this.removeMetrics = currentTelemetry()?.metrics?.supply(['eventflow_dependency_up'], () => [
+      {
+        name: 'eventflow_dependency_up',
+        value: Number(this.store.client.isReady),
+        attributes: { component: 'redis' },
+      },
+    ]);
     if (!this.worker) return;
     this.stopped = false;
     this.worker.start();
@@ -108,6 +117,7 @@ export class RealtimeBus {
     }
   }
   async onModuleDestroy() {
+    this.removeMetrics?.();
     this.stopped = true;
     clearTimeout(this.timer);
     this.lost();
