@@ -46,6 +46,23 @@ test('catalog operator mail listing is role protected, paginated and contains no
     const completed = await fixture.request(`/internal/ops/issues/mail/${id}`, viewer);
     assert.equal(completed.body.issue.state, 'SENT');
     assert.equal(completed.body.actions.length, 1);
+    const retryId = randomUUID();
+    await fixture.db.deliveryJob.create({ data: { id: retryId, state: 'DEAD', attempts: 4 } });
+    const operator = await fixture.token({ realm_access: { roles: ['ops-view', 'ops-recover'] } }),
+      snapshot = (await fixture.request(`/internal/ops/issues/mail/${retryId}`, operator)).body;
+    const key = randomUUID(),
+      retried = await fixture.request(
+        `/internal/ops/issues/mail/${retryId}/recover`,
+        operator,
+        'POST',
+        { reason: 'Invitation transport restored', version: snapshot.version },
+        { 'idempotency-key': key },
+      );
+    assert.equal(retried.status, 202);
+    assert.equal(
+      (await fixture.db.deliveryRetry.findUnique({ where: { requestId: key } })).actorType,
+      'HUMAN',
+    );
   } finally {
     await fixture.close();
   }

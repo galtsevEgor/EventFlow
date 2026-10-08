@@ -1,8 +1,28 @@
-import { Controller, Get, Headers, Inject, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Inject,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { mailDetail } from './ops/detail';
-import { parseInput, queryOperatorPage, TokenVerifier } from '@eventflow/service-runtime';
-import { opsPage, opsQuerySchema, type RawOpsIssue } from '@eventflow/event-contracts';
+import {
+  MailQueue,
+  parseInput,
+  queryOperatorPage,
+  TokenVerifier,
+} from '@eventflow/service-runtime';
+import {
+  opsPage,
+  opsQuerySchema,
+  opsRecoverySchema,
+  type RawOpsIssue,
+} from '@eventflow/event-contracts';
 import { Database } from './database';
 
 @Controller('internal/ops')
@@ -10,7 +30,28 @@ export class CatalogOps {
   constructor(
     @Inject(Database) private readonly db: Database,
     @Inject(TokenVerifier) private readonly verifier: TokenVerifier,
+    @Inject(MailQueue) private readonly queue: MailQueue,
   ) {}
+  @Post('issues/:kind/:id/recover')
+  @HttpCode(202)
+  async recover(
+    @Headers('authorization') auth: string | undefined,
+    @Headers('idempotency-key') rawKey: string | undefined,
+    @Param('kind') kind: string,
+    @Param('id') id: string,
+    @Body() raw: unknown,
+  ) {
+    const actor = await this.verifier.operator(auth, true),
+      data = parseInput(opsRecoverySchema, raw);
+    parseInput(z.literal('mail'), kind);
+    await this.queue.retry(
+      parseInput(z.uuid(), id).toLowerCase(),
+      parseInput(z.uuid(), rawKey).toLowerCase(),
+      actor.subject,
+      { reason: data.reason, version: data.version, actorType: 'HUMAN' },
+    );
+    return { accepted: true };
+  }
   @Get('issues/:kind/:id')
   async detail(
     @Headers('authorization') authorization: string | undefined,

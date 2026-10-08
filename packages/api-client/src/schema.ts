@@ -591,6 +591,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/ops/issues/{service}/{kind}/{id}/recover': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['operatorRecover'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/payment-attempt': {
     parameters: {
       query?: never;
@@ -1141,6 +1157,19 @@ export interface components {
       /** @enum {string} */
       orderStatus: 'available' | 'missing' | 'unavailable' | 'none';
       traceUrl: string | null;
+    };
+    OpsRecovery: {
+      reason: string;
+      version: string;
+    };
+    OpsError: {
+      code: string;
+      message: string;
+      requestId: string;
+      retryable: boolean;
+      fieldErrors?: {
+        [key: string]: string[];
+      };
     };
     PaymentAttemptReference: {
       /** Format: uuid */
@@ -2637,6 +2666,60 @@ export interface operations {
           'application/json': components['schemas']['OpsAccess'];
         };
       };
+      /** @description Operator request rejected or temporarily unavailable */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
     };
   };
   operatorOverview: {
@@ -2660,6 +2743,60 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['OpsOverview'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
         };
       };
     };
@@ -2689,6 +2826,60 @@ export interface operations {
           'application/json': components['schemas']['OpsPage'];
         };
       };
+      /** @description Operator request rejected or temporarily unavailable */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
     };
   };
   operatorDetail: {
@@ -2711,6 +2902,147 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['OpsDetail'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+    };
+  };
+  operatorRecover: {
+    parameters: {
+      query?: never;
+      header: {
+        'idempotency-key': string;
+      };
+      path: {
+        service: 'payments' | 'catalog' | 'tickets';
+        kind: 'payment' | 'refund' | 'webhook' | 'mail';
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OpsRecovery'];
+      };
+    };
+    responses: {
+      /** @description Recovery accepted; final state is read from the case */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @enum {boolean} */
+            accepted: true;
+          };
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
+        };
+      };
+      /** @description Operator request rejected or temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsError'];
         };
       };
     };

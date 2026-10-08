@@ -23,6 +23,7 @@ enum RefundState {
   REQUIRES_REVIEW
 }
 model PaymentAttempt {
+  recoveryKey String? @db.Uuid
   traceparent String? @db.VarChar(55)
   id String @id @db.Uuid
   orderId String @unique @db.Uuid
@@ -57,6 +58,7 @@ model PaymentRequest {
   @@id([buyerSubject, key])
 }
 model RefundOperation {
+  recoveryKey String? @db.Uuid
   traceparent String? @db.VarChar(55)
   id String @id @db.Uuid
   attemptId String @unique @db.Uuid
@@ -92,6 +94,9 @@ model ClosedOrder {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
 model OperatorAction {
+  traceparent String? @db.VarChar(55)
+  actorType String? @db.VarChar(12)
+  expectedVersion String? @db.VarChar(64)
   key String @id @db.Uuid
   actor String @db.VarChar(255)
   targetId String @db.Uuid

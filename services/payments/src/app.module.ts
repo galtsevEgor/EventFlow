@@ -20,6 +20,7 @@ import { ProcessWebhooks } from './webhooks/process';
 import { WebhookController } from './webhooks/controller';
 import { PaymentOperator } from './operator';
 import { PaymentOps } from './ops.controller';
+import { ReconcilePayment } from './ops/reconcile';
 
 @Module({ imports: [HealthModule.forService('payments')] })
 export class AppModule {
@@ -32,6 +33,11 @@ export class AppModule {
           ? []
           : [PaymentController, WebhookController, PaymentOperator, PaymentOps],
       providers: [
+        {
+          provide: ReconcilePayment,
+          inject: [Database],
+          useFactory: (db: Database) => new ReconcilePayment(db),
+        },
         ...(runWorkers
           ? [
               {

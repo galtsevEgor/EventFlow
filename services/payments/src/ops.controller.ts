@@ -1,4 +1,14 @@
-import { Controller, Get, Headers, Inject, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Inject,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiError,
   operationVersion,
@@ -6,10 +16,18 @@ import {
   queryOperatorPage,
   TokenVerifier,
 } from '@eventflow/service-runtime';
-import { opsIssue, opsPage, opsQuerySchema, type RawOpsIssue } from '@eventflow/event-contracts';
+import {
+  opsIssue,
+  opsPage,
+  opsQuerySchema,
+  opsRecoverySchema,
+  type RawOpsIssue,
+} from '@eventflow/event-contracts';
+import { validTraceparent } from '@eventflow/telemetry';
 import { z } from 'zod';
 import { paymentVersion, refundVersion } from './ops/versions';
 import { Database } from './database';
+import { ReconcilePayment } from './ops/reconcile';
 
 const issues = `SELECT id::text, 'payment'::text AS kind, state::text AS state, "reviewCode" AS code, "orderId"::text, "createdAt" AS at, traceparent FROM "PaymentAttempt"
   WHERE state IN ('NEEDS_RECONCILIATION','REQUIRES_REVIEW') OR "bookingState"='REQUIRES_REVIEW'
@@ -21,7 +39,29 @@ export class PaymentOps {
   constructor(
     @Inject(Database) private readonly db: Database,
     @Inject(TokenVerifier) private readonly verifier: TokenVerifier,
+    @Inject(ReconcilePayment) private readonly recovery: ReconcilePayment,
   ) {}
+  @Post('issues/:kind/:id/recover')
+  @HttpCode(202)
+  async recover(
+    @Headers('authorization') auth: string | undefined,
+    @Headers('idempotency-key') rawKey: string | undefined,
+    @Param('kind') rawKind: string,
+    @Param('id') id: string,
+    @Body() raw: unknown,
+  ) {
+    const actor = await this.verifier.operator(auth, true),
+      data = parseInput(opsRecoverySchema, raw),
+      kind = parseInput(z.enum(['payment', 'refund']), rawKind),
+      key = parseInput(z.uuid(), rawKey).toLowerCase();
+    return this.recovery.run(
+      actor.subject,
+      key,
+      { kind, targetId: parseInput(z.uuid(), id), reason: data.reason },
+      'HUMAN',
+      data.version,
+    );
+  }
   @Get('issues/:kind/:id')
   async detail(
     @Headers('authorization') authorization: string | undefined,
@@ -79,6 +119,7 @@ export class PaymentOps {
               leaseUntil: true,
               cancelRequested: true,
               authorized: true,
+              recoveryKey: true,
               amountMinor: true,
               currency: true,
               createdAt: true,
@@ -95,6 +136,7 @@ export class PaymentOps {
               failures: true,
               nextRunAt: true,
               leaseUntil: true,
+              recoveryKey: true,
               amountMinor: true,
               currency: true,
               createdAt: true,
@@ -114,7 +156,14 @@ export class PaymentOps {
       where: { kind, targetId: id },
       orderBy: [{ createdAt: 'desc' }, { key: 'desc' }],
       take: 20,
-      select: { key: true, actor: true, reason: true, createdAt: true },
+      select: {
+        key: true,
+        actor: true,
+        reason: true,
+        createdAt: true,
+        actorType: true,
+        traceparent: true,
+      },
     });
     return {
       issue: opsIssue({
@@ -136,10 +185,12 @@ export class PaymentOps {
         nextRunAt: row.nextRunAt.toISOString(),
       },
       actions: actions.map((action) => ({
-        ...action,
-        actorType: 'SERVICE' as const,
+        key: action.key,
+        actor: action.actor,
+        reason: action.reason,
+        actorType: action.actorType === 'HUMAN' ? ('HUMAN' as const) : ('SERVICE' as const),
         createdAt: action.createdAt.toISOString(),
-        traceId: null,
+        traceId: validTraceparent(action.traceparent)?.split('-')[1] ?? null,
       })),
     };
   }

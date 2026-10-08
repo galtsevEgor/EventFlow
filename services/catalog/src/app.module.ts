@@ -201,7 +201,13 @@ export class AppModule {
           provide: MailQueue,
           inject: [Database],
           useFactory: (db: Database) =>
-            new MailQueue((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
+            new MailQueue(
+              (sql, ...values) => db.$queryRawUnsafe(sql, ...values),
+              (operation) =>
+                db.$transaction((tx) =>
+                  operation((sql, ...values) => tx.$queryRawUnsafe(sql, ...values)),
+                ),
+            ),
         },
         ...[MembershipService, PolicyService].map((service) => ({
           provide: service,

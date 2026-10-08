@@ -12,6 +12,7 @@ export function paymentVersion(
     | 'leaseUntil'
     | 'cancelRequested'
     | 'authorized'
+    | 'recoveryKey'
   >,
 ) {
   return operationVersion(
@@ -23,10 +24,21 @@ export function paymentVersion(
     row.leaseUntil,
     row.cancelRequested,
     row.authorized,
+    row.recoveryKey,
   );
 }
 export function refundVersion(
-  row: Pick<RefundOperation, 'state' | 'reviewCode' | 'failures' | 'nextRunAt' | 'leaseUntil'>,
+  row: Pick<
+    RefundOperation,
+    'state' | 'reviewCode' | 'failures' | 'nextRunAt' | 'leaseUntil' | 'recoveryKey'
+  >,
 ) {
-  return operationVersion(row.state, row.reviewCode, row.failures, row.nextRunAt, row.leaseUntil);
+  return operationVersion(
+    row.state,
+    row.reviewCode,
+    row.failures,
+    row.nextRunAt,
+    row.leaseUntil,
+    row.recoveryKey,
+  );
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Param, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { ApiError, parseInput, TokenVerifier } from '@eventflow/service-runtime';
 import {
@@ -7,6 +7,7 @@ import {
   opsKind,
   opsPageSchema,
   opsQuerySchema,
+  opsRecoverySchema,
 } from '@eventflow/event-contracts';
 import { z } from 'zod';
 import { AuthService } from './auth/auth.service';
@@ -38,6 +39,75 @@ export class OpsController {
       catalog: this.auth.config.CATALOG_URL,
       tickets: this.auth.config.TICKETS_URL,
     }[service];
+  }
+  @Post('issues/:service/:kind/:id/recover')
+  @HttpCode(202)
+  async recover(
+    @Req() request: Request,
+    @Param('service') rawService: string,
+    @Param('kind') rawKind: string,
+    @Param('id') rawId: string,
+    @Body() raw: unknown,
+  ) {
+    const { session } = await this.authorize(request, true),
+      service = parseInput(z.enum(['payments', 'catalog', 'tickets']), rawService),
+      kind = parseInput(opsKind, rawKind),
+      id = parseInput(z.uuid(), rawId).toLowerCase(),
+      data = parseInput(opsRecoverySchema, raw),
+      key = parseInput(z.uuid(), request.header('idempotency-key')).toLowerCase();
+    if (
+      (service === 'payments' && !['payment', 'refund'].includes(kind)) ||
+      (service !== 'payments' && kind !== 'mail')
+    )
+      throw new ApiError(422, 'NO_RECOVERY_ACTION', 'Для этой записи нет команды восстановления.');
+    const result = await fetch(
+      new URL(`/internal/ops/issues/${kind}/${id}/recover`, this.origin(service)),
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${session.accessToken}`,
+          'content-type': 'application/json',
+          'idempotency-key': key,
+        },
+        body: JSON.stringify(data),
+        redirect: 'error',
+        signal: AbortSignal.timeout(5000),
+      },
+    ).catch(() => null);
+    if (!result)
+      throw new ApiError(
+        503,
+        'OPS_SOURCE_UNAVAILABLE',
+        'Ответ не получен. Повторите запрос с прежним ключом.',
+      );
+    const body = await result.json().catch(() => null);
+    if (result.status !== 202 || body?.accepted !== true) {
+      const messages: Record<string, string> = {
+        STALE_OPERATION: 'Запись изменилась. Обновите карточку.',
+        IDEMPOTENCY_CONFLICT: 'Ключ использован для другого действия.',
+        OPERATION_BUSY: 'Операцию обрабатывает worker. Обновите статус.',
+        INVESTIGATION_REQUIRED: 'Требуется разбор привязки платежа.',
+        NOT_RECOVERABLE: 'Сверка сейчас не требуется.',
+        DELIVERY_NOT_DEAD: 'Задача недоступна для повтора.',
+      };
+      if (result.status === 409) {
+        const code =
+          typeof body?.code === 'string' && Object.hasOwn(messages, body.code)
+            ? body.code
+            : 'RECOVERY_CONFLICT';
+        throw new ApiError(
+          409,
+          code,
+          messages[code] ?? 'Состояние записи изменилось. Обновите карточку.',
+        );
+      }
+      throw new ApiError(
+        [401, 403, 404, 422].includes(result.status) ? result.status : 503,
+        'RECOVERY_UNAVAILABLE',
+        'Действие сейчас недоступно.',
+      );
+    }
+    return { accepted: true };
   }
   @Get('issues/:service/:kind/:id')
   async detail(

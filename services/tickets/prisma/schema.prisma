@@ -10,6 +10,7 @@ datasource db {
 }
 
 model DeliveryJob {
+  recoveryKey String? @db.Uuid
   traceparent String? @db.VarChar(55)
   id String @id @db.Uuid
   state String @default("PENDING") @db.VarChar(10)
@@ -22,6 +23,10 @@ model DeliveryJob {
 }
 
 model DeliveryRetry {
+  traceparent String? @db.VarChar(55)
+  actorType String? @db.VarChar(12)
+  expectedVersion String? @db.VarChar(64)
+  reason String? @db.VarChar(240)
   requestId String @id @db.Uuid
   jobId String @db.Uuid
   actorSubject String @db.VarChar(255)

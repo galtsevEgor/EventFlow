@@ -1,5 +1,6 @@
 import { ApiError, operationVersion } from '@eventflow/service-runtime';
 import { opsIssue } from '@eventflow/event-contracts';
+import { validTraceparent } from '@eventflow/telemetry';
 import type { Database } from '../database';
 export async function mailDetail(db: Database, id: string, canRecover: boolean) {
   const row = await db.deliveryJob.findUnique({ where: { id } });
@@ -19,16 +20,16 @@ export async function mailDetail(db: Database, id: string, canRecover: boolean) 
       at: row.nextRunAt,
       traceparent: row.traceparent,
     }),
-    version: operationVersion(row.state, row.attempts, row.nextRunAt, row.lease),
+    version: operationVersion(row.state, row.attempts, row.nextRunAt, row.lease, row.recoveryKey),
     recoverable: canRecover && row.state === 'DEAD',
     facts: { attempts: row.attempts, nextRunAt: row.nextRunAt.toISOString() },
     actions: actions.map((action) => ({
       key: action.requestId,
       actor: action.actorSubject,
-      actorType: 'SERVICE' as const,
-      reason: null,
+      actorType: action.actorType === 'HUMAN' ? ('HUMAN' as const) : ('SERVICE' as const),
+      reason: action.reason,
       createdAt: action.createdAt.toISOString(),
-      traceId: null,
+      traceId: validTraceparent(action.traceparent)?.split('-')[1] ?? null,
     })),
   };
 }

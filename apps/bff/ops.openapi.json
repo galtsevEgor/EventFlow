@@ -18,6 +18,66 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
           }
         }
       }
@@ -67,6 +127,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpsOverview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
                 }
               }
             }
@@ -131,6 +251,66 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
           }
         }
       }
@@ -173,6 +353,197 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpsDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/issues/{service}/{kind}/{id}/recover": {
+      "post": {
+        "operationId": "operatorRecover",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["payments", "catalog", "tickets"]
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["payment", "refund", "webhook", "mail"]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsRecovery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Recovery accepted; final state is read from the case",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["accepted"],
+                  "properties": {
+                    "accepted": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Operator request rejected or temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsError"
                 }
               }
             }
@@ -387,6 +758,50 @@
           },
           "traceUrl": {
             "type": ["string", "null"]
+          }
+        }
+      },
+      "OpsRecovery": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason", "version"],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 240
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      },
+      "OpsError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message", "requestId", "retryable"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "fieldErrors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         }
       }

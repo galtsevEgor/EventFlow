@@ -4,17 +4,21 @@ import { createTransport } from 'nodemailer';
 import { z } from 'zod';
 import { ApiError, parseInput } from './http';
 import { TokenVerifier } from './identity';
+import { operationVersion } from './operator-page';
 import {
   currentTelemetry,
   observedJob,
   operation,
   traceFailure,
+  currentTraceparent,
+  linkTrace,
   type Telemetry,
 } from '@eventflow/telemetry';
 
 const delays = [5000, 30_000, 120_000];
 const maxAttempts = delays.length + 1;
 type Query = <T>(sql: string, ...values: unknown[]) => Promise<T>;
+type Transaction = <T>(operation: (query: Query) => Promise<T>) => Promise<T>;
 type Job = { id: string; lease: string; attempts: number; traceparent: string | null };
 type Send = (id: string) => Promise<'SENT' | 'SKIPPED'>;
 
@@ -62,7 +66,10 @@ export class Mailpit {
 }
 
 export class MailQueue {
-  constructor(private readonly query: Query) {}
+  constructor(
+    private readonly query: Query,
+    private readonly transaction?: Transaction,
+  ) {}
 
   async claim() {
     await this.query(
@@ -105,27 +112,86 @@ export class MailQueue {
     );
   }
 
-  async retry(id: string, requestId: string, actor: string) {
-    const [result] = await this.query<{ jobId: string; actorSubject: string }[]>(
-      `WITH candidate AS (
-         SELECT id FROM "DeliveryJob" WHERE id = $1::uuid AND state = 'DEAD' FOR UPDATE
-       ), audit AS (
-         INSERT INTO "DeliveryRetry" ("requestId", "jobId", "actorSubject")
-           SELECT $2::uuid, id, $3 FROM candidate
-           ON CONFLICT ("requestId") DO NOTHING RETURNING "jobId", "actorSubject"
-       ), retried AS (
-         UPDATE "DeliveryJob" SET state = 'PENDING', attempts = 0, lease = NULL, "nextRunAt" = now()
-           WHERE id IN (SELECT "jobId" FROM audit)
-       )
-       SELECT * FROM audit UNION ALL
-       SELECT "jobId", "actorSubject" FROM "DeliveryRetry" WHERE "requestId" = $2::uuid`,
-      id,
-      requestId,
-      actor,
-    );
-    if (!result) throw new ApiError(409, 'DELIVERY_NOT_DEAD', 'Задача недоступна для повтора.');
-    if (result.jobId !== id || result.actorSubject !== actor)
-      throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'Ключ уже использован.');
+  async retry(
+    id: string,
+    requestId: string,
+    actor: string,
+    options: { reason?: string; version?: string; actorType?: 'HUMAN' | 'SERVICE' } = {},
+  ) {
+    if (!this.transaction)
+      throw new ApiError(503, 'MAIL_RETRY_UNAVAILABLE', 'Повтор временно недоступен.');
+    const reason = options.reason ?? null,
+      expectedVersion = options.version ?? null,
+      actorType = options.actorType ?? 'SERVICE';
+    if (actorType === 'HUMAN' && (!reason || !expectedVersion))
+      throw new ApiError(422, 'VERSION_REQUIRED', 'Нужны причина и актуальная версия записи.');
+    await this.transaction(async (query) => {
+      await query(
+        'SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended($1,3))',
+        requestId,
+      );
+      const [previous] = await query<
+        {
+          jobId: string;
+          actorSubject: string;
+          reason: string | null;
+          expectedVersion: string | null;
+          actorType: string | null;
+        }[]
+      >(
+        'SELECT "jobId","actorSubject",reason,"expectedVersion","actorType" FROM "DeliveryRetry" WHERE "requestId"=$1::uuid',
+        requestId,
+      );
+      if (previous) {
+        if (
+          previous.jobId !== id ||
+          previous.actorSubject !== actor ||
+          previous.reason !== reason ||
+          previous.expectedVersion !== expectedVersion ||
+          (previous.actorType ?? 'SERVICE') !== actorType
+        )
+          throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'Ключ уже использован.');
+        return;
+      }
+      const [job] = await query<
+        {
+          state: string;
+          attempts: number;
+          nextRunAt: Date;
+          lease: string | null;
+          recoveryKey: string | null;
+          traceparent: string | null;
+        }[]
+      >(
+        'SELECT state,attempts,"nextRunAt",lease,"recoveryKey",traceparent FROM "DeliveryJob" WHERE id=$1::uuid FOR UPDATE',
+        id,
+      );
+      if (!job || job.state !== 'DEAD')
+        throw new ApiError(409, 'DELIVERY_NOT_DEAD', 'Задача недоступна для повтора.');
+      if (
+        expectedVersion &&
+        expectedVersion !==
+          operationVersion(job.state, job.attempts, job.nextRunAt, job.lease, job.recoveryKey)
+      )
+        throw new ApiError(409, 'STALE_OPERATION', 'Запись изменилась. Обновите карточку.');
+      linkTrace(job.traceparent);
+      await query(
+        'INSERT INTO "DeliveryRetry" ("requestId","jobId","actorSubject",reason,"expectedVersion","actorType",traceparent) VALUES ($1::uuid,$2::uuid,$3,$4,$5,$6,$7)',
+        requestId,
+        id,
+        actor,
+        reason,
+        expectedVersion,
+        actorType,
+        currentTraceparent() ?? null,
+      );
+      await query(
+        'UPDATE "DeliveryJob" SET state=\'PENDING\',attempts=0,lease=NULL,"nextRunAt"=clock_timestamp(),"recoveryKey"=$2::uuid,traceparent=COALESCE($3,traceparent) WHERE id=$1::uuid',
+        id,
+        requestId,
+        currentTraceparent() ?? null,
+      );
+    });
   }
 }
 

@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { validTraceparent } from '@eventflow/telemetry';
 
 export const opsKind = z.enum(['payment', 'refund', 'webhook', 'mail']);
+export const opsRecoverySchema = z.strictObject({
+  reason: z.string().trim().min(8).max(240),
+  version: z.string().regex(/^[a-f0-9]{64}$/),
+});
 const cursorSchema = z.strictObject({
   at: z.iso.datetime(),
   kind: opsKind,

@@ -1,15 +1,15 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Post } from '@nestjs/common';
-import { ApiError, parseInput, TokenVerifier } from '@eventflow/service-runtime';
+import { parseInput, TokenVerifier } from '@eventflow/service-runtime';
 import { z } from 'zod';
 import { Database } from './database';
-import type { PaymentAttempt, RefundOperation } from './generated/client';
-import { linkTrace } from '@eventflow/telemetry';
+import { ReconcilePayment } from './ops/reconcile';
 
 @Controller('internal/payments')
 export class PaymentOperator {
   constructor(
     @Inject(Database) private readonly db: Database,
     @Inject(TokenVerifier) private readonly verifier: TokenVerifier,
+    @Inject(ReconcilePayment) private readonly recovery: ReconcilePayment,
   ) {}
   @Post('reconcile')
   @HttpCode(202)
@@ -28,69 +28,7 @@ export class PaymentOperator {
       }),
       input,
     );
-    const targetId = data.targetId.toLowerCase();
-    await this.db.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 2))`;
-      const previous = await tx.operatorAction.findUnique({ where: { key } });
-      if (previous) {
-        if (
-          previous.actor !== actor.subject ||
-          previous.kind !== data.kind ||
-          previous.targetId !== targetId ||
-          previous.reason !== data.reason
-        )
-          throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'Ключ использован для другого действия.');
-        return;
-      }
-      if (data.kind === 'refund') {
-        const [refund] = await tx.$queryRaw<
-          RefundOperation[]
-        >`SELECT * FROM "RefundOperation" WHERE id = ${targetId}::uuid FOR UPDATE`;
-        if (!refund) throw new ApiError(404, 'NOT_FOUND', 'Возврат не найден.');
-        linkTrace(refund.traceparent);
-        if (refund.state !== 'SUCCEEDED') {
-          await tx.refundOperation.update({
-            where: { id: targetId },
-            data: {
-              state: 'UNKNOWN',
-              failures: 0,
-              reviewCode: null,
-              nextRunAt: new Date(0),
-            },
-          });
-          await tx.paymentAttempt.update({
-            where: { id: refund.attemptId },
-            data: { bookingState: 'REFUND_PENDING' },
-          });
-        }
-      } else {
-        const [attempt] = await tx.$queryRaw<
-          PaymentAttempt[]
-        >`SELECT * FROM "PaymentAttempt" WHERE id = ${targetId}::uuid FOR UPDATE`;
-        if (!attempt) throw new ApiError(404, 'NOT_FOUND', 'Платёж не найден.');
-        linkTrace(attempt.traceparent);
-        if (attempt.reviewCode === 'BOOKING_BINDING_REVIEW')
-          throw new ApiError(
-            409,
-            'INVESTIGATION_REQUIRED',
-            'Сначала разберите несовпадение привязки платежа.',
-          );
-        if (!['SUCCEEDED', 'CANCELLED'].includes(attempt.state))
-          await tx.paymentAttempt.update({
-            where: { id: targetId },
-            data: {
-              state: 'NEEDS_RECONCILIATION',
-              failures: 0,
-              reviewCode: null,
-              nextRunAt: new Date(0),
-            },
-          });
-      }
-      await tx.operatorAction.create({
-        data: { key, actor: actor.subject, kind: data.kind, targetId, reason: data.reason },
-      });
-    });
-    return { accepted: true };
+    return this.recovery.run(actor.subject, key, data);
   }
   @Get('review')
   async review(@Headers('authorization') auth: string | undefined) {
