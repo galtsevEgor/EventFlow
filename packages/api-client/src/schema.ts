@@ -527,6 +527,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/ops/access': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['operatorAccess'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/payment-attempt': {
     parameters: {
       query?: never;
@@ -1015,6 +1031,9 @@ export interface components {
     UpdateFrame: {
       /** @enum {string} */
       kind: 'ready' | 'changed' | 'heartbeat';
+    };
+    OpsAccess: {
+      canRecover: boolean;
     };
     PaymentAttemptReference: {
       /** Format: uuid */
@@ -2489,6 +2508,26 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  operatorAccess: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Verified operator capabilities */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsAccess'];
         };
       };
     };

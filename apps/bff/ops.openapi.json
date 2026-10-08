@@ -1,0 +1,29 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Operator API", "version": "1.0.0" },
+  "paths": {
+    "/api/v1/ops/access": {
+      "get": {
+        "operationId": "operatorAccess",
+        "responses": {
+          "200": {
+            "description": "Verified operator capabilities",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OpsAccess" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "OpsAccess": {
+        "type": "object",
+        "required": ["canRecover"],
+        "properties": { "canRecover": { "type": "boolean" } },
+        "additionalProperties": false
+      }
+    }
+  }
+}

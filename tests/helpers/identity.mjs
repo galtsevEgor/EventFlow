@@ -53,7 +53,7 @@ export async function testIdentity() {
         ...claims,
       })
         .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
-        .setIssuedAt()
+        .setIssuedAt(claims.iat ?? Math.floor(Date.now() / 1000))
         .setExpirationTime('1h')
         .sign(pair.privateKey);
     },

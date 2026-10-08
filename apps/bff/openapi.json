@@ -1440,6 +1440,19 @@
         }
       }
     },
+    "/api/v1/ops/access": {
+      "get": {
+        "operationId": "operatorAccess",
+        "responses": {
+          "200": {
+            "description": "Verified operator capabilities",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OpsAccess" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders/{id}/payment-attempt": {
       "post": {
         "operationId": "createPaymentAttempt",
@@ -2280,6 +2293,12 @@
         "additionalProperties": false,
         "required": ["kind"],
         "properties": { "kind": { "type": "string", "enum": ["ready", "changed", "heartbeat"] } }
+      },
+      "OpsAccess": {
+        "type": "object",
+        "required": ["canRecover"],
+        "properties": { "canRecover": { "type": "boolean" } },
+        "additionalProperties": false
       },
       "PaymentAttemptReference": {
         "type": "object",

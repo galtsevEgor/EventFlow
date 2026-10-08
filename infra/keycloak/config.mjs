@@ -56,7 +56,7 @@ export function clientConfigurations(env) {
         'pkce.code.challenge.method': 'S256',
         'post.logout.redirect.uris': `${env.PUBLIC_ORIGIN}/`,
       },
-      defaultClientScopes: ['basic', 'profile', 'email'],
+      defaultClientScopes: ['basic', 'profile', 'email', 'roles'],
       protocolMappers: [
         audience,
         {

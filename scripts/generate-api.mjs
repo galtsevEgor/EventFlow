@@ -9,6 +9,7 @@ const payments = JSON.parse(readFileSync('services/payments/openapi.json', 'utf8
 const tickets = JSON.parse(readFileSync('services/tickets/openapi.json', 'utf8'));
 const auth = JSON.parse(readFileSync('apps/bff/auth.openapi.json', 'utf8'));
 const realtime = JSON.parse(readFileSync('apps/bff/realtime.openapi.json', 'utf8'));
+const ops = JSON.parse(readFileSync('apps/bff/ops.openapi.json', 'utf8'));
 const schema = {
   openapi: '3.1.0',
   info: { title: 'EventFlow public API', version: '1.0.0' },
@@ -21,6 +22,7 @@ const schema = {
     ),
     ...auth.paths,
     ...realtime.paths,
+    ...ops.paths,
     ...Object.fromEntries(
       Object.entries(payments.paths).filter(([path]) => path.startsWith('/api/v1/')),
     ),
@@ -32,6 +34,7 @@ const schema = {
       ...booking.components.schemas,
       ...auth.components.schemas,
       ...realtime.components.schemas,
+      ...ops.components.schemas,
       ...payments.components.schemas,
       ...tickets.components.schemas,
     },

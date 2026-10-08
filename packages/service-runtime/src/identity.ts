@@ -54,6 +54,30 @@ export class TokenVerifier {
   async machine(authorization: string | undefined) {
     return this.service(authorization, 'eventflow-policy', 'policy-check');
   }
+  async operator(authorization: string | undefined, recover = false) {
+    const claims = await this.verify(authorization);
+    const roles = z.object({ roles: z.array(z.string()) }).safeParse(claims.realm_access);
+    if (
+      claims.azp !== 'eventflow-bff' ||
+      !claims.sub ||
+      !z.email().safeParse(claims.email).success ||
+      claims.email_verified !== true
+    )
+      throw new ApiError(403, 'FORBIDDEN', 'Требуется подтверждённая учётная запись оператора.');
+    if (
+      !roles.success ||
+      !roles.data.roles.includes('ops-view') ||
+      (recover && !roles.data.roles.includes('ops-recover'))
+    )
+      throw new ApiError(403, 'FORBIDDEN', 'Недостаточно полномочий оператора.');
+    if (
+      typeof claims.iat !== 'number' ||
+      Date.now() / 1000 - claims.iat > 300 ||
+      claims.iat > Date.now() / 1000 + 5
+    )
+      throw new ApiError(401, 'UNAUTHENTICATED', 'Обновите операторскую сессию.');
+    return { subject: claims.sub, canRecover: roles.data.roles.includes('ops-recover') };
+  }
   async service(authorization: string | undefined, clientId: string, role: string) {
     const claims = await this.verify(authorization);
     const roles = z.object({ roles: z.array(z.string()) }).safeParse(claims.realm_access);

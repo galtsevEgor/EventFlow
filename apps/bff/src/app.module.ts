@@ -1,5 +1,6 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import { HealthModule, Readiness, probeIdentity } from '@eventflow/service-runtime';
+import { HealthModule, Readiness, probeIdentity, TokenVerifier } from '@eventflow/service-runtime';
+import { OpsController } from './ops.controller';
 import { AuthModule } from './auth/auth.module';
 import type { AuthConfig } from './auth/config';
 import { CatalogController } from './catalog.controller';
@@ -31,8 +32,13 @@ export class AppModule {
         OrdersController,
         PaymentWebhooksController,
         CheckInProxy,
+        OpsController,
       ],
       providers: [
+        {
+          provide: TokenVerifier,
+          useFactory: () => new TokenVerifier(config.OIDC_ISSUER, 'eventflow-payments'),
+        },
         {
           provide: RealtimeBus,
           inject: [AUTH_CONFIG, SessionStore],

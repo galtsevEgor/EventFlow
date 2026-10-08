@@ -107,6 +107,22 @@ export async function seedKeycloak(env, directory = process.cwd()) {
         email: `${name}@eventflow.test`,
         password: randomBytes(18).toString('base64url'),
       }));
+  for (const username of ['ops-viewer', 'operator'])
+    if (!users.some((user) => user.username === username))
+      users.push({
+        username,
+        email: `${username}@eventflow.test`,
+        password: randomBytes(18).toString('base64url'),
+      });
+  const operatorRoles = [];
+  for (const name of ['ops-view', 'ops-recover']) {
+    let role = await admin(`/${realmName}/roles/${name}`, 'GET', undefined, true);
+    if (!role) {
+      await admin(`/${realmName}/roles`, 'POST', { name });
+      role = await admin(`/${realmName}/roles/${name}`);
+    }
+    operatorRoles.push(role);
+  }
   // Persist generated credentials before requests so an interrupted seed can be resumed.
   writeFileSync(path, JSON.stringify(users, null, 2) + '\n', { mode: 0o600 });
   for (const user of users) {
@@ -124,6 +140,22 @@ export async function seedKeycloak(env, directory = process.cwd()) {
         requiredActions: [],
         credentials: [{ type: 'password', value: user.password, temporary: false }],
       });
+    if (['ops-viewer', 'operator'].includes(user.username)) {
+      const [account] = await admin(
+        `/${realmName}/users?email=${encodeURIComponent(user.email)}&exact=true`,
+      );
+      if (
+        !account?.emailVerified ||
+        account.firstName !== user.username ||
+        account.lastName !== 'Demo'
+      )
+        throw new Error('Operator demo account does not match the local seed');
+      await admin(
+        `/${realmName}/users/${account.id}/role-mappings/realm`,
+        'POST',
+        operatorRoles.filter((role) => user.username === 'operator' || role.name === 'ops-view'),
+      );
+    }
   }
   console.log(
     'Keycloak eventflow realm is ready. Local demo credentials: work/local/demo-users.json',
