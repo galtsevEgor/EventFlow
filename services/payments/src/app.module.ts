@@ -19,6 +19,7 @@ import { ReceiveWebhook } from './webhooks/receive';
 import { ProcessWebhooks } from './webhooks/process';
 import { WebhookController } from './webhooks/controller';
 import { PaymentOperator } from './operator';
+import { PaymentOps } from './ops.controller';
 
 @Module({ imports: [HealthModule.forService('payments')] })
 export class AppModule {
@@ -29,7 +30,7 @@ export class AppModule {
       controllers:
         config.EVENTFLOW_WORKLOAD === 'worker'
           ? []
-          : [PaymentController, WebhookController, PaymentOperator],
+          : [PaymentController, WebhookController, PaymentOperator, PaymentOps],
       providers: [
         ...(runWorkers
           ? [

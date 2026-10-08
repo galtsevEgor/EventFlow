@@ -18,6 +18,7 @@ model DeliveryJob {
   lease String? @db.Uuid
 
   @@index([state, nextRunAt])
+  @@index([state, nextRunAt, id])
 }
 
 model DeliveryRetry {

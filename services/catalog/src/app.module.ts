@@ -36,6 +36,7 @@ import { PublicCatalogController } from './public-catalog/catalog.controller';
 import { StatisticsConsumer } from './statistics/consumer';
 import { StatisticsReport } from './statistics/report';
 import { StatisticsController } from './statistics/controller';
+import { CatalogOps } from './ops.controller';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -57,6 +58,7 @@ export class AppModule {
               PublicCatalogController,
               StatisticsController,
               MailOperator,
+              CatalogOps,
             ],
       providers: [
         {

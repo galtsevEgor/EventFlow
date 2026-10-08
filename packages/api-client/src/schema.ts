@@ -543,6 +543,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/ops/issues': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['operatorOverview'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/ops/issues/{service}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['operatorIssues'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/payment-attempt': {
     parameters: {
       query?: never;
@@ -1034,6 +1066,29 @@ export interface components {
     };
     OpsAccess: {
       canRecover: boolean;
+    };
+    OpsIssue: {
+      id: string;
+      /** @enum {string} */
+      kind: 'payment' | 'refund' | 'webhook' | 'mail';
+      state: string;
+      code: string | null;
+      /** Format: uuid */
+      orderId: string | null;
+      /** Format: date-time */
+      recordedAt: string;
+      traceId: string | null;
+    };
+    OpsPage: {
+      items: components['schemas']['OpsIssue'][];
+      nextCursor: string | null;
+    };
+    OpsOverview: {
+      sources: (components['schemas']['OpsPage'] & {
+        /** @enum {string} */
+        service: 'payments' | 'catalog' | 'tickets';
+        available: boolean;
+      })[];
     };
     PaymentAttemptReference: {
       /** Format: uuid */
@@ -2528,6 +2583,58 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['OpsAccess'];
+        };
+      };
+    };
+  };
+  operatorOverview: {
+    parameters: {
+      query?: {
+        limit?: number;
+        kind?: 'payment' | 'refund' | 'webhook' | 'mail';
+        orderId?: string;
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Operator view */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsOverview'];
+        };
+      };
+    };
+  };
+  operatorIssues: {
+    parameters: {
+      query?: {
+        limit?: number;
+        kind?: 'payment' | 'refund' | 'webhook' | 'mail';
+        orderId?: string;
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        service: 'payments' | 'catalog' | 'tickets';
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Operator view */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsPage'];
         };
       };
     };

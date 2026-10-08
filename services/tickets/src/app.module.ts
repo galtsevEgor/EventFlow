@@ -19,6 +19,7 @@ import { AdmissionPolicy } from './admission-policy';
 import { CheckInController } from './check-in.controller';
 import { CheckInTicket } from './check-in';
 import { TicketRefunds } from './refunds';
+import { TicketOps } from './ops.controller';
 
 @Module({ imports: [HealthModule.forService('tickets')] })
 export class AppModule {
@@ -29,7 +30,7 @@ export class AppModule {
       controllers:
         config.EVENTFLOW_WORKLOAD === 'worker'
           ? []
-          : [TicketController, MailOperator, CheckInController],
+          : [TicketController, MailOperator, CheckInController, TicketOps],
       providers: [
         ...(runWorkers
           ? [

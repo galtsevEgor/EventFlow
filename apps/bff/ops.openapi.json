@@ -1,6 +1,9 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "Operator API", "version": "1.0.0" },
+  "info": {
+    "title": "Operator API",
+    "version": "1.0.0"
+  },
   "paths": {
     "/api/v1/ops/access": {
       "get": {
@@ -9,7 +12,124 @@
           "200": {
             "description": "Verified operator capabilities",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/OpsAccess" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsAccess"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/issues": {
+      "get": {
+        "operationId": "operatorOverview",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["payment", "refund", "webhook", "mail"]
+            }
+          },
+          {
+            "name": "orderId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 600
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsOverview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ops/issues/{service}": {
+      "get": {
+        "operationId": "operatorIssues",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["payments", "catalog", "tickets"]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["payment", "refund", "webhook", "mail"]
+            }
+          },
+          {
+            "name": "orderId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 600
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operator view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsPage"
+                }
+              }
             }
           }
         }
@@ -21,8 +141,90 @@
       "OpsAccess": {
         "type": "object",
         "required": ["canRecover"],
-        "properties": { "canRecover": { "type": "boolean" } },
+        "properties": {
+          "canRecover": {
+            "type": "boolean"
+          }
+        },
         "additionalProperties": false
+      },
+      "OpsIssue": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "state", "code", "orderId", "recordedAt", "traceId"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["payment", "refund", "webhook", "mail"]
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "code": {
+            "type": ["string", "null"]
+          },
+          "orderId": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "traceId": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "OpsPage": {
+        "type": "object",
+        "required": ["items", "nextCursor"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/OpsIssue"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "OpsOverview": {
+        "type": "object",
+        "required": ["sources"],
+        "properties": {
+          "sources": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/OpsPage"
+                },
+                {
+                  "type": "object",
+                  "required": ["service", "available"],
+                  "properties": {
+                    "service": {
+                      "type": "string",
+                      "enum": ["payments", "catalog", "tickets"]
+                    },
+                    "available": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
       }
     }
   }
