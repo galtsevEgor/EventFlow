@@ -1,5 +1,6 @@
 import { createApiClient, unwrap, ApiRequestError } from '@eventflow/api-client';
 import { QueryClient } from '@tanstack/react-query';
+import { clearOperatorRequests } from './ops/pending';
 
 export const api = createApiClient();
 export const queryClient = new QueryClient({
@@ -11,8 +12,10 @@ export type { Schemas } from '@eventflow/api-client';
 export async function loadSession() {
   const session = await api.getSession();
   api.setCsrfToken(session.user ? session.csrfToken : '');
-  if (!session.user)
+  if (!session.user) {
+    clearOperatorRequests();
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' });
+  }
   return session;
 }
 

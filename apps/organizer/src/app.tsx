@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge, Button, Loading } from '@eventflow/ui';
 import { api, loadSession, queryClient, unwrap } from './api';
 import { ErrorMessage } from './feedback';
 import { Organizations } from './organizations';
+import { useOperatorAccess } from './ops/access';
+import { clearOperatorRequests } from './ops/pending';
+const OperatorPage = lazy(() => import('./ops/page'));
 
 export function App() {
   const session = useQuery({
@@ -32,11 +35,14 @@ export function App() {
     mutationFn: async () => {
       const result = unwrap(await api.client.POST('/api/v1/auth/logout'));
       queryClient.clear();
+      clearOperatorRequests();
       api.setCsrfToken('');
       location.assign(result.logoutUrl);
     },
   });
   const user = session.data?.user;
+  const operator = useOperatorAccess(user?.sub),
+    isOperatorPage = location.pathname.replace(/\/$/, '') === '/organizer/ops';
   return (
     <main>
       <header className="topbar">
@@ -47,6 +53,7 @@ export function App() {
           {user && (
             <>
               <span className="account-email">{user.email}</span>
+              {operator.data && <a href="/organizer/ops">Кабинет оператора</a>}
               <Button
                 variant="secondary"
                 disabled={logout.isPending}
@@ -65,12 +72,20 @@ export function App() {
       ) : !user ? (
         <section className="welcome">
           <Badge>Ваше пространство для событий</Badge>
-          <h1>
-            Соберите команду.
-            <br />
-            Создайте событие.
-          </h1>
-          <p>Организации, участники и мероприятия — в одном кабинете.</p>
+          {isOperatorPage ? (
+            <h1>Кабинет оператора</h1>
+          ) : (
+            <h1>
+              Соберите команду.
+              <br />
+              Создайте событие.
+            </h1>
+          )}
+          <p>
+            {isOperatorPage
+              ? 'Войдите с учётной записью поддержки.'
+              : 'Организации, участники и мероприятия — в одном кабинете.'}
+          </p>
           <a
             className="ef-button login-link"
             href={`/api/v1/auth/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`}
@@ -78,6 +93,25 @@ export function App() {
             Войти
           </a>
         </section>
+      ) : isOperatorPage ? (
+        operator.isPending ? (
+          <Loading />
+        ) : operator.isError ? (
+          <>
+            <ErrorMessage error={operator.error} />
+            <Button onClick={() => void operator.refetch()}>Повторить проверку доступа</Button>
+          </>
+        ) : operator.data ? (
+          <Suspense fallback={<Loading />}>
+            <OperatorPage actor={user.sub} canRecover={operator.data.canRecover} />
+          </Suspense>
+        ) : (
+          <section className="panel">
+            <h1>Кабинет оператора</h1>
+            <p role="alert">Нет доступа к кабинету оператора.</p>
+            <a href="/organizer/">К организациям</a>
+          </section>
+        )
       ) : (
         <>
           {invite && (
