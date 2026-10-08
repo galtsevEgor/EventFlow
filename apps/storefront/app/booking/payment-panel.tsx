@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiRequestError, unwrap, type createApiClient, type Schemas } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { FakePayment } from './fake-payment';
+import { paymentPolling } from './payment-polling';
 
 const StripePayment = dynamic(() => import('./stripe-payment'), {
   ssr: false,
@@ -39,17 +40,6 @@ function message(payment: Payment) {
     : 'Подготавливаем оплату и проверяем бронь…';
 }
 
-function polling(payment: Payment | null | undefined) {
-  if (!payment) return 3000;
-  if (
-    ['CONFIRMED', 'REFUNDED', 'REQUIRES_REVIEW'].includes(payment.bookingState) ||
-    ['CANCELLED', 'REQUIRES_REVIEW'].includes(payment.state) ||
-    payment.refundState === 'REQUIRES_REVIEW'
-  )
-    return false;
-  return 3000;
-}
-
 export function PaymentPanel({
   id,
   buyer,
@@ -75,13 +65,7 @@ export function PaymentPanel({
       return unwrap(response);
     },
     refetchInterval: (query) =>
-      query.state.error
-        ? 3000
-        : query.state.data === null && orderState !== 'HELD'
-          ? false
-          : live
-            ? 30000
-            : polling(query.state.data),
+      paymentPolling(query.state.data, orderState, live, Boolean(query.state.error)),
   });
   const start = useMutation({
     mutationFn: async () => {
@@ -121,7 +105,7 @@ export function PaymentPanel({
       )}
       {!data && !payment.isError && orderState === 'HELD' && (
         <>
-          <Button disabled={start.isPending || payment.isFetching} onClick={() => start.mutate()}>
+          <Button disabled={start.isPending} onClick={() => start.mutate()}>
             {start.isPending
               ? 'Подготавливаем…'
               : start.isError

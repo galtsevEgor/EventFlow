@@ -9,6 +9,7 @@ import { fullStack } from './fixture.mjs';
 import { eventually } from '../helpers/eventually.mjs';
 import { findMail, receivedMail, smtpProxy } from '../helpers/mailpit.mjs';
 import { ClientCredentials } from '../../packages/service-runtime/dist/index.js';
+import { MessageWorker } from '../../packages/messaging/dist/index.js';
 
 async function readQr(response) {
   assert.equal(response.status(), 200);
@@ -30,6 +31,9 @@ test(
     try {
       stack = await fullStack({ payments: true, tickets: { MAILPIT_SMTP_PORT: smtp.port } });
       await stack.tickets.worker.stop();
+      const payments = await stack.startPayments();
+      await payments.reconciler.stop();
+      await payments.app.get(MessageWorker).stop();
       browser = await chromium.launch();
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
       const headers = await loginBuyer(page, stack.origin);
@@ -46,6 +50,19 @@ test(
       await page.goto(pageUrl);
       await expect(page.getByRole('heading', { name: 'Билеты', exact: true })).toHaveCount(0);
       await page.getByRole('button', { name: 'Перейти к оплате', exact: true }).click();
+      await expect(page.getByText('Подготавливаем оплату и проверяем бронь…')).toBeVisible();
+      const attempt = await eventually(
+        () => payments.db.paymentAttempt.findUnique({ where: { orderId: order.id } }),
+        Boolean,
+      );
+      // Keep the stream open but delay Payments events: REST must recover the CREATED snapshot.
+      await expect(page.locator('.order-card')).toHaveAttribute('data-live', 'true');
+      await payments.processor.run(attempt.id);
+      await expect(page.getByRole('button', { name: /^Оплатить .* в демо$/ })).toBeVisible({
+        timeout: 10000,
+      });
+      payments.app.get(MessageWorker).start();
+      payments.reconciler.start();
       await page.getByRole('button', { name: /^Оплатить .* в демо$/ }).click();
       await expect(page.getByText('Готовим билеты…')).toBeVisible({ timeout: 20000 });
       assert.equal(await stack.tickets.db.ticket.count(), 0);

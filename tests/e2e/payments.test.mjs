@@ -15,6 +15,8 @@ test(
   async () => {
     const stack = await fullStack({ payments: true });
     const browser = await chromium.launch();
+    const blockedStatus = Promise.withResolvers();
+    const statusStarted = Promise.withResolvers();
     try {
       const page = await browser.newPage({ viewport: { width: 1280, height: 1100 } });
       const errors = [];
@@ -44,9 +46,13 @@ test(
       const keys = [],
         attempts = [];
       // The server commits; its response and the subsequent status lookup are temporarily lost.
-      await page.route('**/payment-status', (route) =>
-        attempts.length ? route.abort('failed') : route.continue(),
-      );
+      await page.route('**/payment-status', async (route) => {
+        if (!attempts.length) {
+          statusStarted.resolve();
+          await blockedStatus.promise;
+        }
+        return attempts.length ? route.abort('failed') : route.continue();
+      });
       await page.route('**/payment-attempt', async (route) => {
         const result = await route.fetch();
         assert.equal(result.status(), 202);
@@ -62,9 +68,14 @@ test(
           },
         });
       });
-      await page.getByRole('button', { name: 'Перейти к оплате', exact: true }).click();
+      // A background status read must not disable an idempotent user command mid-click.
+      await statusStarted.promise;
+      const start = page.getByRole('button', { name: 'Перейти к оплате', exact: true });
+      await expect(start).toBeEnabled();
+      await start.click();
       // A live refresh can fail before the mutation finishes; prove the server committed first.
       await expect.poll(() => attempts.length, { timeout: 10000 }).toBe(1);
+      blockedStatus.resolve();
       await expect(
         page.getByRole('alert').filter({ hasText: 'Не удалось проверить платёж' }),
       ).toBeVisible();
@@ -174,6 +185,7 @@ test(
       assert.equal(await payments.db.fakeRefund.count({ where: { operationId: refund.id } }), 1);
       assert.deepEqual(errors, []);
     } finally {
+      blockedStatus.resolve();
       await browser.close();
       await stack.close();
     }
