@@ -61,7 +61,8 @@
     "test:realtime-load": "node --env-file=.env tests/load/realtime.mjs",
     "observability": "node scripts/observability.mjs",
     "test:telemetry": "node --env-file=.env --test --test-concurrency=1 --test-timeout=45000 tests/telemetry/*.integration.mjs",
-    "test:telemetry-load": "node --env-file=.env tests/load/telemetry.mjs"
+    "test:telemetry-load": "node --env-file=.env tests/load/telemetry.mjs",
+    "env:postgres-port": "node scripts/postgres-port.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",

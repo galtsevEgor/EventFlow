@@ -1,6 +1,7 @@
 console.log(`EventFlow development commands
 
 pnpm env:init          Generate local credentials; preserve an existing .env
+pnpm env:postgres-port PORT  Change a reserved PostgreSQL host port while preserving data
 pnpm infra:up          Start local dependencies and wait for health checks
 pnpm infra:down        Stop dependencies; preserve project data volumes
 pnpm infra:status      Show dependency status

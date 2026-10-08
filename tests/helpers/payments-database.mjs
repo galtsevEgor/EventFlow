@@ -7,7 +7,7 @@ export async function paymentsDatabase() {
   const name = `eventflow_test_${randomUUID().replaceAll('-', '')}`;
   const admin = new pg.Client({
     host: '127.0.0.1',
-    port: 15432,
+    port: Number(new URL(process.env.PAYMENTS_DATABASE_URL).port || 5432),
     user: 'eventflow_admin',
     password: process.env.POSTGRES_ADMIN_PASSWORD,
     database: 'eventflow_admin',
