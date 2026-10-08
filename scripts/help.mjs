@@ -17,6 +17,7 @@ pnpm test:publication  Test RabbitMQ publication, recovery, idempotency and sale
 pnpm test:booking      Test reservation races, expiry, cancellation and restart recovery
 pnpm test:payments     Test payments, refunds, identity, webhooks and crash recovery locally
 pnpm test:tickets      Test ticket issuance, redelivery and admission locally
+pnpm test:operators    Test human roles, safe recovery, audit and worker crashes
 pnpm test:stripe       Verify the real Stripe sandbox (test keys and network access required)
 pnpm payments:reconcile --list  List payments and refunds that require operator review
 pnpm test:load         Run a 10-minute local k6 baseline; synthetic isolated data only
@@ -41,6 +42,7 @@ pnpm release deploy staging ID | promote ID | rollback ENV
 pnpm release backup ENV | restore ID | monitor ENV | status ENV | stop ENV
 pnpm release telemetry staging|demo on|off  Configure export for the next deployment
 pnpm test:release seed staging|cluster | mark staging | verify staging|recovery|cluster
+pnpm test:release-operators staging  Check operator recovery with an owned synthetic mail incident
 pnpm cluster check | status
 pnpm cluster up ID [single|replicas|autoscale]  Deploy an image to the isolated local k3d cluster
 
