@@ -1,4 +1,6 @@
-import { Controller, Get, Headers, Inject, Query } from '@nestjs/common';
+import { Controller, Get, Headers, Inject, Param, Query } from '@nestjs/common';
+import { z } from 'zod';
+import { mailDetail } from './ops/detail';
 import { parseInput, queryOperatorPage, TokenVerifier } from '@eventflow/service-runtime';
 import { opsPage, opsQuerySchema, type RawOpsIssue } from '@eventflow/event-contracts';
 import { Database } from './database';
@@ -9,6 +11,16 @@ export class TicketOps {
     @Inject(Database) private readonly db: Database,
     @Inject(TokenVerifier) private readonly verifier: TokenVerifier,
   ) {}
+  @Get('issues/:kind/:id')
+  async detail(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('kind') kind: string,
+    @Param('id') id: string,
+  ) {
+    const actor = await this.verifier.operator(authorization);
+    parseInput(z.literal('mail'), kind);
+    return mailDetail(this.db, parseInput(z.uuid(), id), actor.canRecover);
+  }
   @Get('issues')
   async list(@Headers('authorization') authorization: string | undefined, @Query() raw: unknown) {
     await this.verifier.operator(authorization);

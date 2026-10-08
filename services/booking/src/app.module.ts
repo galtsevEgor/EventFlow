@@ -22,6 +22,7 @@ import { RefundAccess } from './refunds/access';
 import { OrganizerRefunds } from './refunds/organizer';
 import { OrganizerOrdersController, OrderUpdatesAccessController } from './refunds/controller';
 import { RefundWorkflow } from './refunds/workflow';
+import { BookingOps } from './ops.controller';
 
 @Module({ imports: [HealthModule.forService('booking')] })
 export class AppModule {
@@ -39,6 +40,7 @@ export class AppModule {
               DeliveryContextController,
               OrganizerOrdersController,
               OrderUpdatesAccessController,
+              BookingOps,
             ],
       providers: [
         { provide: RefundAccess, useFactory: () => new RefundAccess(config) },

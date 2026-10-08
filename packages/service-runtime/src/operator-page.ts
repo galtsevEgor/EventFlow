@@ -1,3 +1,13 @@
+import { createHash } from 'node:crypto';
+
+export function operationVersion(
+  ...values: (string | number | boolean | Date | null | undefined)[]
+) {
+  return createHash('sha256')
+    .update(JSON.stringify(values.map((value) => value ?? null)))
+    .digest('hex');
+}
+
 type Filter = {
   limit: number;
   kind?: string | undefined;

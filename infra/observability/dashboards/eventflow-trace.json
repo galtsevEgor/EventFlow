@@ -1,0 +1,37 @@
+{
+  "uid": "eventflow-trace",
+  "title": "EventFlow — trace",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "tags": ["eventflow"],
+  "time": { "from": "now-24h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "traceId",
+        "label": "Trace ID",
+        "type": "textbox",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Trace",
+      "type": "traces",
+      "datasource": { "type": "tempo", "uid": "eventflow-tempo" },
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 24 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "eventflow-tempo" },
+          "queryType": "traceId",
+          "query": "$traceId"
+        }
+      ],
+      "options": {}
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+import { ApiError, operationVersion } from '@eventflow/service-runtime';
+import { opsIssue } from '@eventflow/event-contracts';
+import type { Database } from '../database';
+export async function mailDetail(db: Database, id: string, canRecover: boolean) {
+  const row = await db.deliveryJob.findUnique({ where: { id } });
+  if (!row) throw new ApiError(404, 'NOT_FOUND', 'Задача не найдена.');
+  const [gate, ticket, actions] = await Promise.all([
+    db.refundGate.findUnique({ where: { operationId: id }, select: { orderId: true } }),
+    db.ticket.findFirst({ where: { orderId: id }, select: { orderId: true } }),
+    db.deliveryRetry.findMany({
+      where: { jobId: id },
+      orderBy: [{ createdAt: 'desc' }, { requestId: 'desc' }],
+      take: 20,
+    }),
+  ]);
+  return {
+    issue: opsIssue({
+      id,
+      kind: 'mail',
+      state: row.state,
+      code: null,
+      orderId: gate?.orderId ?? ticket?.orderId ?? null,
+      at: row.nextRunAt,
+      traceparent: row.traceparent,
+    }),
+    version: operationVersion(row.state, row.attempts, row.nextRunAt, row.lease),
+    recoverable: canRecover && row.state === 'DEAD',
+    facts: { attempts: row.attempts, nextRunAt: row.nextRunAt.toISOString() },
+    actions: actions.map((action) => ({
+      key: action.requestId,
+      actor: action.actorSubject,
+      actorType: 'SERVICE' as const,
+      reason: null,
+      createdAt: action.createdAt.toISOString(),
+      traceId: null,
+    })),
+  };
+}

@@ -34,6 +34,18 @@ test('catalog operator mail listing is role protected, paginated and contains no
         (row) => row.kind === 'mail' && row.orderId === null,
       ),
     );
+    const id = first.body.items[0].id;
+    await fixture.db.deliveryRetry.create({
+      data: { requestId: randomUUID(), jobId: id, actorSubject: 'mail-service' },
+    });
+    const detail = await fixture.request(`/internal/ops/issues/mail/${id}`, viewer);
+    assert.equal(detail.status, 200);
+    assert.equal(detail.body.recoverable, false);
+    assert.equal(detail.body.actions.length, 1);
+    await fixture.db.deliveryJob.update({ where: { id }, data: { state: 'SENT' } });
+    const completed = await fixture.request(`/internal/ops/issues/mail/${id}`, viewer);
+    assert.equal(completed.body.issue.state, 'SENT');
+    assert.equal(completed.body.actions.length, 1);
   } finally {
     await fixture.close();
   }

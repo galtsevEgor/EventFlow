@@ -16,6 +16,17 @@ const schema = z.object({
   BOOKING_URL: httpUrl.default('http://127.0.0.1:4002'),
   PAYMENTS_URL: httpUrl.default('http://127.0.0.1:4003'),
   TICKETS_URL: httpUrl.default('http://127.0.0.1:4004'),
+  OBSERVABILITY_PUBLIC_ORIGIN: httpUrl
+    .refine((value) => {
+      const url = new URL(value);
+      return (
+        url.href === url.origin + '/' &&
+        !url.username &&
+        !url.password &&
+        (url.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(url.hostname))
+      );
+    })
+    .default('http://127.0.0.1:13000'),
   AMQP_URL: z.string().startsWith('amqp').optional(),
   MESSAGE_NAMESPACE: z
     .string()

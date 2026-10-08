@@ -1513,6 +1513,34 @@
         }
       }
     },
+    "/api/v1/ops/issues/{service}/{kind}/{id}": {
+      "get": {
+        "operationId": "operatorDetail",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "enum": ["payments", "catalog", "tickets"] }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "enum": ["payment", "refund", "webhook", "mail"] }
+          },
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized operator case and authoritative action history",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OpsDetail" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders/{id}/payment-attempt": {
       "post": {
         "operationId": "createPaymentAttempt",
@@ -2406,6 +2434,66 @@
               ]
             }
           }
+        }
+      },
+      "OpsAction": {
+        "type": "object",
+        "required": ["key", "actor", "actorType", "reason", "createdAt", "traceId"],
+        "properties": {
+          "key": { "type": "string", "format": "uuid" },
+          "actor": { "type": "string" },
+          "actorType": { "type": "string", "enum": ["HUMAN", "SERVICE"] },
+          "reason": { "type": ["string", "null"] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "traceId": { "type": ["string", "null"] }
+        }
+      },
+      "OpsOrder": {
+        "type": "object",
+        "required": ["id", "saleId", "state", "totalMinor", "currency", "seatCount"],
+        "properties": {
+          "id": { "type": "string" },
+          "saleId": { "type": "string" },
+          "state": { "type": "string" },
+          "totalMinor": { "type": "integer" },
+          "currency": { "type": "string" },
+          "seatCount": { "type": "integer" }
+        }
+      },
+      "OpsDetail": {
+        "type": "object",
+        "required": [
+          "issue",
+          "version",
+          "recoverable",
+          "facts",
+          "actions",
+          "order",
+          "orderStatus",
+          "traceUrl"
+        ],
+        "properties": {
+          "issue": { "$ref": "#/components/schemas/OpsIssue" },
+          "version": { "type": "string" },
+          "recoverable": { "type": "boolean" },
+          "facts": {
+            "type": "object",
+            "required": ["attempts", "nextRunAt"],
+            "properties": {
+              "amountMinor": { "type": "integer" },
+              "currency": { "type": "string" },
+              "bookingState": { "type": "string" },
+              "attempts": { "type": "integer" },
+              "nextRunAt": { "type": ["string", "null"] }
+            }
+          },
+          "actions": { "type": "array", "items": { "$ref": "#/components/schemas/OpsAction" } },
+          "order": { "anyOf": [{ "$ref": "#/components/schemas/OpsOrder" }, { "type": "null" }] },
+          "orderStatus": {
+            "type": "string",
+            "enum": ["available", "missing", "unavailable", "none"]
+          },
+          "traceUrl": { "type": ["string", "null"] }
         }
       },
       "PaymentAttemptReference": {

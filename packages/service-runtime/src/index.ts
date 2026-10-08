@@ -9,4 +9,4 @@ export { ClientCredentials } from './client-credentials';
 export { Mailpit, MailQueue, MailWorker, MailOperator, mailConfig } from './mail';
 export { workloadConfig } from './workload';
 export { observeDatabase } from './database-metrics';
-export { queryOperatorPage } from './operator-page';
+export { queryOperatorPage, operationVersion } from './operator-page';

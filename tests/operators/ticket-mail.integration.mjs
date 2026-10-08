@@ -15,6 +15,16 @@ test('ticket mail issues use the ticket service audience and bounded pages', asy
     });
     const id = randomUUID();
     await fixture.db.deliveryJob.create({ data: { id, state: 'DEAD', attempts: 4 } });
+    const orderId = randomUUID();
+    await fixture.db.refundGate.create({
+      data: {
+        operationId: id,
+        orderId,
+        saleId: randomUUID(),
+        organizationId: randomUUID(),
+        state: 'LOCKED',
+      },
+    });
     const viewer = await identity.token('viewer', {
       aud: 'eventflow-tickets',
       realm_access: { roles: ['ops-view'] },
@@ -22,6 +32,12 @@ test('ticket mail issues use the ticket service audience and bounded pages', asy
     const result = await jsonRequest(fixture.origin, '/internal/ops/issues?limit=1', viewer);
     assert.equal(result.status, 200);
     assert.equal(result.body.items[0].id, id);
+    assert.equal(result.body.items[0].orderId, orderId);
+    const detail = await jsonRequest(fixture.origin, `/internal/ops/issues/mail/${id}`, viewer);
+    assert.equal(detail.status, 200);
+    assert.equal(detail.body.issue.orderId, orderId);
+    assert.equal(detail.body.recoverable, false);
+    assert.match(detail.body.version, /^[a-f0-9]{64}$/);
     assert.equal(
       (
         await jsonRequest(

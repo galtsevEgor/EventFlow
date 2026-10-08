@@ -575,6 +575,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/ops/issues/{service}/{kind}/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['operatorDetail'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/payment-attempt': {
     parameters: {
       query?: never;
@@ -1089,6 +1105,42 @@ export interface components {
         service: 'payments' | 'catalog' | 'tickets';
         available: boolean;
       })[];
+    };
+    OpsAction: {
+      /** Format: uuid */
+      key: string;
+      actor: string;
+      /** @enum {string} */
+      actorType: 'HUMAN' | 'SERVICE';
+      reason: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      traceId: string | null;
+    };
+    OpsOrder: {
+      id: string;
+      saleId: string;
+      state: string;
+      totalMinor: number;
+      currency: string;
+      seatCount: number;
+    };
+    OpsDetail: {
+      issue: components['schemas']['OpsIssue'];
+      version: string;
+      recoverable: boolean;
+      facts: {
+        amountMinor?: number;
+        currency?: string;
+        bookingState?: string;
+        attempts: number;
+        nextRunAt: string | null;
+      };
+      actions: components['schemas']['OpsAction'][];
+      order: components['schemas']['OpsOrder'] | null;
+      /** @enum {string} */
+      orderStatus: 'available' | 'missing' | 'unavailable' | 'none';
+      traceUrl: string | null;
     };
     PaymentAttemptReference: {
       /** Format: uuid */
@@ -2635,6 +2687,30 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['OpsPage'];
+        };
+      };
+    };
+  };
+  operatorDetail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        service: 'payments' | 'catalog' | 'tickets';
+        kind: 'payment' | 'refund' | 'webhook' | 'mail';
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized operator case and authoritative action history */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpsDetail'];
         };
       };
     };

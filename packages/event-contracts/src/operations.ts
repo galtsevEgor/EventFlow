@@ -39,6 +39,38 @@ export const opsIssueSchema = z.strictObject({
     .nullable(),
 });
 export type OpsIssue = z.infer<typeof opsIssueSchema>;
+export const opsActionSchema = z.strictObject({
+  key: z.uuid(),
+  actor: z.string().max(255),
+  actorType: z.enum(['HUMAN', 'SERVICE']),
+  reason: z.string().max(240).nullable(),
+  createdAt: z.iso.datetime(),
+  traceId: z
+    .string()
+    .regex(/^[a-f0-9]{32}$/)
+    .nullable(),
+});
+export const opsDetailSchema = z.strictObject({
+  issue: opsIssueSchema,
+  version: z.string().regex(/^[a-f0-9]{64}$/),
+  recoverable: z.boolean(),
+  facts: z.strictObject({
+    amountMinor: z.number().int().nonnegative().optional(),
+    currency: z.string().length(3).optional(),
+    bookingState: z.string().max(60).optional(),
+    attempts: z.number().int().nonnegative(),
+    nextRunAt: z.iso.datetime().nullable(),
+  }),
+  actions: z.array(opsActionSchema).max(20),
+});
+export const opsOrderSchema = z.strictObject({
+  id: z.uuid(),
+  saleId: z.uuid(),
+  state: z.string().max(30),
+  totalMinor: z.number().int().nonnegative(),
+  currency: z.string().length(3),
+  seatCount: z.number().int().nonnegative(),
+});
 export const opsPageSchema = z.strictObject({
   items: z.array(opsIssueSchema).max(50),
   nextCursor: z.string().max(600).nullable(),
