@@ -77,6 +77,7 @@ services:
 
   s3:
     image: chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8
+    entrypoint: ['sh', '/etc/seaweedfs/eventflow-entrypoint.sh']
     command:
       [
         'server',
@@ -86,13 +87,15 @@ services:
         '-volume.max=16',
         '-master.volumeSizeLimitMB=64',
         '-s3',
-        '-s3.config=/etc/seaweedfs/s3.json',
+        '-s3.config=/run/eventflow-s3/s3.json',
       ]
     ports: ['127.0.0.1:18333:8333']
     volumes:
       - s3-data:/data
       - ./work/local/s3.json:/etc/seaweedfs/s3.json:ro
+      - ./infra/compose/seaweedfs-entrypoint.sh:/etc/seaweedfs/eventflow-entrypoint.sh:ro
       - ./infra/compose/seaweedfs-master.toml:/etc/seaweedfs/master.toml:ro
+    tmpfs: ['/run/eventflow-s3:rw,noexec,nosuid,size=1m,mode=0755']
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:9333/cluster/status']
       interval: 5s

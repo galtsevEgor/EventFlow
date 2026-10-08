@@ -83,7 +83,9 @@ jobs:
       - run: pnpm test:spikes
       - name: Dependency status on failure
         if: failure()
-        run: pnpm infra:status
+        run: |
+          pnpm infra:status
+          docker compose --project-directory . --env-file .env -f infra/compose/compose.yaml logs --no-color --tail 60 s3
       - name: Stop dependencies
         if: always()
         run: pnpm infra:down
