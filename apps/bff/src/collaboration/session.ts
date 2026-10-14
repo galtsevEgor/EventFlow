@@ -1,9 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { ApiError } from '@eventflow/service-runtime';
-import { clientFrameSchema, type DraftSnapshot, type ServerFrame } from '@eventflow/collaboration';
+import {
+  clientFrameSchema,
+  type DraftSnapshot,
+  type ServerFrame,
+  type Member,
+} from '@eventflow/collaboration';
 import { DocumentAccess } from './access';
 import { CollaborationBus } from './bus';
+import { DocumentPresence } from './presence';
 
 export class DocumentSession {
   readonly peerId = randomUUID();
@@ -17,12 +23,15 @@ export class DocumentSession {
   private refreshing = false;
   private readonly timer;
   private ticks = 0;
+  private member: Member | undefined;
+  private membersState = '';
 
   constructor(
     readonly socket: WebSocket,
     readonly access: DocumentAccess,
     private snapshot: DraftSnapshot,
     private readonly bus: CollaborationBus,
+    private readonly presence: DocumentPresence,
     private readonly remove: () => void,
   ) {
     socket.on('error', () => this.stop());
@@ -53,11 +62,26 @@ export class DocumentSession {
           if (parsed.data.type === 'join') {
             if (this.joined) throw new ApiError(422, 'INVALID_MESSAGE', 'Повторное начало сессии.');
             this.joined = true;
+            this.member = {
+              peerId: this.peerId,
+              clientId: parsed.data.clientId,
+              ...this.access.identity,
+              cursor: null,
+            };
+            await this.syncMembers();
+            void this.bus.publish(this.access.target).catch(() => {});
             this.send({ type: 'snapshot', snapshot: this.snapshot, peerId: this.peerId });
             return;
           }
           if (!this.joined)
             throw new ApiError(422, 'INVALID_MESSAGE', 'Сначала откройте документ.');
+          if (parsed.data.type === 'presence') {
+            await this.access.load();
+            this.member!.cursor = parsed.data.cursor;
+            await this.syncMembers();
+            void this.bus.publish(this.access.target).catch(() => {});
+            return;
+          }
           const next = await this.access.load({
             epoch: parsed.data.epoch,
             state: parsed.data.state,
@@ -99,6 +123,7 @@ export class DocumentSession {
     try {
       const next = await this.access.load();
       if (this.closed) return;
+      await this.syncMembers();
       if (next.version > this.snapshot.version || next.canEdit !== this.snapshot.canEdit) {
         if (next.version >= this.snapshot.version) this.snapshot = next;
         this.send({ type: 'snapshot', snapshot: this.snapshot, peerId: this.peerId });
@@ -107,6 +132,19 @@ export class DocumentSession {
       this.fail(error);
     } finally {
       this.refreshing = false;
+    }
+  }
+  private async syncMembers() {
+    if (!this.member || this.closed) return;
+    const members = await this.presence.touch(this.access.target, this.member);
+    if (this.closed) {
+      await this.presence.leave(this.access.target, this.peerId);
+      return;
+    }
+    const state = JSON.stringify(members);
+    if (state !== this.membersState) {
+      this.membersState = state;
+      this.send({ type: 'members', members });
     }
   }
   fail(error: unknown) {
@@ -124,6 +162,10 @@ export class DocumentSession {
     this.closed = true;
     clearInterval(this.timer);
     this.remove();
+    void this.presence
+      .leave(this.access.target, this.peerId)
+      .then(() => this.bus.publish(this.access.target))
+      .catch(() => {});
     this.socket.close(code);
     const deadline = setTimeout(() => this.socket.terminate(), 1000);
     deadline.unref();

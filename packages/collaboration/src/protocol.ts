@@ -17,12 +17,40 @@ export const draftSnapshotSchema = z.strictObject({
 });
 export type DraftSnapshot = z.infer<typeof draftSnapshotSchema>;
 
+const positionId = z.strictObject({
+  client: z.number().int().min(0).max(0xffffffff),
+  clock: z.number().int().min(0).max(1_000_000_000),
+});
+export const relativePositionSchema = z.strictObject({
+  type: positionId.nullable().optional(),
+  tname: z.literal('description').nullable().optional(),
+  item: positionId.nullable().optional(),
+  assoc: z.number().int().min(-1).max(1).optional(),
+});
+export const cursorSchema = z
+  .strictObject({
+    anchor: relativePositionSchema,
+    head: relativePositionSchema,
+  })
+  .nullable();
+export const memberSchema = z.strictObject({
+  peerId: z.uuid(),
+  clientId: z.number().int().min(0).max(0xffffffff),
+  name: z.string().min(1).max(80),
+  color: z.string().regex(/^#[a-f0-9]{6}$/),
+  cursor: cursorSchema,
+});
+export type Member = z.infer<typeof memberSchema>;
+export type Cursor = z.infer<typeof cursorSchema>;
+
 export const clientFrameSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('join'), clientId: z.number().int().min(0).max(0xffffffff) }),
+  z.strictObject({ type: z.literal('presence'), cursor: cursorSchema }),
   draftUpdateSchema.extend({ type: z.literal('update'), id: z.uuid() }),
 ]);
 export type ClientFrame = z.infer<typeof clientFrameSchema>;
 export const serverFrameSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('members'), members: z.array(memberSchema).max(16) }),
   z.strictObject({ type: z.literal('snapshot'), snapshot: draftSnapshotSchema, peerId: z.uuid() }),
   z.strictObject({ type: z.literal('ack'), id: z.uuid(), snapshot: draftSnapshotSchema }),
   z.strictObject({

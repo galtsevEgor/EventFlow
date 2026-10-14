@@ -20,6 +20,7 @@ import { AuthService } from './auth/auth.service';
 import { HttpAdapterHost } from '@nestjs/core';
 import { CollaborationBus } from './collaboration/bus';
 import { CollaborationHub } from './collaboration/hub';
+import { DocumentPresence } from './collaboration/presence';
 
 @Module({ imports: [HealthModule.forService('bff')] })
 export class AppModule {
@@ -39,6 +40,12 @@ export class AppModule {
       ],
       providers: [
         {
+          provide: DocumentPresence,
+          inject: [SessionStore, AUTH_CONFIG],
+          useFactory: (store: SessionStore, config: AuthConfig) =>
+            new DocumentPresence(store, config.SESSION_PREFIX),
+        },
+        {
           provide: CollaborationBus,
           inject: [SessionStore, AUTH_CONFIG],
           useFactory: (store: SessionStore, config: AuthConfig) =>
@@ -46,9 +53,13 @@ export class AppModule {
         },
         {
           provide: CollaborationHub,
-          inject: [HttpAdapterHost, AuthService, CollaborationBus],
-          useFactory: (adapter: HttpAdapterHost, auth: AuthService, bus: CollaborationBus) =>
-            new CollaborationHub(adapter, auth, bus),
+          inject: [HttpAdapterHost, AuthService, CollaborationBus, DocumentPresence],
+          useFactory: (
+            adapter: HttpAdapterHost,
+            auth: AuthService,
+            bus: CollaborationBus,
+            presence: DocumentPresence,
+          ) => new CollaborationHub(adapter, auth, bus, presence),
         },
         {
           provide: TokenVerifier,

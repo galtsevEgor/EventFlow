@@ -74,7 +74,7 @@ export async function collaborationFixture() {
           client.once('open', resolve);
           client.once('error', reject);
         });
-        client.send(JSON.stringify({ type: 'join', clientId: doc.clientID }));
+        client.send(JSON.stringify({ type: 'join', clientId: options.clientId ?? doc.clientID }));
         const wait = (predicate) => eventually(() => frames.findLast(predicate), Boolean);
         const initial = await wait((frame) => frame.type === 'snapshot');
         Y.applyUpdate(doc, Buffer.from(initial.snapshot.state, 'base64'));

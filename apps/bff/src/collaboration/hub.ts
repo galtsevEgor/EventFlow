@@ -7,6 +7,7 @@ import { AuthService } from '../auth/auth.service';
 import { DocumentAccess, socketRequest } from './access';
 import { CollaborationBus, roomId } from './bus';
 import { DocumentSession } from './session';
+import { DocumentPresence } from './presence';
 
 const path =
   /^\/api\/v1\/organizations\/([a-f0-9-]{36})\/events\/([a-f0-9-]{36})\/collaboration\/socket$/i;
@@ -24,6 +25,7 @@ export class CollaborationHub {
     private readonly adapter: HttpAdapterHost,
     private readonly auth: AuthService,
     private readonly bus: CollaborationBus,
+    private readonly presence: DocumentPresence,
   ) {}
   private readonly notify = (target: { organizationId: string; eventId: string }) => {
     for (const session of this.sessions)
@@ -73,7 +75,7 @@ export class CollaborationHub {
     const snapshot = await access.load();
     if (socket.destroyed) return;
     this.server.handleUpgrade(request, socket, head, (ws) => {
-      const session = new DocumentSession(ws, access, snapshot, this.bus, () =>
+      const session = new DocumentSession(ws, access, snapshot, this.bus, this.presence, () =>
         this.sessions.delete(session),
       );
       this.sessions.add(session);

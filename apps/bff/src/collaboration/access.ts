@@ -1,4 +1,5 @@
 import type { IncomingMessage } from 'node:http';
+import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 import { ApiError } from '@eventflow/service-runtime';
 import { draftSnapshotSchema, type DraftSnapshot } from '@eventflow/collaboration';
@@ -18,6 +19,7 @@ export function socketRequest(request: IncomingMessage): Request {
 }
 
 export class DocumentAccess {
+  identity = { name: 'Участник', color: '#315eac' };
   private sessionId: string | undefined;
   private subject: string | undefined;
   constructor(
@@ -35,6 +37,11 @@ export class DocumentAccess {
       throw new ApiError(401, 'UNAUTHENTICATED', 'Сессия завершена.');
     this.sessionId = id;
     this.subject = session.user.sub;
+    const colors = ['#315eac', '#86602d', '#9453a6', '#247766', '#ac425b', '#666a27'];
+    this.identity = {
+      name: session.user.name.trim().slice(0, 80) || 'Участник',
+      color: colors[createHash('sha256').update(session.user.sub).digest()[0]! % colors.length]!,
+    };
     if (update) await this.auth.store.rateLimit('collaboration-write:' + session.user.sub, 120);
     const response = await fetch(
       new URL(
