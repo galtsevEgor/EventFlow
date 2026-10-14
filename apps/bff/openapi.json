@@ -2057,6 +2057,7 @@
       "Draft": {
         "type": "object",
         "properties": {
+          "collaborative": { "type": "boolean" },
           "id": { "type": "string", "format": "uuid" },
           "organizationId": { "type": "string", "format": "uuid" },
           "title": { "type": "string" },

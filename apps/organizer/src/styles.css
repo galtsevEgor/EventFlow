@@ -506,3 +506,49 @@ footer {
     padding: 55px 0;
   }
 }
+.editor-surface {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  color: #172b27;
+}
+.editor-surface .cm-editor {
+  min-height: 220px;
+  font-size: 16px;
+}
+.editor-surface .cm-content {
+  padding: 16px;
+  min-height: 220px;
+}
+.editor-surface .cm-scroller {
+  overflow: auto;
+  max-height: 45vh;
+}
+.editor-status {
+  font-weight: 600;
+}
+.editor-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 0;
+  list-style: none;
+  min-height: 24px;
+}
+.editor-members li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.editor-members li span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

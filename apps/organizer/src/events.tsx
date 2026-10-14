@@ -8,6 +8,10 @@ import { api, queryClient, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
 import { EventCover } from './event-cover';
 import { EventPublication } from './event-publication';
+import { hasPendingCopy } from './collaboration/cache';
+const CollaborativeEditor = lazy(() =>
+  import('./collaboration/editor').then((module) => ({ default: module.CollaborativeEditor })),
+);
 const EventConfiguration = lazy(() =>
   import('./event-configuration').then((module) => ({ default: module.EventConfiguration })),
 );
@@ -18,6 +22,8 @@ const input = z.object({
   description: z.string().trim().max(5000),
 });
 export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
+  const subject = queryClient.getQueryData<Schemas['Session']>(['session'])?.user?.sub ?? '';
+  const [collaborating, setCollaborating] = useState<Schemas['Draft'] | null>(null);
   const events = useQuery({
     queryKey: ['events', id],
     refetchInterval: (query) =>
@@ -101,9 +107,19 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
                 alt={`Афиша: ${event.title}`}
               />
             )}
-            <EventPublication id={id} event={event} canEdit={canEdit} />
+            <EventPublication
+              id={id}
+              event={event}
+              canEdit={canEdit}
+              pendingCopy={hasPendingCopy(subject, id, event.id)}
+            />
             <h3>{event.title}</h3>
             <p>{event.description || 'Описание ещё не добавлено.'}</p>
+            {!event.publication && (
+              <Button variant="secondary" onClick={() => setCollaborating(event)}>
+                Совместный редактор
+              </Button>
+            )}
             {event.publication?.state === 'PUBLISHED' && (
               <Button variant="secondary" onClick={() => setAdmission(event)}>
                 Контроль входа
@@ -153,7 +169,17 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
           />
           <label className="ef-field">
             <span>Описание</span>
-            <textarea rows={5} maxLength={5000} {...form.register('description')} />
+            <textarea
+              rows={5}
+              maxLength={5000}
+              readOnly={editing !== 'new' && !!editing?.collaborative && !editing.publication}
+              {...form.register('description')}
+            />
+            {editing !== 'new' && editing?.collaborative && !editing.publication && (
+              <small>
+                Описание доступно в совместном редакторе. Здесь можно изменить название.
+              </small>
+            )}
           </label>
           <ErrorMessage error={save.error} />
           <Button type="submit" disabled={save.isPending}>
@@ -162,6 +188,29 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
               : 'Сохранить черновик'}
           </Button>
         </form>
+      </Dialog>
+      <Dialog
+        wide
+        open={collaborating !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCollaborating(null);
+            void queryClient.invalidateQueries({ queryKey: ['events', id] });
+          }
+        }}
+        title="Совместный редактор"
+        description={collaborating?.title ?? 'Описание черновика'}
+      >
+        {collaborating && (
+          <Suspense fallback={<Loading />}>
+            <CollaborativeEditor
+              key={collaborating.id}
+              organizationId={id}
+              eventId={collaborating.id}
+              subject={subject}
+            />
+          </Suspense>
+        )}
       </Dialog>
       <Dialog
         open={admission !== null}

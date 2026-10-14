@@ -794,6 +794,7 @@ export interface components {
       expiresAt: string;
     };
     Draft: {
+      collaborative?: boolean;
       /** Format: uuid */
       id: string;
       /** Format: uuid */

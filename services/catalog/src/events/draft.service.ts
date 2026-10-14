@@ -60,23 +60,36 @@ export class DraftService {
   async list(actor: UserIdentity, organizationId: string) {
     const member = await requireMembership(this.db, actor, organizationId);
     return {
-      events: await this.db.eventDraft.findMany({
-        where: {
-          organizationId,
-          ...(member.role === 'STAFF'
-            ? { assignments: { some: { userSubject: actor.subject } } }
-            : {}),
-        },
-        include: { publication: { select: publicationSelect } },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-      }),
+      events: await this.db.eventDraft
+        .findMany({
+          where: {
+            organizationId,
+            ...(member.role === 'STAFF'
+              ? { assignments: { some: { userSubject: actor.subject } } }
+              : {}),
+          },
+          include: {
+            publication: { select: publicationSelect },
+            document: { select: { eventId: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        })
+        .then((events) =>
+          events.map(({ document, ...event }) => ({
+            ...event,
+            collaborative: !!document,
+          })),
+        ),
     };
   }
   async get(actor: UserIdentity, organizationId: string, id: string) {
     const member = await requireMembership(this.db, actor, organizationId);
     const event = await this.db.eventDraft.findFirst({
-      include: { publication: { select: publicationSelect } },
+      include: {
+        publication: { select: publicationSelect },
+        document: { select: { eventId: true } },
+      },
       where: {
         id,
         organizationId,
@@ -86,7 +99,8 @@ export class DraftService {
       },
     });
     if (!event) throw new ApiError(404, 'NOT_FOUND', 'Мероприятие не найдено.');
-    return event;
+    const { document, ...draft } = event;
+    return { ...draft, collaborative: !!document };
   }
   async save(
     actor: UserIdentity,

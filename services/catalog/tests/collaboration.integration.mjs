@@ -78,6 +78,8 @@ test('concurrent Yjs writers merge durably, replay once and cannot be overwritte
     const normal = await f.request(resource, token);
     assert.equal(normal.body.document, undefined);
     assert.equal(normal.body.state, undefined);
+    assert.equal(normal.body.draftDocument, undefined);
+    assert.equal(normal.body.collaborative, true);
     a.destroy();
     b.destroy();
   } finally {

@@ -6,6 +6,7 @@ import { ErrorMessage } from './feedback';
 import { Organizations } from './organizations';
 import { useOperatorAccess } from './ops/access';
 import { clearOperatorRequests } from './ops/pending';
+import { clearDraftCopies } from './collaboration/cache';
 const OperatorPage = lazy(() => import('./ops/page'));
 
 export function App() {
@@ -36,6 +37,7 @@ export function App() {
       const result = unwrap(await api.client.POST('/api/v1/auth/logout'));
       queryClient.clear();
       clearOperatorRequests();
+      clearDraftCopies();
       api.setCsrfToken('');
       location.assign(result.logoutUrl);
     },

@@ -8,10 +8,12 @@ export function EventPublication({
   id,
   event,
   canEdit,
+  pendingCopy = false,
 }: {
   id: string;
   event: Schemas['Draft'];
   canEdit: boolean;
+  pendingCopy?: boolean;
 }) {
   const publish = useMutation({
     mutationFn: async () =>
@@ -80,9 +82,12 @@ export function EventPublication({
         </p>
       )}
       {!publication && canEdit && (
-        <Button disabled={publish.isPending} onClick={() => publish.mutate()}>
+        <Button disabled={publish.isPending || pendingCopy} onClick={() => publish.mutate()}>
           Опубликовать
         </Button>
+      )}
+      {!publication && pendingCopy && (
+        <p>Дождитесь сохранения правок в совместном редакторе перед публикацией.</p>
       )}
       <ErrorMessage error={publish.error} />
       {publication?.state === 'FAILED' && (
