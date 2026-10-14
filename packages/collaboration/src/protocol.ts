@@ -16,3 +16,19 @@ export const draftSnapshotSchema = z.strictObject({
   description: z.string().max(MAX_DESCRIPTION_LENGTH),
 });
 export type DraftSnapshot = z.infer<typeof draftSnapshotSchema>;
+
+export const clientFrameSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('join'), clientId: z.number().int().min(0).max(0xffffffff) }),
+  draftUpdateSchema.extend({ type: z.literal('update'), id: z.uuid() }),
+]);
+export type ClientFrame = z.infer<typeof clientFrameSchema>;
+export const serverFrameSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('snapshot'), snapshot: draftSnapshotSchema, peerId: z.uuid() }),
+  z.strictObject({ type: z.literal('ack'), id: z.uuid(), snapshot: draftSnapshotSchema }),
+  z.strictObject({
+    type: z.literal('error'),
+    code: z.string().max(64),
+    message: z.string().max(240),
+  }),
+]);
+export type ServerFrame = z.infer<typeof serverFrameSchema>;

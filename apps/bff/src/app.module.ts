@@ -17,6 +17,9 @@ import { StreamQuota } from './realtime/quota';
 import { UpdatesAccess } from './realtime/access';
 import { UpdatesController } from './realtime/controller';
 import { AuthService } from './auth/auth.service';
+import { HttpAdapterHost } from '@nestjs/core';
+import { CollaborationBus } from './collaboration/bus';
+import { CollaborationHub } from './collaboration/hub';
 
 @Module({ imports: [HealthModule.forService('bff')] })
 export class AppModule {
@@ -35,6 +38,18 @@ export class AppModule {
         OpsController,
       ],
       providers: [
+        {
+          provide: CollaborationBus,
+          inject: [SessionStore, AUTH_CONFIG],
+          useFactory: (store: SessionStore, config: AuthConfig) =>
+            new CollaborationBus(store, config.SESSION_PREFIX),
+        },
+        {
+          provide: CollaborationHub,
+          inject: [HttpAdapterHost, AuthService, CollaborationBus],
+          useFactory: (adapter: HttpAdapterHost, auth: AuthService, bus: CollaborationBus) =>
+            new CollaborationHub(adapter, auth, bus),
+        },
         {
           provide: TokenVerifier,
           useFactory: () => new TokenVerifier(config.OIDC_ISSUER, 'eventflow-payments'),

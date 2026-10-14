@@ -93,8 +93,20 @@ export function createGateway({
     if (!admit(request, response, group)) return;
     void route(path)(request, response);
   });
-  server.on('upgrade', (request, socket, head) =>
-    route(new URL(request.url, 'http://gateway').pathname).upgrade(request, socket, head),
-  );
+  server.on('upgrade', (request, socket, head) => {
+    const url = new URL(request.url, 'http://gateway');
+    const collaboration =
+      /^\/api\/v1\/organizations\/[a-f0-9-]{36}\/events\/[a-f0-9-]{36}\/collaboration\/socket$/i.test(
+        url.pathname,
+      );
+    if (
+      url.pathname.startsWith('/internal/') ||
+      (url.pathname.startsWith('/api/') && (!collaboration || url.search))
+    ) {
+      socket.end('HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+      return;
+    }
+    route(url.pathname).upgrade(request, socket, head);
+  });
   return server;
 }
