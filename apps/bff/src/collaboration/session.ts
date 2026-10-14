@@ -22,6 +22,7 @@ export class DocumentSession {
   private processing = Promise.resolve();
   private refreshing = false;
   private readonly timer;
+  private readonly joinDeadline;
   private ticks = 0;
   private member: Member | undefined;
   private membersState = '';
@@ -62,6 +63,7 @@ export class DocumentSession {
           if (parsed.data.type === 'join') {
             if (this.joined) throw new ApiError(422, 'INVALID_MESSAGE', 'Повторное начало сессии.');
             this.joined = true;
+            clearTimeout(this.joinDeadline);
             this.member = {
               peerId: this.peerId,
               clientId: parsed.data.clientId,
@@ -95,6 +97,10 @@ export class DocumentSession {
           this.pending--;
         });
     });
+    this.joinDeadline = setTimeout(
+      () => this.fail(new ApiError(422, 'JOIN_REQUIRED', 'Время подключения к документу истекло.')),
+      5000,
+    );
     this.timer = setInterval(() => {
       void this.refresh();
       if (++this.ticks % 5 === 0) {
@@ -161,6 +167,7 @@ export class DocumentSession {
     if (this.closed) return;
     this.closed = true;
     clearInterval(this.timer);
+    clearTimeout(this.joinDeadline);
     this.remove();
     void this.presence
       .leave(this.access.target, this.peerId)

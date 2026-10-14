@@ -37,3 +37,33 @@ it('rejects malformed state, foreign roots, embeds, formatting and oversized des
     doc.destroy();
   }
 });
+
+it('compacts repeated edits while preserving later local undo and durable convergence', () => {
+  const initial = initialDocument('Концерт'),
+    doc = new Y.Doc();
+  Y.applyUpdate(doc, initial.state);
+  const text = doc.getText('description');
+  const undo = new Y.UndoManager(text, { captureTimeout: 0 });
+  let saved = initial;
+  for (let i = 0; i < 300; i++) {
+    doc.transact(() => {
+      text.insert(0, 'x');
+      text.delete(0, 1);
+    });
+    saved = readDocument(saved.state, Y.encodeStateAsUpdate(doc));
+    Y.applyUpdate(doc, saved.state, 'server');
+  }
+  expect(saved.text).toBe('Концерт');
+  expect(saved.state.byteLength).toBeLessThan(4096);
+  text.insert(text.length, ' вечером');
+  saved = readDocument(saved.state, Y.encodeStateAsUpdate(doc));
+  Y.applyUpdate(doc, saved.state, 'server');
+  undo.undo();
+  expect(text.toString()).toBe('Концерт');
+  saved = readDocument(saved.state, Y.encodeStateAsUpdate(doc));
+  Y.applyUpdate(doc, saved.state, 'server');
+  undo.redo();
+  expect(readDocument(saved.state, Y.encodeStateAsUpdate(doc)).text).toBe('Концерт вечером');
+  undo.destroy();
+  doc.destroy();
+});

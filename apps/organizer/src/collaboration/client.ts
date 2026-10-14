@@ -7,7 +7,7 @@ import {
   type DraftSnapshot,
 } from '@eventflow/collaboration';
 import { Awareness } from 'y-protocols/awareness';
-import { cacheKey, loadCopy, saveCopy, type CachedDraft } from './cache';
+import { cacheKey, loadCopy, saveCopy, copyGeneration, type CachedDraft } from './cache';
 import { PeerAwareness, REMOTE } from './awareness';
 
 export type EditorStatus = {
@@ -42,6 +42,8 @@ export class DraftClient {
   private attempts = 0;
   private sentId = '';
   private acknowledgementTimer: ReturnType<typeof setTimeout> | undefined;
+  private connectDeadline: ReturnType<typeof setTimeout> | undefined;
+  private readonly copyGeneration = copyGeneration();
   status: EditorStatus = {
     ready: false,
     canEdit: false,
@@ -105,7 +107,7 @@ export class DraftClient {
   readonly reconnect = () => {
     if (this.stopped || this.status.connection === 'blocked') return;
     clearTimeout(this.retry);
-    if (this.socket && this.socket.readyState < WebSocket.CLOSING) return;
+    if (this.socket && this.socket.readyState !== WebSocket.CLOSED) return;
     this.connect();
   };
   private emit() {
@@ -113,7 +115,7 @@ export class DraftClient {
     this.changed(this.status);
   }
   private persist() {
-    if (!this.epoch) return;
+    if (!this.epoch || copyGeneration() !== this.copyGeneration) return;
     try {
       saveCopy(sessionStorage, this.key, {
         epoch: this.epoch,
@@ -146,8 +148,13 @@ export class DraftClient {
     );
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = (this.socket = new WebSocket(url));
+    clearTimeout(this.connectDeadline);
+    this.connectDeadline = setTimeout(() => {
+      if (!this.received && this.socket === socket) socket.close();
+    }, 7000);
     socket.onopen = () => this.send({ type: 'join', clientId: this.doc.clientID });
     socket.onmessage = (event) => {
+      if (this.stopped || this.socket !== socket) return;
       try {
         const parsed = serverFrameSchema.safeParse(JSON.parse(event.data));
         if (!parsed.success) throw new Error('Некорректный ответ редактора.');
@@ -190,7 +197,8 @@ export class DraftClient {
       /* onclose schedules bounded reconnect. */
     };
     socket.onclose = () => {
-      if (this.stopped) return;
+      if (this.stopped || this.socket !== socket) return;
+      clearTimeout(this.connectDeadline);
       this.received = false;
       this.status.members = [];
       this.peers.update([]);
@@ -218,6 +226,7 @@ export class DraftClient {
     this.epoch = snapshot.epoch;
     Y.applyUpdate(this.doc, decode(snapshot.state), REMOTE);
     this.received = true;
+    clearTimeout(this.connectDeadline);
     this.attempts = 0;
     this.status.ready = true;
     this.status.connection = 'online';
@@ -266,6 +275,7 @@ export class DraftClient {
     clearTimeout(this.sending);
     clearTimeout(this.cursorTimer);
     clearTimeout(this.acknowledgementTimer);
+    clearTimeout(this.connectDeadline);
     window.removeEventListener('online', this.reconnect);
     window.removeEventListener('beforeunload', this.beforeUnload);
     this.socket?.close();

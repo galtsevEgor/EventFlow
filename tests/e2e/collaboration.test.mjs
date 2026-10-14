@@ -231,6 +231,22 @@ test(
         await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         true,
       );
+      await manager.keyboard.press('Escape');
+      assert.ok(
+        await manager.evaluate(() =>
+          Object.keys(sessionStorage).some((key) => key.startsWith('eventflow:draft:')),
+        ),
+      );
+      await manager.getByRole('button', { name: 'Выйти', exact: true }).click();
+      await manager.waitForURL((url) => url.pathname.includes('/logout'));
+      await manager.locator('#kc-logout').click();
+      await manager.waitForURL(stack.origin + '/');
+      assert.equal(
+        await manager.evaluate(() =>
+          Object.keys(sessionStorage).some((key) => key.startsWith('eventflow:draft:')),
+        ),
+        false,
+      );
     } finally {
       await browser.close();
       await stack.close();

@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { encodedState } from '@eventflow/collaboration';
 
 const prefix = 'eventflow:draft:';
+let purgeGeneration = 0;
+export const copyGeneration = () => purgeGeneration;
 const generation = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 export const cachedDraftSchema = z
   .strictObject({
@@ -51,6 +53,8 @@ export function saveCopy(storage: Storage, key: string, value: CachedDraft) {
   storage.setItem(key, raw);
 }
 export function clearDraftCopies(storage: Storage = sessionStorage) {
+  // Unmount and late socket callbacks must not recreate copies after sign-out.
+  purgeGeneration++;
   const keys = Array.from({ length: storage.length }, (_, i) => storage.key(i));
   for (const key of keys) if (key?.startsWith(prefix)) storage.removeItem(key);
 }

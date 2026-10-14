@@ -522,6 +522,7 @@ footer {
   min-height: 220px;
 }
 .editor-surface .cm-scroller {
+  font-family: inherit;
   overflow: auto;
   max-height: 45vh;
 }
