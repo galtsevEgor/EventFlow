@@ -26,6 +26,7 @@ export class DocumentSession {
   private ticks = 0;
   private member: Member | undefined;
   private membersState = '';
+  private membersSentAt = 0;
 
   constructor(
     readonly socket: WebSocket,
@@ -148,8 +149,10 @@ export class DocumentSession {
       return;
     }
     const state = JSON.stringify(members);
-    if (state !== this.membersState) {
+    // Awareness expires remote cursors after 30 seconds, even if the peer stays idle.
+    if (state !== this.membersState || Date.now() - this.membersSentAt >= 10000) {
       this.membersState = state;
+      this.membersSentAt = Date.now();
       this.send({ type: 'members', members });
     }
   }

@@ -143,6 +143,9 @@ test(
       await b.click();
       await manager.keyboard.press('Control+End');
       await expect(owner.locator('.cm-ySelectionCaret')).toHaveCount(1, { timeout: 10000 });
+      // Keep both editors idle past Awareness's 30-second expiry.
+      await new Promise((resolve) => setTimeout(resolve, 35000));
+      await expect(owner.locator('.cm-ySelectionCaret')).toHaveCount(1);
       await manager.keyboard.press('Control+z');
       await text(a, 'Живой Концерт');
       await manager.keyboard.press('Control+y');

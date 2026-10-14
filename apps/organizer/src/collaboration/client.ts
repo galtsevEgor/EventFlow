@@ -19,8 +19,13 @@ export type EditorStatus = {
   copyError: string;
   members: Member[];
 };
-export const encodeDocument = (doc: Y.Doc) =>
-  btoa(String.fromCharCode(...Y.encodeStateAsUpdate(doc)));
+export function encodeDocument(doc: Y.Doc) {
+  const bytes = Y.encodeStateAsUpdate(doc);
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 8192)
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+  return btoa(binary);
+}
 const decode = (state: string) => Uint8Array.from(atob(state), (char) => char.charCodeAt(0));
 
 export class DraftClient {
@@ -247,6 +252,7 @@ export class DraftClient {
         this.status.connection = 'blocked';
         this.status.canEdit = false;
         this.emit();
+        this.socket?.close();
         return;
       }
       this.inflight = {

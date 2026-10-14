@@ -3,6 +3,7 @@ import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { collaborationFixture } from '../helpers/collaboration.mjs';
 import { DocumentPresence } from '../../apps/bff/dist/collaboration/presence.js';
+import { eventually } from '../helpers/eventually.mjs';
 
 test(
   'presence binds identities to sessions, shares cursors across replicas and removes departed peers',
@@ -29,6 +30,16 @@ test(
           frame.members.some((peer) => peer.name === 'manager' && peer.cursor),
       );
       assert.deepEqual(moved.members.find((peer) => peer.name === 'manager').cursor, cursor);
+      const before = a.frames.length;
+      const heartbeat = await eventually(
+        () =>
+          a.frames
+            .slice(before)
+            .find((frame) => frame.type === 'members' && frame.members.length === 2),
+        Boolean,
+        15000,
+      );
+      assert.deepEqual(heartbeat.members.find((peer) => peer.name === 'manager').cursor, cursor);
       b.close();
       await a.wait((frame) => frame.type === 'members' && frame.members.length === 1);
       a.send({ type: 'presence', cursor: null, name: 'Forged owner', color: '#ffffff' });
