@@ -26,5 +26,9 @@
   "services/tickets/prisma/migrations/202611050002_refund_admission/migration.sql": {
     "sha256": "113ba839fc33a27a00aa190719217e37151facdf9a7f57445d063c3f0e893a4b",
     "backwardCompatible": false
+  },
+  "services/catalog/prisma/migrations/202611080001_draft_document/migration.sql": {
+    "sha256": "39a5c21c547c752063e31093f94ad644230e5de24b34fcc3e8f2e540a04074b1",
+    "backwardCompatible": true
   }
 }

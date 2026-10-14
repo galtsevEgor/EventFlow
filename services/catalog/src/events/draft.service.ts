@@ -103,6 +103,16 @@ export class DraftService {
           include: { publication: { select: publicationSelect } },
         });
         if (!current) throw new ApiError(404, 'NOT_FOUND', 'Мероприятие не найдено.');
+        if (
+          !current.publication &&
+          current.description !== data.description &&
+          (await tx.draftDocument.findUnique({ where: { eventId: id } }))
+        )
+          throw new ApiError(
+            409,
+            'COLLABORATION_ACTIVE',
+            'Описание редактируется совместно. Откройте совместный редактор.',
+          );
         if (current.publication && current.title !== data.title)
           throw new ApiError(
             409,

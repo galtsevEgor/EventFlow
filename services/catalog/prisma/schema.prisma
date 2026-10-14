@@ -96,6 +96,7 @@ model Invitation {
 }
 
 model EventDraft {
+  document       DraftDocument?
   id             String @id @default(uuid()) @db.Uuid
   organizationId String @db.Uuid
   title          String @db.VarChar(160)
@@ -112,6 +113,15 @@ model EventDraft {
   assignments    StaffAssignment[]
 
   @@unique([organizationId, id])
+}
+
+model DraftDocument {
+  eventId   String @id @db.Uuid
+  epoch     String @db.Uuid
+  state     Bytes
+  version   Int @default(1)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  event     EventDraft @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
 model StaffAssignment {

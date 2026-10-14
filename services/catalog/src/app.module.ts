@@ -37,6 +37,8 @@ import { StatisticsConsumer } from './statistics/consumer';
 import { StatisticsReport } from './statistics/report';
 import { StatisticsController } from './statistics/controller';
 import { CatalogOps } from './ops.controller';
+import { DraftDocumentController } from './collaboration/controller';
+import { DraftDocumentService } from './collaboration/document.service';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -51,6 +53,7 @@ export class AppModule {
               OrganizationController,
               MembershipController,
               DraftController,
+              DraftDocumentController,
               PolicyController,
               CoverController,
               PublicCoverController,
@@ -61,6 +64,11 @@ export class AppModule {
               CatalogOps,
             ],
       providers: [
+        {
+          provide: DraftDocumentService,
+          inject: [Database],
+          useFactory: (db: Database) => new DraftDocumentService(db),
+        },
         {
           provide: StatisticsReport,
           inject: [Database],
