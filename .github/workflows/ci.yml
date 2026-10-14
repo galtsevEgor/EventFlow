@@ -69,6 +69,7 @@ jobs:
       - run: pnpm test:tickets
       - run: pnpm test:operators
       - run: pnpm test:realtime
+      - run: pnpm test:collaboration
       - run: pnpm test:realtime-load --smoke
       - run: pnpm test:telemetry
       - run: pnpm test:telemetry-load --smoke
