@@ -132,15 +132,38 @@ test('Booking outage leaves publication pending; retry cannot change frozen pric
   assert.equal((await catalog.db.coverAsset.findUnique({ where: { id: coverId } })).isPublic, true);
 });
 test('lost publisher confirmations and replayed commands do not duplicate inventory or overwrite the snapshot', async () => {
-  await catalog.db.outbox.updateMany({ data: { sentAt: null, availableAt: new Date(0) } });
-  await booking.db.outbox.updateMany({ data: { sentAt: null, availableAt: new Date(0) } });
+  const request = await eventually(
+    () => catalog.db.outbox.findUnique({ where: { id: envelope.eventId } }),
+    (row) => !!row?.sentAt,
+  );
+  const receipt = await eventually(
+    () =>
+      booking.db.outbox.findFirst({
+        where: { envelope: { path: ['eventType'], equals: 'SaleProvisioned.v1' } },
+      }),
+    (row) => !!row?.sentAt,
+  );
+  await catalog.db.outbox.update({
+    where: { id: request.id },
+    data: { sentAt: null, availableAt: new Date(0) },
+  });
+  await booking.db.outbox.update({
+    where: { id: receipt.id },
+    data: { sentAt: null, availableAt: new Date(0) },
+  });
   await eventually(
-    () => catalog.db.outbox.findFirst(),
-    (row) => row?.sentAt && row.attempts >= 2,
+    () => catalog.db.outbox.findUnique({ where: { id: request.id } }),
+    (row) => row?.sentAt && row.attempts > request.attempts,
   );
   await eventually(
-    () => booking.db.outbox.findFirst(),
-    (row) => row?.sentAt && row.attempts >= 2,
+    () => booking.db.outbox.findUnique({ where: { id: receipt.id } }),
+    (row) => row?.sentAt && row.attempts > receipt.attempts,
+  );
+  assert.equal(
+    await catalog.db.outbox.count({
+      where: { envelope: { path: ['eventType'], equals: 'SearchDocumentChanged.v1' } },
+    }),
+    1,
   );
   const handler = new ProvisionSale(booking.db);
   await handler.handle({ ...envelope, eventId: randomUUID() });

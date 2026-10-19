@@ -5,6 +5,7 @@ import { lockOrganization } from '../organizations/access';
 import { AvailabilityConsumer } from './availability-consumer';
 import { publicProjection } from '../public-catalog/projection';
 import { FailureConsumer } from './failure-consumer';
+import { captureSearchChange } from '../search/snapshot';
 
 export class PublicationConsumer {
   constructor(private readonly db: Database) {}
@@ -38,6 +39,7 @@ export class PublicationConsumer {
         });
         if (current.coverId)
           await tx.coverAsset.update({ where: { id: current.coverId }, data: { isPublic: true } });
+        await captureSearchChange(tx, draft.id);
       }
       await tx.inbox.create({ data: { eventId: event.eventId } });
     });

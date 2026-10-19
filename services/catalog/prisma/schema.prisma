@@ -242,3 +242,11 @@ model Inbox {
   eventId String @id @db.Uuid
   processedAt DateTime @default(now()) @db.Timestamptz
 }
+
+model SearchChange {
+  position BigInt @id @default(autoincrement())
+  eventId String @db.Uuid
+  document Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([eventId, position])
+}

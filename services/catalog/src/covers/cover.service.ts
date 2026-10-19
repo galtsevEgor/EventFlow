@@ -5,6 +5,7 @@ import { lockOrganization, requireMembership } from '../organizations/access';
 import { DraftService } from '../events/draft.service';
 import { approveImage } from './image';
 import { CoverStorage } from './storage';
+import { captureSearchChange } from '../search/snapshot';
 
 export type ImageUpload = { buffer: Buffer; mimetype: string; size: number };
 export class CoverService {
@@ -66,6 +67,7 @@ export class CoverService {
             details: { assetId: id },
           },
         });
+        await captureSearchChange(tx, eventId);
         return updated;
       });
       committed = true;

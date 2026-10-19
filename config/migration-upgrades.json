@@ -30,5 +30,9 @@
   "services/catalog/prisma/migrations/202611080001_draft_document/migration.sql": {
     "sha256": "39a5c21c547c752063e31093f94ad644230e5de24b34fcc3e8f2e540a04074b1",
     "backwardCompatible": true
+  },
+  "services/catalog/prisma/migrations/202611090001_search_changes/migration.sql": {
+    "backwardCompatible": true,
+    "sha256": "76a81d49ca5be2c619264c37dc9077538ba5f2ee325bd7b29fbbd34c7ca9fee2"
   }
 }

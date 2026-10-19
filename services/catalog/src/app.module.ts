@@ -39,6 +39,8 @@ import { StatisticsController } from './statistics/controller';
 import { CatalogOps } from './ops.controller';
 import { DraftDocumentController } from './collaboration/controller';
 import { DraftDocumentService } from './collaboration/document.service';
+import { SearchFeed } from './search/feed.service';
+import { SearchFeedController } from './search/feed.controller';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -54,6 +56,7 @@ export class AppModule {
               MembershipController,
               DraftController,
               DraftDocumentController,
+              SearchFeedController,
               PolicyController,
               CoverController,
               PublicCoverController,
@@ -64,6 +67,11 @@ export class AppModule {
               CatalogOps,
             ],
       providers: [
+        {
+          provide: SearchFeed,
+          inject: [Database],
+          useFactory: (db: Database) => new SearchFeed(db),
+        },
         {
           provide: DraftDocumentService,
           inject: [Database],

@@ -66,11 +66,15 @@ export const searchPageSchema = z.strictObject({
   source: z.enum(['search', 'catalog']),
   limited: z.boolean(),
 });
-export const searchFeedQuerySchema = z.strictObject({
-  after: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
-  through: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(100),
-});
+export const searchFeedQuerySchema = z
+  .strictObject({
+    after: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
+    through: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+  })
+  .refine((value) => value.through === undefined || value.after <= value.through, {
+    path: ['through'],
+  });
 export const searchFeedSchema = z.strictObject({
   changes: z.array(searchChangeSchema).max(100),
   through: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),

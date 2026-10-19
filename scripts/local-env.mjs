@@ -59,6 +59,7 @@ export function initializeEnvironment(directory) {
     PAYMENTS_URL: 'http://127.0.0.1:4003',
     TICKETS_URL: 'http://127.0.0.1:4004',
     SEARCH_URL: 'http://127.0.0.1:4005',
+    SEARCH_CLIENT_SECRET: randomBytes(32).toString('hex'),
     OPENSEARCH_URL: 'http://127.0.0.1:19200',
     SEARCH_INDEX_NAMESPACE: 'eventflow-search',
     TICKET_QR_KEYS: `v1:${randomBytes(32).toString('hex')}`,

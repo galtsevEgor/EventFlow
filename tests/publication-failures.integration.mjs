@@ -151,7 +151,19 @@ test('retry requires membership and an idempotency key, reuses the snapshot and 
   assert.equal(await booking.db.seatInventory.count(), 2);
   assert.equal((await booking.db.seatInventory.findFirst()).priceMinor, 2500);
   assert.equal((await retry()).status, 201);
-  assert.equal(await catalog.db.outbox.count(), 2);
+  assert.equal(await catalog.db.outbox.count(), 3);
+  assert.equal(
+    await catalog.db.outbox.count({
+      where: { envelope: { path: ['eventType'], equals: 'SaleProvisionRequested.v1' } },
+    }),
+    2,
+  );
+  assert.equal(
+    await catalog.db.outbox.count({
+      where: { envelope: { path: ['eventType'], equals: 'SearchDocumentChanged.v1' } },
+    }),
+    1,
+  );
   const current = await catalog.db.publication.findUnique({ where: { eventId } });
   await new PublicationConsumer(catalog.db).handle({
     ...failure,

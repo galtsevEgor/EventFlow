@@ -59,6 +59,7 @@ export const orderConfirmedSchema = z.strictObject({
     .max(6),
 });
 export const commerceRoutes = {
+  search: ['SearchDocumentChanged.v1'],
   realtime: realtimeEventTypes,
   ...refundRoutes,
   catalog: saleRoutes.catalog,

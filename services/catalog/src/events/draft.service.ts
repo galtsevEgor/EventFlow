@@ -3,6 +3,7 @@ import { configurationSchema } from './configuration';
 import { publicationSelect } from '../publication/view';
 import { Database } from '../database';
 import { lockOrganization, requireMembership } from '../organizations/access';
+import { captureSearchChange } from '../search/snapshot';
 
 export class DraftService {
   constructor(
@@ -149,6 +150,7 @@ export class DraftService {
           details: {},
         },
       });
+      await captureSearchChange(tx, event.id);
       return event;
     });
   }

@@ -41,6 +41,25 @@ const audience = {
 export function clientConfigurations(env) {
   return [
     {
+      clientId: 'eventflow-search',
+      protocol: 'openid-connect',
+      publicClient: false,
+      secret: env.SEARCH_CLIENT_SECRET,
+      standardFlowEnabled: false,
+      implicitFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: true,
+      defaultClientScopes: ['basic', 'roles'],
+      protocolMappers: [
+        audience,
+        {
+          ...audience,
+          name: 'search-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-search' },
+        },
+      ],
+    },
+    {
       clientId: env.OIDC_CLIENT_ID,
       name: 'EventFlow web session',
       protocol: 'openid-connect',
