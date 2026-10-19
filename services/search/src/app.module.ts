@@ -15,6 +15,8 @@ import { IndexStore } from './index-store';
 import { SearchProjection, ProjectionWorker } from './projection';
 import { SearchController } from './search.controller';
 import { SearchService } from './search.service';
+import { RebuildIndex } from './rebuild';
+import { SearchMaintenance } from './maintenance.controller';
 
 @Module({ imports: [HealthModule.forService('search')] })
 export class AppModule {
@@ -22,8 +24,19 @@ export class AppModule {
     const workers = config.EVENTFLOW_WORKLOAD !== 'http';
     return {
       module: AppModule,
-      controllers: config.EVENTFLOW_WORKLOAD === 'worker' ? [] : [SearchController],
+      controllers:
+        config.EVENTFLOW_WORKLOAD === 'worker' ? [] : [SearchController, SearchMaintenance],
       providers: [
+        {
+          provide: RebuildIndex,
+          inject: [OpenSearch, IndexStore, ProjectionLease, CatalogFeed],
+          useFactory: (
+            engine: OpenSearch,
+            store: IndexStore,
+            lease: ProjectionLease,
+            feed: CatalogFeed,
+          ) => new RebuildIndex(engine, store, lease, feed),
+        },
         {
           provide: SearchService,
           inject: [OpenSearch, IndexStore],

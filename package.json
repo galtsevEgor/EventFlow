@@ -65,7 +65,9 @@
     "env:postgres-port": "node scripts/postgres-port.mjs",
     "test:operators": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/operators/*.integration.mjs",
     "test:release-operators": "node tests/release/operators.mjs",
-    "test:collaboration": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/collaboration/*.integration.mjs"
+    "test:collaboration": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/collaboration/*.integration.mjs",
+    "test:search": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/search/*.integration.mjs",
+    "search:reindex": "node --env-file=.env scripts/reindex-search.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",
