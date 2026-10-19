@@ -1838,8 +1838,18 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/SearchPage" } }
             }
           },
-          "422": { "description": "Invalid query" },
-          "503": { "description": "Search temporarily unavailable" }
+          "422": {
+            "description": "Invalid query",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "503": {
+            "description": "Search temporarily unavailable",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
         }
       }
     },
@@ -1914,8 +1924,18 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/SearchSuggestions" } }
             }
           },
-          "422": { "description": "Invalid query" },
-          "503": { "description": "Search temporarily unavailable" }
+          "422": {
+            "description": "Invalid query",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "503": {
+            "description": "Search temporarily unavailable",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
         }
       }
     },

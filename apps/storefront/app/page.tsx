@@ -1,8 +1,10 @@
 import { Account } from './account';
 import type { Metadata } from 'next';
-import { ApiRequestError } from '@eventflow/api-client';
+import { ApiRequestError, type Schemas } from '@eventflow/api-client';
 import { listEvents, type Search } from './catalog-api';
 import { EventList } from './event-list';
+import { searchEvents, SearchInputError } from './search-api';
+import { SearchBox } from './search-box';
 
 export const dynamic = 'force-dynamic';
 export async function generateMetadata({
@@ -22,13 +24,22 @@ export async function generateMetadata({
 
 export default async function Home({ searchParams }: { searchParams: Promise<Search> }) {
   const search = await searchParams;
-  let result,
+  const enhanced = process.env.SEARCH_ENABLED === 'true';
+  let result: Schemas['PublicEventPage'] | undefined;
+  let facets: Schemas['SearchPage']['facets'] | undefined;
+  let limited = false,
     error = '';
   try {
-    result = await listEvents(search);
+    if (enhanced) {
+      const page = await searchEvents(search);
+      result = page;
+      facets = page.facets;
+      limited = page.limited;
+    } else result = await listEvents(search);
   } catch (cause) {
     error =
-      cause instanceof ApiRequestError && !cause.problem.retryable
+      cause instanceof SearchInputError ||
+      (cause instanceof ApiRequestError && !cause.problem.retryable)
         ? cause.message
         : 'Каталог временно недоступен. Попробуйте обновить страницу.';
   }
@@ -47,17 +58,26 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
           начинаются здесь.
         </h1>
         <p className="intro">Концерты, встречи и открытия. Выбирайте то, что близко вам.</p>
-        <form action="/" method="get" className="catalog-filters" aria-label="Фильтры мероприятий">
-          <label>
-            Название
-            <input
-              name="q"
-              type="search"
-              maxLength={160}
-              defaultValue={value('q')}
-              placeholder="Что ищем?"
-            />
-          </label>
+        <form
+          action="/"
+          method="get"
+          className={'catalog-filters' + (enhanced ? ' enhanced-filters' : '')}
+          aria-label="Фильтры мероприятий"
+        >
+          {enhanced ? (
+            <SearchBox initialValue={value('q')} key={value('q')} />
+          ) : (
+            <label>
+              Название
+              <input
+                name="q"
+                type="search"
+                maxLength={160}
+                defaultValue={value('q')}
+                placeholder="Что ищем?"
+              />
+            </label>
+          )}
           <label>
             Город
             <input
@@ -65,7 +85,17 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
               maxLength={100}
               defaultValue={value('city')}
               placeholder="Все города"
+              list={enhanced ? 'search-cities' : undefined}
             />
+            {facets && (
+              <datalist id="search-cities">
+                {facets.cities.map((city) => (
+                  <option key={city.value} value={city.value}>
+                    {city.count} событий
+                  </option>
+                ))}
+              </datalist>
+            )}
           </label>
           <label>
             С даты
@@ -75,9 +105,54 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
             По дату
             <input name="to" type="date" defaultValue={value('to')} />
           </label>
+          {enhanced && (
+            <>
+              <label>
+                Цена от, €
+                <input
+                  name="minPrice"
+                  type="number"
+                  min="0"
+                  max="1000000"
+                  step="0.01"
+                  defaultValue={value('minPrice')}
+                  placeholder="Любая"
+                />
+              </label>
+              <label>
+                Цена до, €
+                <input
+                  name="maxPrice"
+                  type="number"
+                  min="0"
+                  max="1000000"
+                  step="0.01"
+                  defaultValue={value('maxPrice')}
+                  placeholder="Любая"
+                />
+              </label>
+              <label>
+                Сортировка
+                <select
+                  name="sort"
+                  defaultValue={value('sort') || (value('q') ? 'relevance' : 'date')}
+                >
+                  <option value="relevance">По соответствию</option>
+                  <option value="date">По дате</option>
+                  <option value="price_asc">Сначала дешевле</option>
+                  <option value="price_desc">Сначала дороже</option>
+                </select>
+              </label>
+            </>
+          )}
           <button type="submit">Найти события</button>
         </form>
         <p className="filter-hint">Даты указаны по местному времени мероприятия.</p>
+        {limited && (
+          <p role="status" className="search-notice">
+            Сейчас доступен упрощённый поиск по названию и описанию. Фильтры продолжают работать.
+          </p>
+        )}
         {error && (
           <div role="alert" className="empty">
             {error} <a href="/">Сбросить фильтры</a>

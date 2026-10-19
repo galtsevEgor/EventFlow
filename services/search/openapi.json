@@ -111,10 +111,24 @@
             }
           },
           "422": {
-            "description": "Invalid query"
+            "description": "Invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           },
           "503": {
-            "description": "Search temporarily unavailable"
+            "description": "Search temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           }
         }
       }
@@ -225,10 +239,24 @@
             }
           },
           "422": {
-            "description": "Invalid query"
+            "description": "Invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           },
           "503": {
-            "description": "Search temporarily unavailable"
+            "description": "Search temporarily unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           }
         }
       }
@@ -455,6 +483,34 @@
             "type": "boolean"
           }
         }
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "fieldErrors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": ["code", "message", "requestId", "retryable"],
+        "additionalProperties": false
       }
     }
   }

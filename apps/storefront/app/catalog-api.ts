@@ -3,7 +3,17 @@ import { notFound } from 'next/navigation';
 import { createApiClient, unwrap } from '@eventflow/api-client';
 
 export type Search = Record<string, string | string[] | undefined>;
-export const filterKeys = ['q', 'city', 'from', 'to', 'page', 'pageSize'] as const;
+export const filterKeys = [
+  'q',
+  'city',
+  'from',
+  'to',
+  'page',
+  'pageSize',
+  'sort',
+  'minPrice',
+  'maxPrice',
+] as const;
 function client() {
   return createApiClient(process.env.BFF_URL ?? process.env.CATALOG_URL ?? 'http://127.0.0.1:4000')
     .client;

@@ -3161,14 +3161,18 @@ export interface operations {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
       };
       /** @description Search temporarily unavailable */
       503: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
       };
     };
   };
@@ -3205,14 +3209,18 @@ export interface operations {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
       };
       /** @description Search temporarily unavailable */
       503: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
       };
     };
   };

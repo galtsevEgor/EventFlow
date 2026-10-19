@@ -10,6 +10,7 @@ import { bookingFixture } from '../helpers/booking.mjs';
 import { paymentService } from '../helpers/payment-service.mjs';
 import { ticketsService } from '../helpers/tickets-service.mjs';
 import { createGateway } from '../../scripts/gateway.mjs';
+import { searchEngineFixture } from '../helpers/opensearch.mjs';
 import {
   S3Client,
   ListObjectsV2Command,
@@ -29,6 +30,7 @@ export async function fullStack({
   booking = false,
   payments = false,
   tickets = false,
+  search = false,
   gatewayLimits,
   httpConcurrency,
 } = {}) {
@@ -51,6 +53,7 @@ export async function fullStack({
   let ticketsApp;
   let catalogOrigin;
   const bookingPort = await availablePort();
+  const searchIndex = search ? searchEngineFixture() : undefined;
   async function startBooking() {
     bookingService ??= await bookingFixture(namespace, bookingPort, {
       CATALOG_URL: catalogOrigin ?? process.env.CATALOG_URL,
@@ -95,6 +98,7 @@ export async function fullStack({
       if (redis.isOpen) await redis.quit();
     }
     await ticketsApp?.close();
+    await searchIndex?.close();
     await paymentsService?.close();
     await bookingService?.close();
     await admin.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
@@ -132,6 +136,8 @@ export async function fullStack({
       SESSION_PREFIX: prefix,
       EVENTFLOW_LOG_REQUESTS: '0',
       NEXT_TELEMETRY_DISABLED: '1',
+      SEARCH_ENABLED: search ? 'true' : 'false',
+      SEARCH_INDEX_NAMESPACE: searchIndex?.namespace ?? process.env.SEARCH_INDEX_NAMESPACE,
       ...(httpConcurrency === undefined
         ? {}
         : { EVENTFLOW_HTTP_CONCURRENCY: String(httpConcurrency) }),
@@ -177,6 +183,11 @@ export async function fullStack({
     }
     const catalog = await start('services/catalog', () => ['dist/main.js'], '/health/ready');
     catalogOrigin = catalog;
+    const searchOrigin = search
+      ? await start('services/search', () => ['dist/main.js'], '/health/ready', {
+          CATALOG_URL: catalog,
+        })
+      : 'http://127.0.0.1:1';
     if (booking) await startBooking();
     if (payments) await startPayments();
     if (tickets)
@@ -187,6 +198,7 @@ export async function fullStack({
       });
     const bff = await start('apps/bff', () => ['dist/main.js'], '/health/ready', {
       CATALOG_URL: catalog,
+      SEARCH_URL: searchOrigin,
       BOOKING_URL: `http://127.0.0.1:${bookingPort}`,
       PAYMENTS_URL: paymentsService?.origin ?? 'http://127.0.0.1:1',
       TICKETS_URL: ticketsApp?.origin ?? 'http://127.0.0.1:1',
@@ -227,6 +239,7 @@ export async function fullStack({
       origin: origin.origin,
       catalog,
       bff,
+      search: searchIndex && { origin: searchOrigin, engine: searchIndex.engine },
       catalogDatabase: database,
       close,
       startBooking,
@@ -236,6 +249,12 @@ export async function fullStack({
         const process = children.find((item) => item.directory === 'services/catalog');
         process.child.kill('SIGTERM');
         await process.closed;
+      },
+      async stopSearch() {
+        const instance = children.find((item) => item.directory === 'services/search');
+        if (!instance) throw new Error('Search fixture is disabled');
+        instance.child.kill('SIGTERM');
+        await instance.closed;
       },
       async stopBff() {
         const process = children.find((item) => item.directory === 'apps/bff');
