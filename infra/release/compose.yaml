@@ -5,6 +5,8 @@ x-databases: &databases
   TICKETS_DATABASE_URL: postgresql://tickets:${TICKETS_DB_PASSWORD}@postgres:5432/tickets
 
 services:
+  opensearch:
+    ports: !reset []
   postgres:
     ports: !reset []
     mem_limit: 640m

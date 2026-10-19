@@ -26,3 +26,4 @@ export * from './statistics.js';
 export * from './refunds.js';
 export * from './realtime.js';
 export * from './operations.js';
+export * from './search.js';

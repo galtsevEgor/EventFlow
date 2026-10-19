@@ -1,6 +1,31 @@
 name: eventflow-local
 
 services:
+  opensearch:
+    image: opensearchproject/opensearch:3.9.0@sha256:3b55f6b6249cfdb92b52ee59adc8a266203ba9ef9f5d82544fad6f1af2f3609e
+    environment:
+      discovery.type: single-node
+      node.store.allow_mmap: 'false'
+      OPENSEARCH_JAVA_OPTS: '-Xms512m -Xmx512m'
+      DISABLE_INSTALL_DEMO_CONFIG: 'true'
+      DISABLE_SECURITY_PLUGIN: 'true'
+    ports: ['127.0.0.1:19200:9200']
+    mem_limit: 1536m
+    cpus: 1
+    ulimits:
+      nofile: { soft: 65536, hard: 65536 }
+    volumes: ['opensearch-data:/usr/share/opensearch/data']
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl --fail --silent http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow >/dev/null',
+        ]
+      interval: 5s
+      timeout: 5s
+      start_period: 60s
+      retries: 30
+
   postgres:
     image: postgres:18-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
     environment:
@@ -112,6 +137,7 @@ services:
       retries: 20
 
 volumes:
+  opensearch-data:
   postgres-data:
   redis-data:
   rabbitmq-data:
