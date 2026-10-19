@@ -64,7 +64,7 @@ export class SearchProjection {
       const complete = checkpoint.complete || page.next === page.through;
       if (!checkpoint.complete && complete)
         await this.engine.request('/' + index + '/_refresh', 'POST');
-      await this.store.save(index, page.next, complete);
+      await this.store.save(index, page.next, complete, checkpoint.generation);
       await lease.assert();
       return page.next === page.through;
     });

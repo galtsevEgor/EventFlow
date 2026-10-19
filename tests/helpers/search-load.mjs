@@ -82,7 +82,7 @@ export async function seedSearchLoad(fixture, app, count) {
     position = Number(changes.at(-1).position);
   }
   await app.engine.request('/' + index + '/_refresh', 'POST');
-  await app.store.save(index, position, true);
+  await app.store.save(index, position, true, await app.engine.identity(index));
   for (const table of ['PublicEvent', 'EventDraft', 'Publication'])
     await fixture.catalog.db.$executeRawUnsafe('ANALYZE "' + table + '"');
   return real;

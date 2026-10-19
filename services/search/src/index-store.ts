@@ -51,10 +51,11 @@ export class IndexStore {
       updatedAt: new Date(0).toISOString(),
     };
   }
-  async save(index: string, position: number, complete: boolean) {
+  async save(index: string, position: number, complete: boolean, generation: string) {
     const state = checkpointSchema.parse({
       index,
-      generation: await this.engine.identity(index),
+      // Preserve the generation captured before work, even if this writer resumes late.
+      generation,
       position,
       complete,
       updatedAt: new Date().toISOString(),

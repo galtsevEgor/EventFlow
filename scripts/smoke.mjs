@@ -100,7 +100,7 @@ try {
   const index = await searchFixture.engine.ensure(),
     store = new IndexStore(searchFixture.engine);
   await store.initialize();
-  await store.save(index, 0, true);
+  await store.save(index, 0, true, await searchFixture.engine.identity(index));
   await checkProcess(
     'search',
     'services/search',

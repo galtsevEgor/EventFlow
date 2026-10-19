@@ -73,6 +73,8 @@ export async function searchFixture({ rabbit = false } = {}) {
         await eventually(
           async () => {
             try {
+              // A globally ready index does not imply this replica has initialized its worker.
+              await result.projection.sync();
               await result.store.ready();
               return result.broker.ready;
             } catch {

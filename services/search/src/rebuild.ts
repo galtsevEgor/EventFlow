@@ -19,6 +19,7 @@ export class RebuildIndex {
       const index = this.engine.alias + '-v1-' + randomUUID();
       await this.engine.createIndex(index);
       try {
+        const generation = await this.engine.identity(index);
         await this.copy(index, 0, initial.through, builder);
         for (let attempt = 0; ; attempt++) {
           await builder.assert();
@@ -39,7 +40,7 @@ export class RebuildIndex {
               });
               await writer.assert();
               // A crash before this write causes a conservative replay against the new generation.
-              await this.store.save(index, current.through, true);
+              await this.store.save(index, current.through, true, generation);
               await writer.assert();
               return {
                 index,

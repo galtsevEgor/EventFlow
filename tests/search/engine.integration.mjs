@@ -33,7 +33,7 @@ test('Search exposes dependency readiness and rejects external or ambiguous engi
   const index = await f.engine.ensure(),
     store = new IndexStore(f.engine);
   await store.initialize();
-  await store.save(index, 0, true);
+  await store.save(index, 0, true, await f.engine.identity(index));
   const app = await createApplication(AppModule.configure(config), { name: 'search' });
   try {
     app.useLogger(false);
