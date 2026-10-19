@@ -4,6 +4,7 @@ import { searchEngineFixture } from '../helpers/opensearch.mjs';
 import { readSearchConfig } from '../../services/search/dist/config.js';
 import { AppModule } from '../../services/search/dist/app.module.js';
 import { createApplication } from '../../packages/service-runtime/dist/index.js';
+import { IndexStore } from '../../services/search/dist/index-store.js';
 
 test('real OpenSearch initializes one strict index and alias under concurrent startup', async () => {
   const f = searchEngineFixture();
@@ -24,7 +25,15 @@ test('real OpenSearch initializes one strict index and alias under concurrent st
 });
 test('Search exposes dependency readiness and rejects external or ambiguous engine URLs', async () => {
   const f = searchEngineFixture();
-  const config = readSearchConfig(f.engine.config);
+  const config = readSearchConfig({
+    ...process.env,
+    ...f.engine.config,
+    EVENTFLOW_WORKLOAD: 'http',
+  });
+  const index = await f.engine.ensure(),
+    store = new IndexStore(f.engine);
+  await store.initialize();
+  await store.save(index, 0, true);
   const app = await createApplication(AppModule.configure(config), { name: 'search' });
   try {
     app.useLogger(false);
@@ -38,7 +47,7 @@ test('Search exposes dependency readiness and rejects external or ambiguous engi
       'http://user:secret@127.0.0.1:19200',
       'http://127.0.0.1:19200/?token=secret',
     ])
-      assert.throws(() => readSearchConfig({ OPENSEARCH_URL }));
+      assert.throws(() => readSearchConfig({ ...process.env, OPENSEARCH_URL }));
   } finally {
     await app.close();
     await f.close();

@@ -11,13 +11,14 @@ export class SearchEngineError extends Error {
 }
 export class OpenSearch {
   readonly alias;
-  constructor(readonly config: SearchConfig) {
+  constructor(readonly config: Pick<SearchConfig, 'OPENSEARCH_URL' | 'SEARCH_INDEX_NAMESPACE'>) {
     this.alias = config.SEARCH_INDEX_NAMESPACE + '-events';
   }
   async request<T = Record<string, unknown>>(
     path: string,
     method = 'GET',
     body?: unknown,
+    contentType = 'application/json',
   ): Promise<T> {
     let response: Response;
     try {
@@ -25,8 +26,10 @@ export class OpenSearch {
         method,
         redirect: 'error',
         signal: AbortSignal.timeout(5000),
-        headers: { 'content-type': 'application/json' },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        headers: { 'content-type': contentType },
+        ...(body === undefined
+          ? {}
+          : { body: typeof body === 'string' ? body : JSON.stringify(body) }),
       });
     } catch {
       throw new SearchEngineError(503);
@@ -58,8 +61,23 @@ export class OpenSearch {
       if (!(error instanceof SearchEngineError) || error.status !== 404) throw error;
     }
     const index = this.alias + '-v1';
+    await this.createIndex(index);
+    await this.request('/_aliases', 'POST', { actions: [{ add: { index, alias: this.alias } }] });
+    return this.activeIndex();
+  }
+  async identity(index: string) {
+    const settings = await this.request<Record<string, { settings: { index: { uuid: string } } }>>(
+      '/' + index + '/_settings?filter_path=*.settings.index.uuid',
+    );
+    const uuid = settings[index]?.settings.index.uuid;
+    if (typeof uuid !== 'string' || !uuid) throw new SearchEngineError(503);
+    return uuid;
+  }
+  async createIndex(index: string, mapping: unknown = searchMapping) {
+    if (!index.startsWith(this.config.SEARCH_INDEX_NAMESPACE + '-') || !/^[a-z0-9-]+$/.test(index))
+      throw new Error('Invalid search index');
     try {
-      await this.request('/' + index, 'PUT', searchMapping);
+      await this.request('/' + index, 'PUT', mapping);
     } catch (error) {
       if (
         !(error instanceof SearchEngineError) ||
@@ -67,7 +85,5 @@ export class OpenSearch {
       )
         throw error;
     }
-    await this.request('/_aliases', 'POST', { actions: [{ add: { index, alias: this.alias } }] });
-    return this.activeIndex();
   }
 }

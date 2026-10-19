@@ -1,7 +1,18 @@
 import { z } from 'zod';
+import { workloadConfig } from '@eventflow/service-runtime';
 export function readSearchConfig(env: NodeJS.ProcessEnv) {
   return z
     .object({
+      ...workloadConfig,
+      REDIS_URL: z.url().startsWith('redis:'),
+      AMQP_URL: z.url().startsWith('amqp'),
+      OIDC_ISSUER: z.url(),
+      CATALOG_URL: z.url(),
+      SEARCH_CLIENT_SECRET: z.string().min(32),
+      MESSAGE_NAMESPACE: z
+        .string()
+        .regex(/^[a-z0-9-]{1,80}$/)
+        .default('eventflow'),
       OPENSEARCH_URL: z
         .url()
         .refine((value) => {
