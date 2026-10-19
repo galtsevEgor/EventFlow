@@ -68,6 +68,10 @@ test(
       await expect(page.getByText('Найдено: 2', { exact: true })).toBeVisible();
       await expect(page.getByLabel('Цена от, €')).toHaveValue('20');
       await expect(page.getByLabel('Сортировка')).toHaveValue('price_asc');
+      await expect(page.getByRole('combobox', { name: 'Название или описание' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
       await page.getByRole('link', { name: 'Следующая →' }).click();
       await expect(page).toHaveURL(/page=2/);
       assert.equal(new URL(page.url()).searchParams.get('minPrice'), '20');

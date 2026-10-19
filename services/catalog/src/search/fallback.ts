@@ -11,8 +11,8 @@ type EventRow = {
   city: string;
   address: string;
   timeZone: string;
-  startsAt: Date;
-  endsAt: Date;
+  startsAt: string;
+  endsAt: string;
   localDate: string;
   minPriceMinor: number;
   currency: 'EUR';
@@ -44,39 +44,56 @@ export class SearchFallback {
         : query.sort === 'price_desc'
           ? Prisma.sql`p."minPriceMinor" DESC, p."startsAt", p."eventId"`
           : Prisma.sql`p."startsAt", p."eventId"`;
-    return this.db.$transaction(
-      async (tx) => {
-        const [count] = await tx.$queryRaw<
-          { total: bigint; min: number | null; max: number | null }[]
-        >`
-        SELECT count(*) AS total, min(p."minPriceMinor") AS min, max(p."minPriceMinor") AS max ${base} ${selected}`;
-        const cities = await tx.$queryRaw<{ value: string; count: bigint }[]>`
-        SELECT p.city AS value, count(*) AS count ${base} GROUP BY p.city ORDER BY count DESC, p.city LIMIT 30`;
-        const events = await tx.$queryRaw<EventRow[]>`
-        SELECT p."eventId" AS id, e.title, e.description, p.city, p.address, p."timeZone",
-          p."startsAt", p."endsAt", p."localDate", p."minPriceMinor", p.currency, p.capacity, e."coverId"
-        ${base} ${selected} ORDER BY ${order} LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`;
-        const total = Number(count!.total);
-        return searchPageSchema.parse({
-          events: events.map((event) => ({
-            ...event,
-            startsAt: event.startsAt.toISOString(),
-            endsAt: event.endsAt.toISOString(),
-          })),
-          total,
-          page,
-          pageSize,
-          pages: Math.min(200, Math.ceil(total / pageSize)),
-          facets: {
-            cities: cities.map((row) => ({ value: row.value, count: Number(row.count) })),
-            price: { min: count!.min, max: count!.max },
-          },
-          source: 'catalog',
-          limited: true,
-        });
-      },
-      { isolationLevel: 'RepeatableRead' },
-    );
+    // One statement gives counts, facets and page the same snapshot and evaluates text once.
+    const [row] = await this.db.$queryRaw<
+      {
+        total: bigint;
+        min: number | null;
+        max: number | null;
+        cities: { value: string; count: number }[];
+        events: EventRow[];
+      }[]
+    >`
+      WITH eligible AS MATERIALIZED (
+        SELECT p."eventId", p.city, p."startsAt", p."minPriceMinor" ${base}
+      ), selected AS MATERIALIZED (
+        SELECT * FROM eligible p WHERE true ${selected}
+      ), counts AS (
+        SELECT count(*) AS total, min("minPriceMinor") AS min, max("minPriceMinor") AS max FROM selected
+      ), cities AS (
+        SELECT city AS value, count(*) AS count FROM eligible GROUP BY city ORDER BY count DESC, city LIMIT 30
+      ), page AS (
+        SELECT p.*, row_number() OVER (ORDER BY ${order}) AS rank
+        FROM selected p ORDER BY ${order} LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+      )
+      SELECT counts.*,
+        coalesce((SELECT jsonb_agg(to_jsonb(cities) ORDER BY count DESC, value) FROM cities), '[]'::jsonb) AS cities,
+        coalesce((
+          SELECT jsonb_agg(jsonb_build_object(
+            'id', p."eventId", 'title', e.title, 'description', e.description, 'city', p.city,
+            'address', public.address, 'timeZone', public."timeZone", 'startsAt', public."startsAt",
+            'endsAt', public."endsAt", 'localDate', public."localDate", 'minPriceMinor', p."minPriceMinor",
+            'currency', public.currency, 'capacity', public.capacity, 'coverId', e."coverId"
+          ) ORDER BY p.rank)
+          FROM page p JOIN "PublicEvent" public ON public."eventId" = p."eventId"
+          JOIN "EventDraft" e ON e.id = p."eventId"
+        ), '[]'::jsonb) AS events
+      FROM counts`;
+    const total = Number(row!.total);
+    return searchPageSchema.parse({
+      events: row!.events.map((event) => ({
+        ...event,
+        startsAt: new Date(event.startsAt).toISOString(),
+        endsAt: new Date(event.endsAt).toISOString(),
+      })),
+      total,
+      page,
+      pageSize,
+      pages: Math.min(200, Math.ceil(total / pageSize)),
+      facets: { cities: row!.cities, price: { min: row!.min, max: row!.max } },
+      source: 'catalog',
+      limited: true,
+    });
   }
 }
 

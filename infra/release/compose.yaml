@@ -77,6 +77,11 @@ services:
       BOOKING_URL: http://127.0.0.1:4002
       PAYMENTS_URL: http://127.0.0.1:4003
       TICKETS_URL: http://127.0.0.1:4004
+      SEARCH_URL: http://127.0.0.1:4005
+      SEARCH_ENABLED: 'true'
+      SEARCH_CLIENT_SECRET: ${SEARCH_CLIENT_SECRET}
+      SEARCH_INDEX_NAMESPACE: ${SEARCH_INDEX_NAMESPACE:-eventflow-search}
+      OPENSEARCH_URL: http://opensearch:9200
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       AMQP_URL: amqp://eventflow:${RABBITMQ_PASSWORD}@rabbitmq:5672
       S3_ENDPOINT: http://s3:8333

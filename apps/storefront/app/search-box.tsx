@@ -9,7 +9,7 @@ export function SearchBox({ initialValue }: { initialValue: string }) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [active, setActive] = useState(-1),
     [open, setOpen] = useState(false);
-  const dismissed = useRef(false),
+  const dismissed = useRef(true),
     id = useId(),
     router = useRouter();
   useEffect(() => {

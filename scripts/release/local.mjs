@@ -16,7 +16,15 @@ const ports = {
   demo: [38000, 38080, 38025, 38090],
   recovery: [48000, 48080, 48025, 48090],
 };
-export const dependencies = ['postgres', 'redis', 'rabbitmq', 'keycloak', 's3', 'mailpit'];
+export const dependencies = [
+  'postgres',
+  'redis',
+  'rabbitmq',
+  'keycloak',
+  's3',
+  'mailpit',
+  'opensearch',
+];
 
 export function run(program, args, options = {}) {
   const result = spawnSync(program, args, {

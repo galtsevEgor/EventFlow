@@ -5,6 +5,8 @@ import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { cleanBroker } from '../tests/helpers/broker.mjs';
+import { searchEngineFixture } from '../tests/helpers/opensearch.mjs';
+import { IndexStore } from '../services/search/dist/index-store.js';
 
 const probeOptions = { headers: { connection: 'close' } };
 
@@ -91,6 +93,31 @@ try {
   }
 } finally {
   await cleanBroker(smokeNamespace);
+}
+
+const searchFixture = searchEngineFixture();
+try {
+  const index = await searchFixture.engine.ensure(),
+    store = new IndexStore(searchFixture.engine);
+  await store.initialize();
+  await store.save(index, 0, true);
+  await checkProcess(
+    'search',
+    'services/search',
+    () => ['dist/main.js'],
+    '/health/ready',
+    async (response, origin) => {
+      assert.deepEqual(await response.json(), { status: 'ok', service: 'search' });
+      const result = await fetch(origin + '/api/v1/search/events', probeOptions);
+      assert.equal(result.status, 200);
+      const page = await result.json();
+      assert.equal(page.source, 'search');
+      assert.equal(page.total, 0);
+    },
+    { EVENTFLOW_WORKLOAD: 'http', SEARCH_INDEX_NAMESPACE: searchFixture.namespace },
+  );
+} finally {
+  await searchFixture.close();
 }
 
 await checkProcess(

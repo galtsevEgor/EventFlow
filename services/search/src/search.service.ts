@@ -92,12 +92,14 @@ export function searchRequest(query: SearchQuery, suggestions = false) {
 }
 
 export class SearchService {
+  private readyUntil = 0;
+  private readiness: Promise<void> | undefined;
   constructor(
     private readonly engine: OpenSearch,
     private readonly store: IndexStore,
   ) {}
   async list(query: SearchQuery, suggestions = false) {
-    await this.store.ready();
+    await this.ready();
     const raw = await this.engine.request(
       '/' + this.engine.alias + '/_search',
       'POST',
@@ -122,5 +124,18 @@ export class SearchService {
       source: 'search',
       limited: false,
     });
+  }
+  private ready() {
+    if (this.readiness) return this.readiness;
+    if (performance.now() < this.readyUntil) return Promise.resolve();
+    this.readiness = this.store
+      .ready()
+      .then(() => {
+        this.readyUntil = performance.now() + 500;
+      })
+      .finally(() => {
+        this.readiness = undefined;
+      });
+    return this.readiness;
   }
 }

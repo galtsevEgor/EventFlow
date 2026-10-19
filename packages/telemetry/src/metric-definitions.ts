@@ -17,6 +17,10 @@ export const snapshotNames = [
   'eventflow_sse_opening',
   'eventflow_sse_ready',
   'eventflow_sse_events',
+  'eventflow_search_checkpoint',
+  'eventflow_search_cursor_gap',
+  'eventflow_search_sync_age_seconds',
+  'eventflow_search_ready',
 ] as const;
 
 export type SnapshotName = (typeof snapshotNames)[number];

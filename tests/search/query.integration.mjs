@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { searchFixture } from '../helpers/search.mjs';
 import { publishSearchEvent } from '../helpers/search-catalog.mjs';
 import { realtimeFixture } from '../helpers/realtime.mjs';
+import { SearchService } from '../../services/search/dist/search.service.js';
 
 const document = (overrides = {}) => ({
   id: randomUUID(),
@@ -33,6 +34,29 @@ async function seed(fixture, app, documents) {
   );
   await fixture.engine.request('/' + index + '/_refresh', 'POST');
 }
+test('concurrent discovery coalesces readiness probes while every query still reaches the live index', async (t) => {
+  const fixture = await searchFixture();
+  t.after(() => fixture.close());
+  const app = await fixture.start(),
+    service = app.app.get(SearchService),
+    original = app.store.ready.bind(app.store);
+  let checks = 0;
+  app.store.ready = async () => {
+    checks++;
+    return original();
+  };
+  const query = { q: '', city: '', sort: 'date', page: 1, pageSize: 12 };
+  const pages = await Promise.all(Array.from({ length: 16 }, () => service.list(query)));
+  assert.equal(checks, 1);
+  assert.ok(pages.every((page) => page.source === 'search' && page.total === 0));
+  const request = app.engine.request.bind(app.engine);
+  app.engine.request = async (...args) => {
+    if (args[0].endsWith('/_search')) throw new Error('Actual index is unavailable');
+    return request(...args);
+  };
+  await assert.rejects(service.list(query), /Actual index is unavailable/);
+  app.engine.request = request;
+});
 
 test('real search understands typos, Russian word forms and accents without exposing expired or hidden documents', async (t) => {
   const fixture = await searchFixture();

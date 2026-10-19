@@ -17,6 +17,7 @@ import { SearchController } from './search.controller';
 import { SearchService } from './search.service';
 import { RebuildIndex } from './rebuild';
 import { SearchMaintenance } from './maintenance.controller';
+import { SearchMetrics } from './metrics';
 
 @Module({ imports: [HealthModule.forService('search')] })
 export class AppModule {
@@ -27,6 +28,11 @@ export class AppModule {
       controllers:
         config.EVENTFLOW_WORKLOAD === 'worker' ? [] : [SearchController, SearchMaintenance],
       providers: [
+        {
+          provide: SearchMetrics,
+          inject: [IndexStore, CatalogFeed],
+          useFactory: (store: IndexStore, feed: CatalogFeed) => new SearchMetrics(store, feed),
+        },
         {
           provide: RebuildIndex,
           inject: [OpenSearch, IndexStore, ProjectionLease, CatalogFeed],
@@ -106,6 +112,21 @@ export class AppModule {
                     undefined,
                     (event) => projection.project(event),
                   ),
+              },
+              {
+                provide: 'SEARCH_WORKER_READINESS',
+                inject: [Readiness, MessageWorker, ProjectionLease],
+                useFactory: (
+                  readiness: Readiness,
+                  worker: MessageWorker,
+                  lease: ProjectionLease,
+                ) => {
+                  readiness.register('redis', () => lease.client.ping());
+                  readiness.register('rabbitmq', async () => {
+                    if (!worker.broker.ready) throw new Error('Search consumer unavailable');
+                  });
+                  return readiness;
+                },
               },
             ]
           : []),

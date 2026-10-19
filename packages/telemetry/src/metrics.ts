@@ -23,6 +23,7 @@ const consumers = new Set([
   'tickets',
   'statistics',
   'realtime',
+  'search',
   'booking-refunds',
   'payment-refunds',
   'ticket-refunds',

@@ -35,6 +35,8 @@ export function telemetryConfig(
     'BOOKING_URL',
     'PAYMENTS_URL',
     'TICKETS_URL',
+    'SEARCH_URL',
+    'OPENSEARCH_URL',
   ].flatMap((key) => (env[key] ? [new URL(env[key]).origin] : []));
   const metricsEndpoint = new URL(
     env['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'] ??
