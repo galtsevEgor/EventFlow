@@ -13,6 +13,8 @@ const schema = z.object({
     .regex(/^[a-zA-Z0-9:_-]+$/)
     .default('eventflow:bff:'),
   CATALOG_URL: httpUrl,
+  SEARCH_URL: httpUrl.default('http://127.0.0.1:4005'),
+  SEARCH_ENABLED: z.enum(['true', 'false']).default('false'),
   BOOKING_URL: httpUrl.default('http://127.0.0.1:4002'),
   PAYMENTS_URL: httpUrl.default('http://127.0.0.1:4003'),
   TICKETS_URL: httpUrl.default('http://127.0.0.1:4004'),

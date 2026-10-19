@@ -607,6 +607,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/search/events': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['searchEvents'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/search/suggest': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['suggestEvents'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/payment-attempt': {
     parameters: {
       query?: never;
@@ -1171,6 +1203,54 @@ export interface components {
       fieldErrors?: {
         [key: string]: string[];
       };
+    };
+    SearchPage: {
+      events: {
+        /** Format: uuid */
+        id: string;
+        title: string;
+        description: string;
+        city: string;
+        address: string;
+        timeZone: string;
+        /** Format: date-time */
+        startsAt: string;
+        /** Format: date-time */
+        endsAt: string;
+        /** Format: date */
+        localDate: string;
+        minPriceMinor: number;
+        /** @constant */
+        currency: 'EUR';
+        capacity: number;
+        coverId: string | null;
+      }[];
+      total: number;
+      page: number;
+      pageSize: number;
+      pages: number;
+      facets: {
+        cities: {
+          value: string;
+          count: number;
+        }[];
+        price: {
+          min: number | null;
+          max: number | null;
+        };
+      };
+      /** @enum {string} */
+      source: 'search' | 'catalog';
+      limited: boolean;
+    };
+    SearchSuggestions: {
+      suggestions: {
+        /** Format: uuid */
+        id: string;
+        title: string;
+        city: string;
+      }[];
+      limited: boolean;
     };
     PaymentAttemptReference: {
       /** Format: uuid */
@@ -3045,6 +3125,94 @@ export interface operations {
         content: {
           'application/json': components['schemas']['OpsError'];
         };
+      };
+    };
+  };
+  searchEvents: {
+    parameters: {
+      query?: {
+        q?: string;
+        city?: string;
+        from?: string;
+        to?: string;
+        minPriceMinor?: number;
+        maxPriceMinor?: number;
+        sort?: 'relevance' | 'date' | 'price_asc' | 'price_desc';
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Public discovery result */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SearchPage'];
+        };
+      };
+      /** @description Invalid query */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Search temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  suggestEvents: {
+    parameters: {
+      query?: {
+        q?: string;
+        city?: string;
+        from?: string;
+        to?: string;
+        minPriceMinor?: number;
+        maxPriceMinor?: number;
+        sort?: 'relevance' | 'date' | 'price_asc' | 'price_desc';
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Public discovery result */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SearchSuggestions'];
+        };
+      };
+      /** @description Invalid query */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Search temporarily unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

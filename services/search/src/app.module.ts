@@ -13,6 +13,8 @@ import { ProjectionLease } from './lease';
 import { CatalogFeed } from './catalog-feed';
 import { IndexStore } from './index-store';
 import { SearchProjection, ProjectionWorker } from './projection';
+import { SearchController } from './search.controller';
+import { SearchService } from './search.service';
 
 @Module({ imports: [HealthModule.forService('search')] })
 export class AppModule {
@@ -20,7 +22,13 @@ export class AppModule {
     const workers = config.EVENTFLOW_WORKLOAD !== 'http';
     return {
       module: AppModule,
+      controllers: config.EVENTFLOW_WORKLOAD === 'worker' ? [] : [SearchController],
       providers: [
+        {
+          provide: SearchService,
+          inject: [OpenSearch, IndexStore],
+          useFactory: (engine: OpenSearch, store: IndexStore) => new SearchService(engine, store),
+        },
         { provide: OpenSearch, useFactory: () => new OpenSearch(config) },
         {
           provide: IndexStore,

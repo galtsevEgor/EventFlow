@@ -7,6 +7,7 @@ import { CatalogController } from './catalog.controller';
 import { SessionStore } from './auth/session-store';
 import { CoverProxyController, CoverSessionGuard } from './covers.controller';
 import { PublicController } from './public.controller';
+import { SearchProxy } from './search.controller';
 import { OrdersController } from './orders.controller';
 import { PaymentWebhooksController } from './payment-webhooks.controller';
 import { CheckInProxy } from './check-in.controller';
@@ -32,6 +33,7 @@ export class AppModule {
         UpdatesController,
         CoverProxyController,
         PublicController,
+        SearchProxy,
         CatalogController,
         OrdersController,
         PaymentWebhooksController,

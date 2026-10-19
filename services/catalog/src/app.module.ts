@@ -41,6 +41,7 @@ import { DraftDocumentController } from './collaboration/controller';
 import { DraftDocumentService } from './collaboration/document.service';
 import { SearchFeed } from './search/feed.service';
 import { SearchFeedController } from './search/feed.controller';
+import { SearchFallback, SearchFallbackController } from './search/fallback';
 
 @Module({ imports: [HealthModule.forService('catalog')] })
 export class AppModule {
@@ -57,6 +58,7 @@ export class AppModule {
               DraftController,
               DraftDocumentController,
               SearchFeedController,
+              SearchFallbackController,
               PolicyController,
               CoverController,
               PublicCoverController,
@@ -67,6 +69,11 @@ export class AppModule {
               CatalogOps,
             ],
       providers: [
+        {
+          provide: SearchFallback,
+          inject: [Database],
+          useFactory: (db: Database) => new SearchFallback(db),
+        },
         {
           provide: SearchFeed,
           inject: [Database],
