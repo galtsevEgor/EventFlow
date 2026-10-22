@@ -1,0 +1,61 @@
+.product-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.product-filters label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 9rem;
+}
+.product-filters select,
+.product-filters input,
+.product-trend select {
+  border: 1px solid #bcc4d1;
+  border-radius: 0.4rem;
+  padding: 0.6rem;
+  background: white;
+  color: #172033;
+}
+.product-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+.product-kpis > div {
+  padding: 1rem;
+  background: #f5f7fc;
+  border-radius: 0.6rem;
+}
+.product-kpis dt {
+  font-size: 0.9rem;
+  color: #4d576b;
+}
+.product-kpis dd {
+  margin: 0.5rem 0 0;
+  font-size: 1.8rem;
+}
+.product-kpis small {
+  display: block;
+  font-size: 0.8rem;
+  color: #4d576b;
+}
+.product-trend {
+  margin: 2rem 0 0;
+}
+.product-trend figcaption {
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+.product-trend svg {
+  width: 100%;
+  max-height: 240px;
+}
+.product-trend table button {
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  color: #334daa;
+  cursor: pointer;
+}

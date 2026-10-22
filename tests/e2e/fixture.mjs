@@ -10,6 +10,7 @@ import { bookingFixture } from '../helpers/booking.mjs';
 import { paymentService } from '../helpers/payment-service.mjs';
 import { ticketsService } from '../helpers/tickets-service.mjs';
 import { createGateway } from '../../scripts/gateway.mjs';
+import { analyticsFixture } from '../helpers/analytics.mjs';
 import { searchEngineFixture } from '../helpers/opensearch.mjs';
 import {
   S3Client,
@@ -31,6 +32,7 @@ export async function fullStack({
   payments = false,
   tickets = false,
   search = false,
+  analytics = false,
   gatewayLimits,
   httpConcurrency,
 } = {}) {
@@ -53,6 +55,7 @@ export async function fullStack({
   let ticketsApp;
   let catalogOrigin;
   const bookingPort = await availablePort();
+  const analyticsData = analytics ? await analyticsFixture() : undefined;
   const searchIndex = search ? searchEngineFixture() : undefined;
   async function startBooking() {
     bookingService ??= await bookingFixture(namespace, bookingPort, {
@@ -99,6 +102,7 @@ export async function fullStack({
     }
     await ticketsApp?.close();
     await searchIndex?.close();
+    await analyticsData?.close();
     await paymentsService?.close();
     await bookingService?.close();
     await admin.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
@@ -136,6 +140,13 @@ export async function fullStack({
       SESSION_PREFIX: prefix,
       EVENTFLOW_LOG_REQUESTS: '0',
       NEXT_TELEMETRY_DISABLED: '1',
+      ...(analyticsData
+        ? {
+            ANALYTICS_DATABASE_URL: analyticsData.env.ANALYTICS_DATABASE_URL,
+            ANALYTICS_DATABASE: analyticsData.env.ANALYTICS_DATABASE,
+          }
+        : {}),
+      ANALYTICS_ENABLED: analytics ? 'true' : 'false',
       SEARCH_ENABLED: search ? 'true' : 'false',
       SEARCH_INDEX_NAMESPACE: searchIndex?.namespace ?? process.env.SEARCH_INDEX_NAMESPACE,
       ...(httpConcurrency === undefined
@@ -196,9 +207,15 @@ export async function fullStack({
         CATALOG_URL: catalog,
         ...(typeof tickets === 'object' ? tickets : {}),
       });
+    const analyticsOrigin = analytics
+      ? await start('services/analytics', () => ['dist/main.js'], '/health/ready', {
+          CATALOG_URL: catalog,
+        })
+      : 'http://127.0.0.1:1';
     const bff = await start('apps/bff', () => ['dist/main.js'], '/health/ready', {
       CATALOG_URL: catalog,
       SEARCH_URL: searchOrigin,
+      ANALYTICS_URL: analyticsOrigin,
       BOOKING_URL: `http://127.0.0.1:${bookingPort}`,
       PAYMENTS_URL: paymentsService?.origin ?? 'http://127.0.0.1:1',
       TICKETS_URL: ticketsApp?.origin ?? 'http://127.0.0.1:1',
@@ -239,6 +256,7 @@ export async function fullStack({
       origin: origin.origin,
       catalog,
       bff,
+      analytics: analyticsData && { ...analyticsData, origin: analyticsOrigin },
       search: searchIndex && { origin: searchOrigin, engine: searchIndex.engine },
       catalogDatabase: database,
       close,

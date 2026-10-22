@@ -26,6 +26,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
   const search = await searchParams;
   const enhanced = process.env.SEARCH_ENABLED === 'true';
   let result: Schemas['PublicEventPage'] | undefined;
+  let searchProof: string | undefined;
   let facets: Schemas['SearchPage']['facets'] | undefined;
   let limited = false,
     error = '';
@@ -33,6 +34,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
     if (enhanced) {
       const page = await searchEvents(search);
       result = page;
+      searchProof = page.searchProof;
       facets = page.facets;
       limited = page.limited;
     } else result = await listEvents(search);
@@ -158,7 +160,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
             {error} <a href="/">Сбросить фильтры</a>
           </div>
         )}
-        {result && <EventList result={result} search={search} />}
+        {result && <EventList result={result} search={search} searchProof={searchProof} />}
       </section>
       <footer>EventFlow · События, которые объединяют</footer>
     </main>

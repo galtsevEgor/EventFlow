@@ -1,5 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { HealthModule, Readiness, probeIdentity, TokenVerifier } from '@eventflow/service-runtime';
+import { AnalyticsProxy } from './analytics/controller';
+import { AnalyticsBridge } from './analytics/service';
 import { OpsController } from './ops.controller';
 import { AuthModule } from './auth/auth.module';
 import type { AuthConfig } from './auth/config';
@@ -30,6 +32,7 @@ export class AppModule {
       module: AppModule,
       imports: [AuthModule.configure(config)],
       controllers: [
+        AnalyticsProxy,
         UpdatesController,
         CoverProxyController,
         PublicController,
@@ -41,6 +44,11 @@ export class AppModule {
         OpsController,
       ],
       providers: [
+        {
+          provide: AnalyticsBridge,
+          inject: [AuthService],
+          useFactory: (auth: AuthService) => new AnalyticsBridge(auth.config),
+        },
         {
           provide: DocumentPresence,
           inject: [SessionStore, AUTH_CONFIG],

@@ -156,6 +156,9 @@ importers:
       '@eventflow/collaboration':
         specifier: workspace:*
         version: link:../../packages/collaboration
+      '@eventflow/event-contracts':
+        specifier: workspace:*
+        version: link:../../packages/event-contracts
       '@eventflow/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -211,6 +214,9 @@ importers:
       '@eventflow/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@eventflow/event-contracts':
+        specifier: workspace:*
+        version: link:../../packages/event-contracts
       '@eventflow/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry

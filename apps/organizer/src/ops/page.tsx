@@ -1,3 +1,4 @@
+import { SearchQuality } from '../search-quality';
 import { Alert, Badge } from '@eventflow/ui';
 import { targetSchema } from './model';
 import { OperatorCase } from './case';
@@ -43,7 +44,10 @@ export default function OperatorPage({
           </Alert>
         )
       ) : (
-        <OperatorList actor={actor} />
+        <>
+          <SearchQuality />
+          <OperatorList actor={actor} />
+        </>
       )}
     </div>
   );

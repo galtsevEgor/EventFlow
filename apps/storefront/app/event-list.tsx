@@ -6,12 +6,14 @@ import { formatDate, formatPrice } from './format';
 export function EventList({
   result,
   search,
+  searchProof,
 }: {
   result: Schemas['PublicEventPage'];
   search: Search;
+  searchProof?: string | undefined;
 }) {
   return (
-    <div id="catalog">
+    <div id="catalog" data-search-proof={searchProof}>
       <div className="results-heading">
         <h2>Ближайшие мероприятия</h2>
         <p>Найдено: {result.total}</p>
@@ -25,7 +27,7 @@ export function EventList({
       ) : (
         <div className="public-event-grid">
           {result.events.map((event) => (
-            <article className="public-event-card" key={event.id}>
+            <article className="public-event-card" key={event.id} data-analytics-event={event.id}>
               <Link href={`/events/${event.id}`} className="event-link">
                 {event.coverId && (
                   <img

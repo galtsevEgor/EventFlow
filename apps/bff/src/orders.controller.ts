@@ -2,12 +2,16 @@ import { All, Controller, Inject, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiError, parseInput } from '@eventflow/service-runtime';
 import { z } from 'zod';
+import { AnalyticsBridge } from './analytics/service';
 import { AuthService } from './auth/auth.service';
 import { upstreamUrl } from './upstream-url';
 
 @Controller('api/v1/orders')
 export class OrdersController {
-  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+  constructor(
+    @Inject(AuthService) private readonly auth: AuthService,
+    @Inject(AnalyticsBridge) private readonly analytics: AnalyticsBridge,
+  ) {}
   @All(['', '{*path}'])
   async forward(@Req() request: Request, @Res() response: Response) {
     const path = request.path;
@@ -54,6 +58,9 @@ export class OrdersController {
           'x-request-id': response.locals.requestId,
           traceparent: response.locals.traceparent,
           ...(key ? { 'idempotency-key': key } : {}),
+          ...(this.analytics.enabled && this.analytics.session.read(request)
+            ? { 'x-analytics-session': this.analytics.session.read(request)!.id }
+            : {}),
         },
         ...(request.method === 'GET' || request.body === undefined
           ? {}

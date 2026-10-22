@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +8,9 @@ import { api, queryClient, roles, unwrap } from './api';
 import { ErrorMessage } from './feedback';
 import { Events } from './events';
 import { Team } from './team';
+const ProductAnalytics = lazy(() =>
+  import('./product-analytics').then(({ ProductAnalytics }) => ({ default: ProductAnalytics })),
+);
 import { SalesStatistics } from './sales-statistics';
 import { OrderRefunds } from './order-refunds';
 
@@ -107,7 +110,9 @@ function Organization({ id }: { id: string }) {
     queryFn: async () =>
       unwrap(await api.client.GET('/api/v1/organizations/{id}', { params: { path: { id } } })),
   });
-  const [tab, setTab] = useState<'events' | 'team' | 'statistics' | 'orders'>('events');
+  const [tab, setTab] = useState<'events' | 'team' | 'statistics' | 'orders' | 'analytics'>(
+    'events',
+  );
   const [editing, setEditing] = useState(false);
   const form = useForm({ resolver: zodResolver(input), defaultValues: { name: '' } });
   const rename = useMutation({
@@ -145,6 +150,14 @@ function Organization({ id }: { id: string }) {
       <nav className="section-tabs" aria-label="Разделы организации">
         {org.data.role !== 'STAFF' && (
           <Button
+            variant={tab === 'analytics' ? 'primary' : 'secondary'}
+            onClick={() => setTab('analytics')}
+          >
+            Аналитика продукта
+          </Button>
+        )}
+        {org.data.role !== 'STAFF' && (
+          <Button
             variant={tab === 'orders' ? 'primary' : 'secondary'}
             onClick={() => setTab('orders')}
           >
@@ -171,7 +184,11 @@ function Organization({ id }: { id: string }) {
           </Button>
         )}
       </nav>
-      {tab === 'orders' && org.data.role !== 'STAFF' ? (
+      {tab === 'analytics' && org.data.role !== 'STAFF' ? (
+        <Suspense fallback={<Loading />}>
+          <ProductAnalytics key={id} id={id} />
+        </Suspense>
+      ) : tab === 'orders' && org.data.role !== 'STAFF' ? (
         <OrderRefunds key={id} id={id} />
       ) : tab === 'statistics' && org.data.role !== 'STAFF' ? (
         <SalesStatistics key={id} id={id} />

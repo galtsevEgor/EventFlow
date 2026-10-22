@@ -15,6 +15,10 @@ const schema = z.object({
   CATALOG_URL: httpUrl,
   SEARCH_URL: httpUrl.default('http://127.0.0.1:4005'),
   SEARCH_ENABLED: z.enum(['true', 'false']).default('false'),
+  ANALYTICS_ENABLED: z.enum(['true', 'false']).default('false'),
+  ANALYTICS_URL: httpUrl.default('http://127.0.0.1:4006'),
+  ANALYTICS_CLIENT_SECRET: z.string().min(32).optional(),
+  ANALYTICS_SESSION_KEY: z.string().min(32).optional(),
   BOOKING_URL: httpUrl.default('http://127.0.0.1:4002'),
   PAYMENTS_URL: httpUrl.default('http://127.0.0.1:4003'),
   TICKETS_URL: httpUrl.default('http://127.0.0.1:4004'),
@@ -42,6 +46,11 @@ const schema = z.object({
 export type AuthConfig = ReturnType<typeof readAuthConfig>;
 export function readAuthConfig(env: NodeJS.ProcessEnv) {
   const values = schema.parse(env);
+  if (
+    values.ANALYTICS_ENABLED === 'true' &&
+    (!values.ANALYTICS_CLIENT_SECRET || !values.ANALYTICS_SESSION_KEY)
+  )
+    throw new Error('Enabled analytics requires its own service secret and session signing key');
   const origin = new URL(values.PUBLIC_ORIGIN);
   const issuer = new URL(values.OIDC_ISSUER);
   if (

@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import { ApiError, parseInput } from '@eventflow/service-runtime';
 import { searchPageSchema, searchQuerySchema } from '@eventflow/event-contracts';
+import { AnalyticsBridge } from './analytics/service';
 import { AuthService } from './auth/auth.service';
 
 const suggestionsSchema = z.strictObject({
@@ -13,7 +14,10 @@ const suggestionsSchema = z.strictObject({
 });
 @Controller('api/v1/search')
 export class SearchProxy {
-  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+  constructor(
+    @Inject(AuthService) private readonly auth: AuthService,
+    @Inject(AnalyticsBridge) private readonly analytics: AnalyticsBridge,
+  ) {}
   @Get('events') async list(
     @Query() input: unknown,
     @Res({ passthrough: true }) response: Response,
@@ -40,7 +44,9 @@ export class SearchProxy {
         );
         url.search = params.toString();
         const result = await this.fetch(url, response);
-        return suggest ? suggestionsSchema.parse(result) : searchPageSchema.parse(result);
+        return suggest
+          ? suggestionsSchema.parse(result)
+          : this.analytics.search(searchPageSchema.parse(result));
       } catch {
         // Discovery can use the authoritative catalog while its projection recovers.
       }
@@ -58,7 +64,7 @@ export class SearchProxy {
             suggestions: page.events.map(({ id, title, city }) => ({ id, title, city })),
             limited: true,
           }
-        : page;
+        : this.analytics.search(page);
     } catch {
       throw new ApiError(503, 'SEARCH_UNAVAILABLE', 'Поиск временно недоступен. Повторите позже.');
     }
