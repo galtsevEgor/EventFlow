@@ -1,4 +1,5 @@
 'use client';
+import { analyticsBatch, restoreAnalyticsQueue } from './analytics-queue';
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import type { BrowserAnalyticsEvent as Event } from '@eventflow/event-contracts';
@@ -18,7 +19,7 @@ function persist() {
 async function flush() {
   if (!enabled || busy || !queue.length) return;
   busy = true;
-  const batch = queue.slice(0, 30);
+  const batch = analyticsBatch(queue);
   try {
     const result = await fetch('/api/v1/analytics/events', {
       method: 'POST',
@@ -86,11 +87,10 @@ export function AnalyticsCollector() {
         if (!initialized) {
           initialized = true;
           try {
-            const saved = JSON.parse(sessionStorage.getItem(storageKey) ?? '[]') as Event[];
-            if (Array.isArray(saved))
-              queue = saved
-                .filter((e) => e && Date.now() - Date.parse(e.occurredAt) < 23 * 3600000)
-                .slice(-100);
+            queue = restoreAnalyticsQueue(
+              JSON.parse(sessionStorage.getItem(storageKey) ?? '[]'),
+              Date.now(),
+            );
           } catch {
             queue = [];
           }

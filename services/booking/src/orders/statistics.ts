@@ -25,7 +25,7 @@ export async function recordOrderStatistics(tx: Transaction, orderId: string) {
     'OrderStatisticsChanged.v1',
     order.id,
     order.state === 'HELD' ? 1 : 2,
-    data,
+    { ...data, analyticsSessionId: order.analyticsSessionId },
   );
   await tx.outbox.create({ data: { id: event.eventId, envelope: event } });
 }

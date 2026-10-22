@@ -38,38 +38,33 @@ export class AnalyticsReport {
       event: input.eventId ?? '',
       source: input.source ?? '',
     };
-    // Join chronological steps and the SAME order. Unattributed orders never manufacture a visit.
+    // Aggregate once per session/event; ordered arrays preserve the SAME-order conversion rule.
     const query = `WITH
-    facts AS (SELECT * FROM ${this.engine.table()} FINAL WHERE organizationId={org:String}
-      AND ({event:String}='' OR eventId={event:String})
-      AND occurredAt>=toDateTime({from:String},'UTC')
-      AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 2 DAY AND sessionId!=''),
-    entries AS (SELECT eventId,sessionId,min(occurredAt) AS entered,argMin(source,occurredAt) AS entrySource
-      FROM facts WHERE kind='impression' AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 1 DAY
-      GROUP BY eventId,sessionId HAVING ({source:String}='' OR entrySource={source:String})),
-    views AS (SELECT e.eventId,e.sessionId,e.entered,e.entrySource,min(f.occurredAt) AS viewed
-      FROM entries e INNER JOIN facts f ON e.eventId=f.eventId AND e.sessionId=f.sessionId
-      WHERE f.kind='event_view' AND f.occurredAt>=e.entered AND f.occurredAt<e.entered+INTERVAL 24 HOUR
-      GROUP BY e.eventId,e.sessionId,e.entered,e.entrySource),
-    holds AS (SELECT v.eventId,v.sessionId,f.orderId,v.entered,min(f.occurredAt) AS heldAt
-      FROM views v INNER JOIN facts f ON v.eventId=f.eventId AND v.sessionId=f.sessionId
-      WHERE f.kind='held' AND f.orderId!='' AND f.occurredAt>=v.viewed AND f.occurredAt<v.entered+INTERVAL 24 HOUR
-      GROUP BY v.eventId,v.sessionId,f.orderId,v.entered),
-    purchases AS (SELECT DISTINCT h.eventId,h.sessionId
-      FROM holds h INNER JOIN facts f ON h.eventId=f.eventId AND h.sessionId=f.sessionId AND h.orderId=f.orderId
-      WHERE f.kind='confirmed' AND f.occurredAt>=h.heldAt AND f.occurredAt<h.entered+INTERVAL 24 HOUR),
-    heldSessions AS (SELECT DISTINCT eventId,sessionId FROM holds),
-    clicks AS (SELECT DISTINCT e.eventId,e.sessionId FROM entries e INNER JOIN facts f ON e.eventId=f.eventId AND e.sessionId=f.sessionId
-      WHERE f.kind='search_click' AND f.occurredAt>=e.entered AND f.occurredAt<e.entered+INTERVAL 24 HOUR)
-    SELECT toString(toDate(e.entered,'UTC')) AS date,e.eventId AS eventId,e.entrySource AS source,count() AS impressions,
-      countIf(v.sessionId!='') AS views,countIf(h.sessionId!='') AS held,countIf(p.sessionId!='') AS confirmed,
-      countIf(c.sessionId!='' AND e.entrySource='search') AS clicks,countIf(e.entrySource='search') AS searchImpressions
-    FROM entries e
-    LEFT JOIN views v ON e.eventId=v.eventId AND e.sessionId=v.sessionId
-    LEFT JOIN heldSessions h ON e.eventId=h.eventId AND e.sessionId=h.sessionId
-    LEFT JOIN purchases p ON e.eventId=p.eventId AND e.sessionId=p.sessionId
-    LEFT JOIN clicks c ON e.eventId=c.eventId AND e.sessionId=c.sessionId
-    GROUP BY date,e.eventId,e.entrySource ORDER BY date,e.eventId,e.entrySource LIMIT 10000`;
+    sessions AS (
+      SELECT eventId,sessionId,
+        minIf(occurredAt,kind='impression' AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 1 DAY) AS entered,
+        argMinIf(source,tuple(occurredAt,key),kind='impression' AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 1 DAY) AS entrySource,
+        countIf(kind='impression' AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 1 DAY) AS entryCount,
+        groupArrayIf(occurredAt,kind='event_view') AS viewTimes,
+        groupArrayIf(tuple(occurredAt,orderId),kind='held') AS heldSteps,
+        groupArrayIf(tuple(occurredAt,orderId),kind='confirmed') AS paidSteps,
+        groupArrayIf(occurredAt,kind='search_click') AS clickTimes
+      FROM ${this.engine.table()} FINAL
+      WHERE organizationId={org:String} AND ({event:String}='' OR eventId={event:String})
+        AND sessionId!='' AND occurredAt>=toDateTime({from:String},'UTC')
+        AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 2 DAY
+      GROUP BY eventId,sessionId HAVING entryCount>0
+    ),
+    visits AS (SELECT *,arrayFilter(t->t>=entered AND t<entered+INTERVAL 24 HOUR,viewTimes) AS acceptedViews
+      FROM sessions WHERE {source:String}='' OR entrySource={source:String}),
+    reservations AS (SELECT *,arrayFilter(h->notEmpty(acceptedViews) AND h.2!=''
+      AND h.1>=arrayMin(acceptedViews) AND h.1<entered+INTERVAL 24 HOUR,heldSteps) AS acceptedHolds FROM visits)
+    SELECT toString(toDate(entered,'UTC')) AS date,eventId,entrySource AS source,
+      count() AS impressions,countIf(notEmpty(acceptedViews)) AS views,countIf(notEmpty(acceptedHolds)) AS held,
+      countIf(arrayExists(c->c.1<entered+INTERVAL 24 HOUR AND arrayExists(h->h.2=c.2 AND c.1>=h.1,acceptedHolds),paidSteps)) AS confirmed,
+      countIf(entrySource='search' AND arrayExists(t->t>=entered AND t<entered+INTERVAL 24 HOUR,clickTimes)) AS clicks,
+      countIf(entrySource='search') AS searchImpressions
+    FROM reservations GROUP BY date,eventId,entrySource ORDER BY date,eventId,entrySource LIMIT 10001`;
     const groups = (await this.engine.rows<Group>(query, params)).map((row) => ({
       date: row.date,
       eventId: row.eventId,
@@ -81,6 +76,7 @@ export class AnalyticsReport {
       clicks: Number(row.clicks),
       searchImpressions: Number(row.searchImpressions),
     })) as (Omit<Group, (typeof numeric)[number]> & Record<(typeof numeric)[number], number>)[];
+    if (groups.length > 10000) throw new Error('Narrow the analytics period or event filter');
     const totals = Object.fromEntries(
       numeric.map((key) => [key, groups.reduce((sum, row) => sum + row[key], 0)]),
     ) as Record<(typeof numeric)[number], number>;

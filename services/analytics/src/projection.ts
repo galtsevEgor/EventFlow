@@ -56,18 +56,18 @@ export class AnalyticsProjection {
     });
   }
   async status() {
-    const [checkpoint, highWater, generation] = await Promise.all([
+    const [checkpoint, generation] = await Promise.all([
       this.journal.checkpoint(),
-      this.journal.highWater(),
       this.engine.generation(),
     ]);
     if (!checkpoint || checkpoint.generation !== generation)
       throw new Error('Analytics projection recovering');
+    const pending = await this.journal.pending(checkpoint.sequence);
     return {
       sequence: checkpoint.sequence,
-      pending: Number(BigInt(highWater) - BigInt(checkpoint.sequence)),
+      pending,
       updatedAt: checkpoint.updated_at.toISOString(),
-      stale: highWater !== checkpoint.sequence,
+      stale: pending > 0,
     };
   }
 }

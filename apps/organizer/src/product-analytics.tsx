@@ -210,8 +210,8 @@ export function ProductAnalytics({ id }: { id: string }) {
             {report.isError
               ? 'Не удалось обновить отчёт. Показаны последние загруженные данные.'
               : data.status.stale
-                ? 'Данные догоняют журнал. Ожидает событий: ' + data.status.pending
-                : 'Проекция актуальна.'}{' '}
+                ? 'Обрабатываем новые события. Ожидает: ' + data.status.pending
+                : 'Данные обновлены.'}{' '}
             Обновлено: {new Date(data.status.updatedAt).toLocaleString('ru', { timeZone: 'UTC' })}{' '}
             UTC.
           </p>
@@ -221,6 +221,9 @@ export function ProductAnalytics({ id }: { id: string }) {
               не входят в воронку.
             </p>
           )}
+          <p>
+            Сравнение с {data.previousPeriod.from} — {data.previousPeriod.to}, UTC.
+          </p>
           <dl className="product-kpis">
             {Object.entries(labels).map(([key, label]) => (
               <div key={key}>

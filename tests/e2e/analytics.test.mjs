@@ -151,7 +151,7 @@ test(
       await page.screenshot({ path: 'work/e18/organizer-entry.png', fullPage: true });
       await page.getByRole('button', { name: 'Аналитика продукта', exact: true }).click();
       await expect(page.getByRole('heading', { name: 'Продуктовая аналитика' })).toBeVisible();
-      await expect(page.getByText('Проекция актуальна.', { exact: false })).toBeVisible();
+      await expect(page.getByText('Данные обновлены.', { exact: false })).toBeVisible();
       await page.getByText('Данные графика', { exact: true }).click();
       await expect(page.getByRole('table')).toBeVisible();
       mkdirSync('work/e18', { recursive: true });

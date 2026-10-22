@@ -13,6 +13,7 @@ export class Journal {
       connectionTimeoutMillis: 3000,
       statement_timeout: 5000,
     });
+    this.pool.on('error', () => {});
   }
   async append(input: AnalyticsFact[]) {
     const facts = input.map((fact) => analyticsFactSchema.parse(fact));
@@ -21,17 +22,22 @@ export class Journal {
       await client.query('BEGIN');
       // Serialize sequence allocation and commits so a checkpoint cannot skip an uncommitted row.
       await client.query('SELECT pg_advisory_xact_lock(180010)');
-      for (const fact of facts) {
-        const hash = createHash('sha256').update(JSON.stringify(fact)).digest('hex');
+      const rows = facts.map((fact) => ({
+        key: fact.key,
+        hash: createHash('sha256').update(JSON.stringify(fact)).digest('hex'),
+        fact,
+      }));
+      if (rows.length) {
         await client.query(
-          'INSERT INTO analytics_event (key,hash,fact) VALUES ($1,$2,$3) ON CONFLICT (key) DO NOTHING',
-          [fact.key, hash, fact],
+          'INSERT INTO analytics_event (key,hash,fact) SELECT key,hash,fact FROM jsonb_to_recordset($1::jsonb) AS input(key text,hash text,fact jsonb) ON CONFLICT (key) DO NOTHING',
+          [JSON.stringify(rows)],
         );
-        const previous = await client.query<{ hash: string }>(
-          'SELECT hash FROM analytics_event WHERE key=$1',
-          [fact.key],
+        const saved = await client.query<{ key: string; hash: string }>(
+          'SELECT key,hash FROM analytics_event WHERE key=ANY($1::text[])',
+          [rows.map((r) => r.key)],
         );
-        if (previous.rows[0]?.hash !== hash)
+        const hashes = new Map(saved.rows.map((r) => [r.key, r.hash]));
+        if (rows.some((row) => hashes.get(row.key) !== row.hash))
           throw new ApiError(409, 'ANALYTICS_CONFLICT', 'Событие уже записано с другими данными.');
       }
       await client.query('COMMIT');
@@ -45,7 +51,7 @@ export class Journal {
   async rows(after: string, through?: string): Promise<JournalRow[]> {
     return (
       await this.pool.query<JournalRow>(
-        'SELECT sequence::text, fact FROM analytics_event WHERE sequence > $1 AND ($2::bigint IS NULL OR sequence <= $2) ORDER BY sequence LIMIT 500',
+        'SELECT sequence::text, fact FROM analytics_event WHERE sequence > $1 AND ($2::bigint IS NULL OR sequence <= $2) ORDER BY analytics_event.sequence LIMIT 1000',
         [after, through ?? null],
       )
     ).rows;
@@ -56,6 +62,16 @@ export class Journal {
         'SELECT coalesce(max(sequence),0)::text AS value FROM analytics_event',
       )
     ).rows[0]!.value;
+  }
+  async pending(after: string) {
+    return Number(
+      (
+        await this.pool.query<{ count: string }>(
+          'SELECT count(*)::text AS count FROM analytics_event WHERE sequence>$1',
+          [after],
+        )
+      ).rows[0]!.count,
+    );
   }
   async checkpoint(client?: PoolClient) {
     return (
@@ -78,6 +94,10 @@ export class Journal {
     const client = await this.pool.connect();
     let locked = false;
     let broken = false;
+    const onError = () => {
+      broken = true;
+    };
+    client.on('error', onError);
     try {
       locked = (
         await client.query<{ locked: boolean }>('SELECT pg_try_advisory_lock($1) AS locked', [key])
@@ -91,6 +111,7 @@ export class Journal {
           broken = true;
         }
       }
+      client.removeListener('error', onError);
       client.release(broken);
     }
   }

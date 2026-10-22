@@ -5,7 +5,7 @@ export const orderStatisticsSchema = z
     orderId: z.uuid(),
     saleId: z.uuid(),
     organizationId: z.uuid(),
-    analyticsSessionId: z.uuid().nullable().default(null),
+    analyticsSessionId: z.uuid().nullable().optional(),
     state: z.enum(['HELD', 'CONFIRMED', 'EXPIRED', 'CANCELLED']),
     seatCount: z.number().int().min(1).max(6),
     totalMinor: z.number().int().positive().max(600_000_000),
