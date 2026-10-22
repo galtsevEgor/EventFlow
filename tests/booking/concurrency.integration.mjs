@@ -22,6 +22,12 @@ async function startReplica() {
   second = await bookingReplica(fixture.databaseUrl, namespace, identity.issuer);
   secondOrigin = second.origin;
   assert.notEqual(second.pid, process.pid);
+  // Verify both JWKS caches before measuring the inventory race.
+  const token = await identity.token('identity-warmup');
+  for (const origin of [fixture.origin, secondOrigin]) {
+    const ready = await jsonRequest(origin, '/api/v1/orders', token);
+    assert.equal(ready.status, 200, 'Booking replica must verify a real JWT before the race');
+  }
 }
 before(async () => {
   identity = await testIdentity();
