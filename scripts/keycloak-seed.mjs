@@ -82,6 +82,8 @@ export async function seedKeycloak(env, directory = process.cwd()) {
     }
   }
   for (const [clientId, roleName] of [
+    ['eventflow-analytics', 'policy-check'],
+    ['eventflow-analytics', 'analytics-ingest'],
     ['eventflow-search', 'search-index'],
     ['eventflow-policy', 'policy-check'],
     ['eventflow-payments', 'booking-payments'],

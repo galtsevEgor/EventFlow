@@ -41,6 +41,25 @@ const audience = {
 export function clientConfigurations(env) {
   return [
     {
+      clientId: 'eventflow-analytics',
+      protocol: 'openid-connect',
+      publicClient: false,
+      secret: env.ANALYTICS_CLIENT_SECRET,
+      standardFlowEnabled: false,
+      implicitFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: true,
+      defaultClientScopes: ['basic', 'roles'],
+      protocolMappers: [
+        audience,
+        {
+          ...audience,
+          name: 'analytics-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-analytics' },
+        },
+      ],
+    },
+    {
       clientId: 'eventflow-search',
       protocol: 'openid-connect',
       publicClient: false,
@@ -77,6 +96,11 @@ export function clientConfigurations(env) {
       },
       defaultClientScopes: ['basic', 'profile', 'email', 'roles'],
       protocolMappers: [
+        {
+          ...audience,
+          name: 'analytics-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-analytics' },
+        },
         audience,
         {
           ...audience,

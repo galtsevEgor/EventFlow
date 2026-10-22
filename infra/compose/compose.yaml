@@ -1,6 +1,27 @@
 name: eventflow-local
 
 services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8.36.3@sha256:d426d2f612e1e189c90f9a3f8dcd85a03c6851273833817a296bb327e63aa7a7
+    environment:
+      CLICKHOUSE_USER: analytics
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Run pnpm env:init}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+    ports: ['127.0.0.1:18123:8123']
+    mem_limit: 1280m
+    cpus: 1
+    ulimits:
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./infra/compose/clickhouse.xml:/etc/clickhouse-server/config.d/eventflow.xml:ro
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--spider', 'http://127.0.0.1:8123/ping']
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 30
+
   opensearch:
     image: opensearchproject/opensearch:3.9.0@sha256:3b55f6b6249cfdb92b52ee59adc8a266203ba9ef9f5d82544fad6f1af2f3609e
     environment:
@@ -36,6 +57,7 @@ services:
       PAYMENTS_DB_PASSWORD: ${PAYMENTS_DB_PASSWORD:?Run pnpm env:init}
       TICKETS_DB_PASSWORD: ${TICKETS_DB_PASSWORD:?Run pnpm env:init}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Run pnpm env:init}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:?Run pnpm env:init}
     ports: ['127.0.0.1:${POSTGRES_PORT:-15432}:5432']
     volumes:
       - postgres-data:/var/lib/postgresql
@@ -137,6 +159,7 @@ services:
       retries: 20
 
 volumes:
+  clickhouse-data:
   opensearch-data:
   postgres-data:
   redis-data:

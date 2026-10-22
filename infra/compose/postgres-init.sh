@@ -7,7 +7,7 @@ REVOKE CONNECT ON DATABASE template1 FROM PUBLIC;
 SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', current_database()) \gexec
 SQL
 
-for service in catalog booking payments tickets keycloak; do
+for service in catalog booking payments tickets analytics keycloak; do
   password_key="${service^^}_DB_PASSWORD"
   psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --set ON_ERROR_STOP=1 \
     --set database="$service" --set password="${!password_key}" <<'SQL'

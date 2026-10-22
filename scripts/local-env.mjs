@@ -46,7 +46,22 @@ export function initializeEnvironment(directory) {
       throw new Error(`Set ${key} in the existing .env; it has been preserved.`);
     }
   }
+  const analyticsPassword = values.ANALYTICS_DB_PASSWORD || randomBytes(24).toString('hex');
+  const analyticsUrl = new URL(values.CATALOG_DATABASE_URL);
+  analyticsUrl.username = 'analytics';
+  analyticsUrl.password = analyticsPassword;
+  analyticsUrl.pathname = '/analytics';
   const additions = {
+    ANALYTICS_DB_PASSWORD: analyticsPassword,
+    ANALYTICS_DATABASE_URL: analyticsUrl.href,
+    CLICKHOUSE_URL: 'http://127.0.0.1:18123',
+    CLICKHOUSE_USER: 'analytics',
+    CLICKHOUSE_PASSWORD: randomBytes(32).toString('hex'),
+    ANALYTICS_DATABASE: 'eventflow_analytics',
+    ANALYTICS_URL: 'http://127.0.0.1:4006',
+    ANALYTICS_ENABLED: 'true',
+    ANALYTICS_CLIENT_SECRET: randomBytes(32).toString('hex'),
+    ANALYTICS_SESSION_KEY: randomBytes(32).toString('hex'),
     PUBLIC_ORIGIN: 'http://127.0.0.1:18000',
     OIDC_ISSUER: `${values.KEYCLOAK_URL}/realms/eventflow`,
     OIDC_CLIENT_ID: 'eventflow-bff',

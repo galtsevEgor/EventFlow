@@ -27,3 +27,4 @@ export * from './refunds.js';
 export * from './realtime.js';
 export * from './operations.js';
 export * from './search.js';
+export * from './analytics.js';
