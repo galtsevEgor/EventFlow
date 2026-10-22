@@ -66,6 +66,37 @@ test('reservations publish current snapshots atomically and the migration backfi
     assert.ok(restored);
     assert.equal(orderStatisticsSchema.parse(restored.envelope.data).state, 'CONFIRMED');
     assert.equal(restored.envelope.aggregateVersion, 2);
+    const analyticsSessionId = randomUUID(),
+      key = randomUUID();
+    const attributed = await fixture.app
+      .get(Reserve)
+      .run(
+        'analytics-buyer',
+        key,
+        { saleId: sale.id, seatIds: ['r1-s3'] },
+        undefined,
+        analyticsSessionId,
+      );
+    assert.equal(attributed.status, 201);
+    const replay = await fixture.app
+      .get(Reserve)
+      .run(
+        'analytics-buyer',
+        key,
+        { saleId: sale.id, seatIds: ['r1-s3'] },
+        undefined,
+        randomUUID(),
+      );
+    assert.deepEqual(replay, attributed);
+    const stored = await fixture.db.order.findUniqueOrThrow({ where: { id: attributed.body.id } });
+    assert.equal(stored.analyticsSessionId, analyticsSessionId);
+    const snapshot = await fixture.db.outbox.findFirstOrThrow({
+      where: {
+        envelope: { path: ['data', 'orderId'], equals: stored.id },
+        AND: { envelope: { path: ['eventType'], equals: 'OrderStatisticsChanged.v1' } },
+      },
+    });
+    assert.equal(snapshot.envelope.data.analyticsSessionId, analyticsSessionId);
   } finally {
     await fixture.close();
     await cleanBroker(namespace);

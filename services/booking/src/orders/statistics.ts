@@ -6,7 +6,7 @@ export async function recordOrderStatistics(tx: Transaction, orderId: string) {
     where: { id: orderId },
     include: { _count: { select: { items: true } } },
   });
-  const data = orderStatisticsSchema.parse({
+  const { analyticsSessionId, ...data } = orderStatisticsSchema.parse({
     orderId: order.id,
     saleId: order.saleId,
     organizationId: order.organizationId,
@@ -25,7 +25,7 @@ export async function recordOrderStatistics(tx: Transaction, orderId: string) {
     'OrderStatisticsChanged.v1',
     order.id,
     order.state === 'HELD' ? 1 : 2,
-    { ...data, analyticsSessionId: order.analyticsSessionId },
+    analyticsSessionId ? { ...data, analyticsSessionId } : data,
   );
   await tx.outbox.create({ data: { id: event.eventId, envelope: event } });
 }
