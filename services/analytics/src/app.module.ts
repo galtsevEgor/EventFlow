@@ -14,6 +14,7 @@ import { AnalyticsProjection, AnalyticsWorker } from './projection';
 import { BookingAnalytics } from './booking';
 import { AnalyticsReport } from './report';
 import { AnalyticsIngest } from './ingest';
+import { AnalyticsMetrics } from './metrics';
 import { AnalyticsController, ANALYTICS_CONFIG } from './controller';
 @Module({ imports: [HealthModule.forService('analytics')] })
 export class AppModule {
@@ -23,6 +24,11 @@ export class AppModule {
       module: AppModule,
       controllers: config.EVENTFLOW_WORKLOAD === 'worker' ? [] : [AnalyticsController],
       providers: [
+        {
+          provide: AnalyticsMetrics,
+          inject: [AnalyticsProjection],
+          useFactory: (projection: AnalyticsProjection) => new AnalyticsMetrics(projection),
+        },
         { provide: ANALYTICS_CONFIG, useValue: config },
         { provide: ClickHouse, useFactory: () => new ClickHouse(config) },
         { provide: Journal, useFactory: () => new Journal(config.ANALYTICS_DATABASE_URL) },

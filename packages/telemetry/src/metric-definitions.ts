@@ -1,4 +1,7 @@
 export const snapshotNames = [
+  'eventflow_analytics_pending',
+  'eventflow_analytics_ready',
+  'eventflow_analytics_sync_age_seconds',
   'eventflow_dependency_up',
   'eventflow_outbox_pending',
   'eventflow_outbox_oldest_seconds',
