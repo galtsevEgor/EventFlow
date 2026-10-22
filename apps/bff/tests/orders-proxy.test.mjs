@@ -21,6 +21,7 @@ async function server(handle) {
     },
   };
 }
+const analyticsDisabled = { enabled: false, session: { read: () => null } };
 function auth(origin) {
   return {
     config: { BOOKING_URL: origin, CATALOG_URL: origin, PAYMENTS_URL: origin },
@@ -57,6 +58,41 @@ const request = (method, path, originalUrl = path, body) => ({
   originalUrl,
   body,
   header: () => randomUUID(),
+});
+test('only reservation creation forwards the signed analytics session and caller headers cannot override it', async () => {
+  const received = [];
+  const upstream = await server((req, res) => {
+    received.push({ path: req.url, session: req.headers['x-analytics-session'] });
+    res.setHeader('content-type', 'application/json');
+    res.statusCode = req.method === 'POST' ? 201 : 200;
+    res.end('{}');
+  });
+  try {
+    const signed = randomUUID(),
+      untrusted = randomUUID();
+    let reads = 0;
+    const controller = new OrdersController(auth(upstream.origin), {
+      enabled: true,
+      session: {
+        read: () => {
+          reads++;
+          return { id: signed };
+        },
+      },
+    });
+    const input = request('POST', '/api/v1/orders', '/api/v1/orders', {
+      saleId: randomUUID(),
+      seatIds: ['r1-s1'],
+    });
+    input.header = (name) => (name === 'x-analytics-session' ? untrusted : randomUUID());
+    await controller.forward(input, response());
+    await controller.forward(request('GET', '/api/v1/orders'), response());
+    assert.equal(reads, 1);
+    assert.equal(received.find((r) => r.path === '/api/v1/orders' && r.session).session, signed);
+    assert.equal(received.filter((r) => r.session).length, 1);
+  } finally {
+    await upstream.close();
+  }
 });
 
 test('organizer refunds route to Booking and reject invalid CSRF before forwarding', async () => {
@@ -122,7 +158,7 @@ test('payment routes preserve the original key and cannot forward tokens to an a
   try {
     const authorization = auth(other.origin);
     authorization.config.PAYMENTS_URL = upstream.origin;
-    const controller = new OrdersController(authorization);
+    const controller = new OrdersController(authorization, analyticsDisabled);
     const id = randomUUID(),
       key = randomUUID();
     for (const [method, suffix] of [
@@ -170,7 +206,7 @@ test('payment mutations enforce the session CSRF token and origin before contact
     const authorization = auth(upstream.origin);
     authorization.config.PUBLIC_ORIGIN = 'https://eventflow.test';
     authorization.assertCsrf = AuthService.prototype.assertCsrf;
-    const controller = new OrdersController(authorization);
+    const controller = new OrdersController(authorization, analyticsDisabled);
     for (const [origin, csrf] of [
       ['https://attacker.test', 'csrf-fixture'],
       ['https://eventflow.test', 'wrong'],
@@ -195,7 +231,7 @@ test('unknown payment responses remain retryable and never imply a successful pa
   });
   try {
     await assert.rejects(
-      new OrdersController(auth(upstream.origin)).forward(
+      new OrdersController(auth(upstream.origin), analyticsDisabled).forward(
         request('POST', `/api/v1/orders/${randomUUID()}/payment-attempt`, undefined, {}),
         response(),
       ),
@@ -218,7 +254,7 @@ test('ticket QR proxy requires the approved route, trusted origin and PNG respon
   try {
     const authService = auth('http://127.0.0.1:1');
     authService.config.TICKETS_URL = upstream.origin;
-    const controller = new OrdersController(authService);
+    const controller = new OrdersController(authService, analyticsDisabled);
     const path = `/api/v1/orders/${randomUUID()}/tickets/${randomUUID()}/qr`;
     const res = response();
     const headers = {};
@@ -265,7 +301,7 @@ test('absolute-form URLs cannot redirect either proxy or receive the server bear
     res.end('{}');
   });
   try {
-    await new OrdersController(auth(trusted.origin)).forward(
+    await new OrdersController(auth(trusted.origin), analyticsDisabled).forward(
       request('GET', '/api/v1/orders', untrusted.origin + '/api/v1/orders?page=2'),
       response(),
     );
@@ -292,7 +328,7 @@ test('a malformed success body after commit becomes retryable 503', async () => 
   });
   try {
     await assert.rejects(
-      new OrdersController(auth(upstream.origin)).forward(
+      new OrdersController(auth(upstream.origin), analyticsDisabled).forward(
         request('POST', '/api/v1/orders', undefined, { saleId: randomUUID(), seatIds: ['r1-s1'] }),
         response(),
       ),
@@ -313,7 +349,7 @@ test('unpublished events cannot create an order, while existing order reads do n
     res.end('{}');
   });
   try {
-    const controller = new OrdersController(auth(upstream.origin));
+    const controller = new OrdersController(auth(upstream.origin), analyticsDisabled);
     await assert.rejects(
       controller.forward(
         request('POST', '/api/v1/orders', undefined, { saleId: randomUUID(), seatIds: ['r1-s1'] }),

@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { ApiError, parseInput } from '@eventflow/service-runtime';
 import { analyticsBatchSchema } from '@eventflow/event-contracts';
 import { AuthService } from '../auth/auth.service';
+import { upstreamUrl } from '../upstream-url';
 import { AnalyticsBridge } from './service';
 @Controller()
 export class AnalyticsProxy {
@@ -45,7 +46,7 @@ export class AnalyticsProxy {
     const { session } = await this.auth.requireSession(request);
     await this.auth.store.rateLimit('analytics-report:' + session.user.sub, 60);
     try {
-      const url = new URL(request.originalUrl, this.auth.config.ANALYTICS_URL);
+      const url = upstreamUrl(this.auth.config.ANALYTICS_URL, request.path, request.originalUrl);
       const result = await fetch(url, {
         redirect: 'error',
         signal: AbortSignal.timeout(15000),

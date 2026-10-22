@@ -48,6 +48,13 @@ export class OrdersController {
     try {
       const url = upstreamUrl(this.auth.config[`${service}_URL`], path, request.originalUrl);
       const key = request.header('idempotency-key');
+      const analyticsSession =
+        service === 'BOOKING' &&
+        request.method === 'POST' &&
+        path === '/api/v1/orders' &&
+        this.analytics.enabled
+          ? this.analytics.session.read(request)?.id
+          : undefined;
       upstream = await fetch(url, {
         method: request.method,
         redirect: 'error',
@@ -58,9 +65,7 @@ export class OrdersController {
           'x-request-id': response.locals.requestId,
           traceparent: response.locals.traceparent,
           ...(key ? { 'idempotency-key': key } : {}),
-          ...(this.analytics.enabled && this.analytics.session.read(request)
-            ? { 'x-analytics-session': this.analytics.session.read(request)!.id }
-            : {}),
+          ...(analyticsSession ? { 'x-analytics-session': analyticsSession } : {}),
         },
         ...(request.method === 'GET' || request.body === undefined
           ? {}
