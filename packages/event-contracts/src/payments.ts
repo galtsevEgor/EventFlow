@@ -59,6 +59,7 @@ export const orderConfirmedSchema = z.strictObject({
     .max(6),
 });
 export const commerceRoutes = {
+  analytics: ['OrderStatisticsChanged.v1'],
   search: ['SearchDocumentChanged.v1'],
   realtime: realtimeEventTypes,
   ...refundRoutes,

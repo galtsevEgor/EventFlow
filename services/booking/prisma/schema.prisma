@@ -56,6 +56,7 @@ enum SeatState {
   SOLD
 }
 model Order {
+  analyticsSessionId String? @db.Uuid
   refund OrderRefund?
   contactEmail Bytes?
   confirmedPaymentId String? @unique @db.VarChar(255)

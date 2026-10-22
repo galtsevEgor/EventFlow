@@ -23,11 +23,18 @@ export class OrderController {
   async create(
     @Headers('authorization') auth: string | undefined,
     @Headers('idempotency-key') key: string | undefined,
+    @Headers('x-analytics-session') analyticsSession: string | undefined,
     @Body() body: unknown,
     @Res() response: Response,
   ) {
     const buyer = await this.buyer(auth);
-    const result = await this.reserve.run(buyer.subject, key, body, buyer.email);
+    const result = await this.reserve.run(
+      buyer.subject,
+      key,
+      body,
+      buyer.email,
+      analyticsSession ? parseInput(z.uuid(), analyticsSession) : undefined,
+    );
     if (result.status !== 201)
       throw new ApiError(result.status, String(result.body.code), String(result.body.message));
     response.setHeader('cache-control', 'no-store');

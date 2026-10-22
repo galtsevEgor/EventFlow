@@ -23,6 +23,7 @@ export function readAnalyticsConfig(env: NodeJS.ProcessEnv) {
       OIDC_ISSUER: z.url(),
       CATALOG_URL: z.url(),
       POLICY_CLIENT_SECRET: z.string().min(32),
+      ANALYTICS_CLIENT_SECRET: z.string().min(32),
       AMQP_URL: z.url(),
       MESSAGE_NAMESPACE: z
         .string()

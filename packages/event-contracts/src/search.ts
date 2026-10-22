@@ -49,6 +49,7 @@ export const searchQuerySchema = z
   );
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 export const searchPageSchema = z.strictObject({
+  searchProof: z.string().max(20000).optional(),
   events: z.array(searchDocumentSchema).max(48),
   total: z.number().int().nonnegative(),
   page: z.number().int().min(1).max(200),
@@ -66,6 +67,7 @@ export const searchPageSchema = z.strictObject({
   source: z.enum(['search', 'catalog']),
   limited: z.boolean(),
 });
+export type SearchPage = z.infer<typeof searchPageSchema>;
 export const searchFeedQuerySchema = z
   .strictObject({
     after: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),

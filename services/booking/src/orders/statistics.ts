@@ -10,6 +10,7 @@ export async function recordOrderStatistics(tx: Transaction, orderId: string) {
     orderId: order.id,
     saleId: order.saleId,
     organizationId: order.organizationId,
+    analyticsSessionId: order.analyticsSessionId,
     state: order.state,
     seatCount: order._count.items,
     totalMinor: order.totalMinor,

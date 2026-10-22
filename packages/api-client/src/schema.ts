@@ -639,6 +639,162 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/organizations/{id}/analytics': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query: {
+          from: string;
+          to: string;
+          eventId?: string;
+          source?: 'catalog' | 'search' | 'direct';
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Result */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ProductAnalytics'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/analytics/search-quality': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query: {
+          from: string;
+          to: string;
+          eventId?: string;
+          source?: 'catalog' | 'search' | 'direct';
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Result */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SearchAnalytics'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/analytics/context': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Result */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AnalyticsContext'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/analytics/events': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['AnalyticsBatch'];
+        };
+      };
+      responses: {
+        /** @description Result */
+        202: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['AnalyticsAccepted'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/payment-attempt': {
     parameters: {
       query?: never;
@@ -1242,6 +1398,7 @@ export interface components {
       /** @enum {string} */
       source: 'search' | 'catalog';
       limited: boolean;
+      searchProof?: string;
     };
     SearchSuggestions: {
       suggestions: {
@@ -1251,6 +1408,142 @@ export interface components {
         city: string;
       }[];
       limited: boolean;
+    };
+    AnalyticsPeriod: {
+      /** Format: date */
+      from: string;
+      /** Format: date */
+      to: string;
+      /** Format: uuid */
+      eventId?: string;
+      /** @enum {string} */
+      source?: 'catalog' | 'search' | 'direct';
+    };
+    ProductAnalytics: {
+      period: {
+        /** Format: date */
+        from: string;
+        /** Format: date */
+        to: string;
+        /** Format: uuid */
+        eventId?: string;
+        /** @enum {string} */
+        source?: 'catalog' | 'search' | 'direct';
+      };
+      previousPeriod: {
+        /** Format: date */
+        from: string;
+        /** Format: date */
+        to: string;
+        /** Format: uuid */
+        eventId?: string;
+        /** @enum {string} */
+        source?: 'catalog' | 'search' | 'direct';
+      };
+      current: {
+        impressions: number;
+        views: number;
+        held: number;
+        confirmed: number;
+        clicks: number;
+        searchImpressions: number;
+        conversion: number | null;
+        ctr: number | null;
+        groups: {
+          impressions: number;
+          views: number;
+          held: number;
+          confirmed: number;
+          clicks: number;
+          searchImpressions: number;
+          /** Format: date */
+          date: string;
+          /** Format: uuid */
+          eventId: string;
+          source: string;
+        }[];
+      };
+      previous: {
+        impressions: number;
+        views: number;
+        held: number;
+        confirmed: number;
+        clicks: number;
+        searchImpressions: number;
+        conversion: number | null;
+        ctr: number | null;
+        groups: {
+          impressions: number;
+          views: number;
+          held: number;
+          confirmed: number;
+          clicks: number;
+          searchImpressions: number;
+          /** Format: date */
+          date: string;
+          /** Format: uuid */
+          eventId: string;
+          source: string;
+        }[];
+      };
+      status: {
+        sequence: string;
+        pending: number;
+        /** Format: date-time */
+        updatedAt: string;
+        stale: boolean;
+      };
+      /** Format: date-time */
+      generatedAt: string;
+      /** @constant */
+      timeZone: 'UTC';
+      /** @constant */
+      windowHours: 24;
+    };
+    SearchAnalytics: {
+      searches: number;
+      empty: number;
+      limited: number;
+      emptyRate: number | null;
+      status: {
+        sequence: string;
+        pending: number;
+        /** Format: date-time */
+        updatedAt: string;
+        stale: boolean;
+      };
+      period: {
+        /** Format: date */
+        from: string;
+        /** Format: date */
+        to: string;
+        /** Format: uuid */
+        eventId?: string;
+        /** @enum {string} */
+        source?: 'catalog' | 'search' | 'direct';
+      };
+    };
+    AnalyticsBatch: {
+      events: {
+        /** Format: uuid */
+        id: string;
+        /** @enum {string} */
+        kind: 'impression' | 'event_view' | 'search_click';
+        /** Format: uuid */
+        eventId: string;
+        /** Format: date-time */
+        occurredAt: string;
+        /** @enum {string} */
+        source: 'catalog' | 'search' | 'direct';
+        searchProof?: string;
+      }[];
+    };
+    AnalyticsContext: {
+      enabled: boolean;
+      serverTime: number;
+    };
+    AnalyticsAccepted: {
+      accepted: number;
     };
     PaymentAttemptReference: {
       /** Format: uuid */

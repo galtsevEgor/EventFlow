@@ -30,6 +30,7 @@ export const browserAnalyticsSchema = z.strictObject({
   source: z.enum(['catalog', 'search', 'direct']),
   searchProof: z.string().max(20000).optional(),
 });
+export type BrowserAnalyticsEvent = z.infer<typeof browserAnalyticsSchema>;
 export const analyticsBatchSchema = z.strictObject({
   events: z.array(browserAnalyticsSchema).min(1).max(30),
 });
@@ -46,3 +47,44 @@ export const analyticsPeriodSchema = z
     { message: 'Выберите период до 31 дня.' },
   );
 export type AnalyticsPeriod = z.infer<typeof analyticsPeriodSchema>;
+const count = z.number().int().nonnegative();
+export const analyticsStatusSchema = z.strictObject({
+  sequence: z.string().regex(/^\d+$/),
+  pending: count,
+  updatedAt: z.iso.datetime(),
+  stale: z.boolean(),
+});
+const totalsSchema = z.strictObject({
+  impressions: count,
+  views: count,
+  held: count,
+  confirmed: count,
+  clicks: count,
+  searchImpressions: count,
+});
+const periodResultSchema = totalsSchema.extend({
+  conversion: z.number().min(0).max(1).nullable(),
+  ctr: z.number().min(0).max(1).nullable(),
+  groups: z.array(
+    totalsSchema.extend({ date: z.iso.date(), eventId: z.uuid(), source: z.string() }),
+  ),
+});
+export const analyticsReportSchema = z.strictObject({
+  period: analyticsPeriodSchema,
+  previousPeriod: analyticsPeriodSchema,
+  current: periodResultSchema,
+  previous: periodResultSchema,
+  status: analyticsStatusSchema,
+  generatedAt: z.iso.datetime(),
+  timeZone: z.literal('UTC'),
+  windowHours: z.literal(24),
+});
+export type AnalyticsReportData = z.infer<typeof analyticsReportSchema>;
+export const searchAnalyticsSchema = z.strictObject({
+  searches: count,
+  empty: count,
+  limited: count,
+  emptyRate: z.number().min(0).max(1).nullable(),
+  status: analyticsStatusSchema,
+  period: analyticsPeriodSchema,
+});

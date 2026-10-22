@@ -36,7 +36,13 @@ export class Reserve {
     private readonly db: Database,
     private readonly contactBox?: SecretBox,
   ) {}
-  async run(buyer: string, keyInput: unknown, input: unknown, email?: string): Promise<Result> {
+  async run(
+    buyer: string,
+    keyInput: unknown,
+    input: unknown,
+    email?: string,
+    analyticsSessionId?: string,
+  ): Promise<Result> {
     const key = parseInput(z.uuid(), keyInput).toLowerCase();
     const data = parseInput(reserveInput, input);
     const hash = createHash('sha256')
@@ -56,7 +62,7 @@ export class Reserve {
           body: z.record(z.string(), z.json()).parse(previous.response),
         };
       }
-      const result = await this.create(tx, buyer, data, email);
+      const result = await this.create(tx, buyer, data, email, analyticsSessionId);
       await tx.reservationRequest.create({
         data: {
           buyerSubject: buyer,
@@ -75,6 +81,7 @@ export class Reserve {
     buyer: string,
     data: Input,
     email?: string,
+    analyticsSessionId?: string,
   ): Promise<Result> {
     // SHARE permits concurrent buyers but conflicts with the pause UPDATE.
     const [sale] = await tx.$queryRaw<
@@ -113,6 +120,7 @@ export class Reserve {
         contactEmail: email && this.contactBox ? this.contactBox.seal(email, id) : null,
         saleId: sale.id,
         buyerSubject: buyer,
+        analyticsSessionId: analyticsSessionId ?? null,
         organizationId: sale.organizationId,
         title: sale.title,
         currency: sale.currency,

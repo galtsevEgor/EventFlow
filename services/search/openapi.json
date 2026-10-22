@@ -446,6 +446,10 @@
           },
           "limited": {
             "type": "boolean"
+          },
+          "searchProof": {
+            "type": "string",
+            "maxLength": 20000
           }
         },
         "required": ["events", "total", "page", "pageSize", "pages", "facets", "source", "limited"],

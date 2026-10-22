@@ -1,4 +1,5 @@
 import { Module, type DynamicModule } from '@nestjs/common';
+import { AnalyticsMetadata } from './analytics-metadata.controller';
 import {
   HealthModule,
   MailOperator,
@@ -60,6 +61,7 @@ export class AppModule {
               SearchFeedController,
               SearchFallbackController,
               PolicyController,
+              AnalyticsMetadata,
               CoverController,
               PublicCoverController,
               PublicationController,
