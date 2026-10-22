@@ -6,6 +6,8 @@ import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { cleanBroker } from '../tests/helpers/broker.mjs';
 import { searchEngineFixture } from '../tests/helpers/opensearch.mjs';
+import { analyticsFixture } from '../tests/helpers/analytics.mjs';
+import { AnalyticsProjection } from '../services/analytics/dist/projection.js';
 import { IndexStore } from '../services/search/dist/index-store.js';
 
 const probeOptions = { headers: { connection: 'close' } };
@@ -95,6 +97,26 @@ try {
   await cleanBroker(smokeNamespace);
 }
 
+const analytics = await analyticsFixture();
+try {
+  await new AnalyticsProjection(analytics.journal, analytics.engine).sync();
+  await checkProcess(
+    'analytics',
+    'services/analytics',
+    () => ['dist/main.js'],
+    '/health/ready',
+    async (response) => {
+      assert.deepEqual(await response.json(), { status: 'ok', service: 'analytics' });
+    },
+    {
+      EVENTFLOW_WORKLOAD: 'http',
+      ANALYTICS_DATABASE: analytics.env.ANALYTICS_DATABASE,
+      ANALYTICS_DATABASE_URL: analytics.env.ANALYTICS_DATABASE_URL,
+    },
+  );
+} finally {
+  await analytics.close();
+}
 const searchFixture = searchEngineFixture();
 try {
   const index = await searchFixture.engine.ensure(),

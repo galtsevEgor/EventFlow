@@ -16,7 +16,7 @@ test('changing a reserved local port preserves secrets, database names and repea
     const source = readFileSync(path, 'utf8'),
       after = parseEnv(source);
     assert.equal(after.POSTGRES_PORT, '25432');
-    for (const name of ['CATALOG', 'BOOKING', 'PAYMENTS', 'TICKETS']) {
+    for (const name of ['CATALOG', 'BOOKING', 'PAYMENTS', 'TICKETS', 'ANALYTICS']) {
       const old = new URL(before[`${name}_DATABASE_URL`]),
         current = new URL(after[`${name}_DATABASE_URL`]);
       old.port = '25432';

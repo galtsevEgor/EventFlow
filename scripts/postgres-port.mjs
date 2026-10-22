@@ -10,7 +10,7 @@ export function configurePostgresPort(directory, port) {
     source = readFileSync(path, 'utf8'),
     env = parseEnv(source);
   const values = { POSTGRES_PORT: String(Number(port)) };
-  for (const service of ['CATALOG', 'BOOKING', 'PAYMENTS', 'TICKETS']) {
+  for (const service of ['CATALOG', 'BOOKING', 'PAYMENTS', 'TICKETS', 'ANALYTICS']) {
     const key = `${service}_DATABASE_URL`,
       url = new URL(env[key]);
     if (!['postgres:', 'postgresql:'].includes(url.protocol) || url.hostname !== '127.0.0.1')

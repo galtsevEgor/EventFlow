@@ -14,7 +14,7 @@ import {
 } from '@aws-sdk/client-s3';
 
 test('each service can use its database but cannot connect to another service database', async () => {
-  const names = ['catalog', 'booking', 'payments', 'tickets'];
+  const names = ['catalog', 'booking', 'payments', 'tickets', 'analytics'];
   for (const name of names) {
     const url = new URL(process.env[`${name.toUpperCase()}_DATABASE_URL`]);
     const client = new pg.Client({ connectionString: url.href, connectionTimeoutMillis: 5000 });

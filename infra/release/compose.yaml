@@ -1,10 +1,13 @@
 x-databases: &databases
+  ANALYTICS_DATABASE_URL: postgresql://analytics:${ANALYTICS_DB_PASSWORD}@postgres:5432/analytics
   CATALOG_DATABASE_URL: postgresql://catalog:${CATALOG_DB_PASSWORD}@postgres:5432/catalog
   BOOKING_DATABASE_URL: postgresql://booking:${BOOKING_DB_PASSWORD}@postgres:5432/booking
   PAYMENTS_DATABASE_URL: postgresql://payments:${PAYMENTS_DB_PASSWORD}@postgres:5432/payments
   TICKETS_DATABASE_URL: postgresql://tickets:${TICKETS_DB_PASSWORD}@postgres:5432/tickets
 
 services:
+  clickhouse:
+    ports: !reset []
   opensearch:
     ports: !reset []
   postgres:
@@ -78,6 +81,14 @@ services:
       PAYMENTS_URL: http://127.0.0.1:4003
       TICKETS_URL: http://127.0.0.1:4004
       SEARCH_URL: http://127.0.0.1:4005
+      ANALYTICS_URL: http://127.0.0.1:4006
+      ANALYTICS_ENABLED: 'true'
+      ANALYTICS_CLIENT_SECRET: ${ANALYTICS_CLIENT_SECRET}
+      ANALYTICS_SESSION_KEY: ${ANALYTICS_SESSION_KEY}
+      ANALYTICS_DATABASE: eventflow_analytics
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: analytics
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
       SEARCH_ENABLED: 'true'
       SEARCH_CLIENT_SECRET: ${SEARCH_CLIENT_SECRET}
       SEARCH_INDEX_NAMESPACE: ${SEARCH_INDEX_NAMESPACE:-eventflow-search}
@@ -102,7 +113,9 @@ services:
     pull_policy: never
     profiles: [maintenance]
     command: ['node', 'scripts/migrate.mjs']
-    environment: *databases
+    environment:
+      <<: *databases
+      POSTGRES_ADMIN_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
   monitor:
     image: ${RELEASE_IMAGE:-eventflow-release:unselected}
     pull_policy: never

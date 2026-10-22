@@ -6,7 +6,7 @@ import { traffic } from './traffic.mjs';
 
 const applications = [
   ['bff', 'apps/bff', 4000, ['dist/main.js']],
-  ...['catalog', 'booking', 'payments', 'tickets', 'search'].map((name, index) => [
+  ...['catalog', 'booking', 'payments', 'tickets', 'search', 'analytics'].map((name, index) => [
     name,
     `services/${name}`,
     4001 + index,

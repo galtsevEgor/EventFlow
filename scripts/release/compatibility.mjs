@@ -43,7 +43,7 @@ export function migrationTree(id) {
   const paths = output('git', ['ls-tree', '-r', '--name-only', id, '--', 'services'])
     .split(/\r?\n/)
     .filter((path) =>
-      /^services\/(catalog|booking|payments|tickets)\/prisma\/migrations\/[^/]+\/migration\.sql$/.test(
+      /^services\/(?:(catalog|booking|payments|tickets)\/prisma\/migrations\/[^/]+\/migration\.sql|analytics\/migrations\/\d{3}-[a-z-]+\.sql)$/.test(
         path,
       ),
     );

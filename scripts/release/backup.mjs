@@ -17,13 +17,27 @@ import {
 } from './local.mjs';
 import { withEnvironmentLock } from './compatibility.mjs';
 
-const databases = ['catalog', 'booking', 'payments', 'tickets', 'keycloak'];
-const names = [
+const databases = ['catalog', 'booking', 'payments', 'tickets', 'analytics', 'keycloak'];
+const names = (databases) => [
   ...databases.map((name) => name + '.dump'),
   'assets.tgz',
   'settings.env',
   'users.json',
 ];
+export function backupDatabaseNames(index) {
+  const selected =
+    index.databases === undefined
+      ? databases.filter((name) => name !== 'analytics')
+      : index.databases;
+  if (
+    !Array.isArray(selected) ||
+    new Set(selected).size !== selected.length ||
+    selected.some((name) => !databases.includes(name)) ||
+    databases.filter((name) => name !== 'analytics').some((name) => !selected.includes(name))
+  )
+    throw new Error('Invalid backup database set');
+  return databases.filter((name) => selected.includes(name));
+}
 const maxBytes = 128 * 1024 * 1024;
 const capture = { stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: maxBytes };
 const feed = (input) => ({ input, stdio: ['pipe', 'ignore', 'inherit'] });
@@ -112,7 +126,25 @@ export async function backup(target) {
       compose(target, ['stop', 'app', 'keycloak', 's3'], { image });
       requireQuiescentBroker(target);
       const snapshotAt = new Date().toISOString();
-      for (const name of databases) {
+      const hasAnalytics =
+        composeOutput(
+          target,
+          [
+            'exec',
+            '-T',
+            'postgres',
+            'psql',
+            '-U',
+            'eventflow_admin',
+            '-d',
+            'eventflow_admin',
+            '-Atc',
+            "SELECT 1 FROM pg_database WHERE datname='analytics'",
+          ],
+          { image },
+        ) === '1';
+      const snapshotDatabases = databases.filter((name) => name !== 'analytics' || hasAnalytics);
+      for (const name of snapshotDatabases) {
         save(
           name + '.dump',
           compose(
@@ -156,6 +188,7 @@ export async function backup(target) {
         Buffer.from(
           JSON.stringify({
             format: 1,
+            databases: snapshotDatabases,
             id,
             source: target.name,
             releaseId: installed.id,
@@ -212,7 +245,8 @@ export async function restore(id) {
       throw new Error('Invalid backup manifest.');
     const release = manifest(index.releaseId);
     // Authenticate all entries before starting a container or replacing a recovery secret.
-    const entries = new Map(names.map((name) => [name, load(name)]));
+    const snapshotDatabases = backupDatabaseNames(index);
+    const entries = new Map(names(snapshotDatabases).map((name) => [name, load(name)]));
     writeFileSync(target.envPath, entries.get('settings.env'), { mode: 0o600 });
     const recovery = environment('recovery');
     writeFileSync(
@@ -224,7 +258,7 @@ export async function restore(id) {
     compose(recovery, ['up', '-d', '--wait', 'postgres', 'redis', 'rabbitmq', 'mailpit'], {
       image,
     });
-    for (const name of databases) {
+    for (const name of snapshotDatabases) {
       compose(
         recovery,
         [

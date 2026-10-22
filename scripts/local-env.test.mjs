@@ -14,6 +14,9 @@ test('initialization generates distinct secrets and preserves them on repeated r
     const env = parseEnv(original);
     assert.notEqual(env.CATALOG_DB_PASSWORD, env.BOOKING_DB_PASSWORD);
     assert.equal(new URL(env.BOOKING_DATABASE_URL).password, env.BOOKING_DB_PASSWORD);
+    assert.equal(new URL(env.ANALYTICS_DATABASE_URL).password, env.ANALYTICS_DB_PASSWORD);
+    assert.notEqual(env.ANALYTICS_SESSION_KEY, env.OIDC_CLIENT_SECRET);
+    assert.match(env.CLICKHOUSE_PASSWORD, /^[a-f0-9]{64}$/);
     assert.match(env.TICKET_QR_KEYS, /^v1:[0-9a-f]{64}$/);
     initializeEnvironment(directory);
     assert.equal(readFileSync(join(directory, '.env'), 'utf8'), original);

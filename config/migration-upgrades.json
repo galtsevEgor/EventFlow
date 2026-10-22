@@ -38,5 +38,9 @@
   "services/booking/prisma/migrations/202611090002_analytics_session/migration.sql": {
     "backwardCompatible": true,
     "sha256": "ba54570a6c53b6daffb5d2d39e45063c1ac10ae2ce6fc4d77fd3d29af5e32840"
+  },
+  "services/analytics/migrations/001-journal.sql": {
+    "sha256": "e5bb04b5e4f2b9ec68701afca061a9ccc4b56e3e984eea6ea0d1e4150aa0f097",
+    "backwardCompatible": true
   }
 }
