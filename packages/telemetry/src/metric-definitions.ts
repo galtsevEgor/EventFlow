@@ -26,6 +26,8 @@ export const snapshotNames = [
   'eventflow_search_cursor_gap',
   'eventflow_search_sync_age_seconds',
   'eventflow_search_ready',
+  'eventflow_offline_sessions',
+  'eventflow_offline_scans',
 ] as const;
 
 export type SnapshotName = (typeof snapshotNames)[number];

@@ -19,6 +19,7 @@ import { AdmissionPolicy } from './admission-policy';
 import { CheckInController } from './check-in.controller';
 import { CheckInTicket } from './check-in';
 import { TicketRefunds } from './refunds';
+import { OfflineMetrics } from './offline-metrics';
 import { OfflineCheckIn } from './offline-check-in';
 import { OfflineCheckInController } from './offline-check-in.controller';
 import { TicketOps } from './ops.controller';
@@ -104,6 +105,11 @@ export class AppModule {
           provide: OfflineCheckIn,
           inject: [Database],
           useFactory: (db: Database) => new OfflineCheckIn(db, config.OFFLINE_CHECK_IN_KEY),
+        },
+        {
+          provide: OfflineMetrics,
+          inject: [Database],
+          useFactory: (db: Database) => new OfflineMetrics(db),
         },
         IssueTickets,
         { provide: AdmissionPolicy, useFactory: () => new AdmissionPolicy(config) },
