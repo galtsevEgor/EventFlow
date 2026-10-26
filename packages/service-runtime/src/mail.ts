@@ -37,7 +37,7 @@ export class Mailpit {
 
   constructor(
     port: number,
-    private readonly source: 'tickets' | 'catalog',
+    private readonly source: 'tickets' | 'catalog' | 'waitlist',
     host = '127.0.0.1',
   ) {
     this.transport = createTransport({

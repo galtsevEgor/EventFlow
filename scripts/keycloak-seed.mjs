@@ -86,6 +86,8 @@ export async function seedKeycloak(env, directory = process.cwd()) {
     ['eventflow-analytics', 'analytics-ingest'],
     ['eventflow-search', 'search-index'],
     ['eventflow-policy', 'policy-check'],
+    ['eventflow-waitlist', 'policy-check'],
+    ['eventflow-waitlist', 'booking-waitlist'],
     ['eventflow-payments', 'booking-payments'],
     ['eventflow-operator', 'payments-reconcile'],
     ['eventflow-ticket-delivery', 'booking-ticket-delivery'],

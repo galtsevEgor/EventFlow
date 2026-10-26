@@ -13,7 +13,7 @@ export const eventEnvelopeSchema = z.strictObject({
     .string()
     .regex(/^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/)
     .optional(),
-  producer: z.enum(['catalog', 'booking', 'payments', 'tickets']),
+  producer: z.enum(['catalog', 'booking', 'payments', 'tickets', 'waitlist']),
   data: z.record(z.string(), z.json()),
 });
 
@@ -28,3 +28,4 @@ export * from './realtime.js';
 export * from './operations.js';
 export * from './search.js';
 export * from './analytics.js';
+export * from './waitlist.js';

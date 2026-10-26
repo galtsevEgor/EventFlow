@@ -59,7 +59,8 @@ export const orderConfirmedSchema = z.strictObject({
     .max(6),
 });
 export const commerceRoutes = {
-  analytics: ['OrderStatisticsChanged.v1'],
+  analytics: ['OrderStatisticsChanged.v1', 'WaitlistChanged.v1'],
+  waitlist: ['OrderStatisticsChanged.v1', 'SaleAvailabilityChanged.v1'],
   search: ['SearchDocumentChanged.v1'],
   realtime: realtimeEventTypes,
   ...refundRoutes,

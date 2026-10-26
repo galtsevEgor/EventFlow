@@ -16,6 +16,7 @@ export async function testIdentity() {
         'eventflow-payments': 'booking-payments',
         'eventflow-ticket-delivery': 'booking-ticket-delivery',
         'eventflow-waitlist': 'booking-waitlist',
+        'eventflow-policy': 'policy-check',
       };
       if (!Object.hasOwn(roles, client) || fields.get('client_secret') !== serviceSecret) {
         res.writeHead(401);

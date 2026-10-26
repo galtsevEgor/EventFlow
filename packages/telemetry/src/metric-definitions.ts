@@ -1,4 +1,6 @@
 export const snapshotNames = [
+  'eventflow_waitlist_entries',
+  'eventflow_waitlist_dispatch_pending',
   'eventflow_analytics_pending',
   'eventflow_analytics_ready',
   'eventflow_analytics_sync_age_seconds',

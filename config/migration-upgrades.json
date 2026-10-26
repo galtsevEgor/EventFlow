@@ -46,5 +46,9 @@
   "services/booking/prisma/migrations/202611100001_waitlist_entry/migration.sql": {
     "backwardCompatible": true,
     "sha256": "fb5dcf262f64d0c0cb20d11139ff2d814a3828104bc36cc67617e60f02bd6561"
+  },
+  "services/waitlist/migrations/001-waitlist.sql": {
+    "backwardCompatible": true,
+    "sha256": "32fe8626a91fd0749948e94df4a177164f7c186f1b41e7d87f21b694bf77ae23"
   }
 }

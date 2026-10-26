@@ -5,6 +5,7 @@ import { message } from './sales.js';
 export const realtimeHintSchema = z.discriminatedUnion('scope', [
   z.strictObject({ scope: z.literal('order'), id: z.uuid() }),
   z.strictObject({ scope: z.literal('sale'), id: z.uuid() }),
+  z.strictObject({ scope: z.literal('waitlist'), id: z.uuid() }),
   z.strictObject({ scope: z.literal('organizer-orders'), id: z.uuid(), organizationId: z.uuid() }),
 ]);
 export type RealtimeHint = z.infer<typeof realtimeHintSchema>;
@@ -19,6 +20,7 @@ export function realtimeInvalidation(
 }
 
 export const realtimeEventTypes = [
+  'WaitlistChanged.v1',
   'RealtimeInvalidated.v1',
   'OrderStatisticsChanged.v1',
   'OrderRefunded.v1',

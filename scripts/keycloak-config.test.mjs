@@ -21,6 +21,20 @@ test('web client restricts redirects and requires PKCE without password or impli
   assert.ok(machine.defaultClientScopes.includes('basic'));
   assert.equal(realmConfiguration().verifyEmail, true);
   assert.equal(realmConfiguration().revokeRefreshToken, true);
+  assert.ok(
+    web.protocolMappers.some(
+      (mapper) => mapper.config['included.custom.audience'] === 'eventflow-waitlist',
+    ),
+  );
+});
+test('waitlist machine client receives Booking/Catalog audiences without browser grants', () => {
+  const client = clientConfigurations({}).find((c) => c.clientId === 'eventflow-waitlist');
+  assert.equal(client.standardFlowEnabled, false);
+  assert.equal(client.serviceAccountsEnabled, true);
+  assert.deepEqual(client.protocolMappers.map((m) => m.config['included.custom.audience']).sort(), [
+    'eventflow-booking',
+    'eventflow-catalog',
+  ]);
 });
 
 test('search service has no browser grants and receives only its Catalog/Search audiences', () => {

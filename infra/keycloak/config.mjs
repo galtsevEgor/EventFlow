@@ -98,6 +98,11 @@ export function clientConfigurations(env) {
       protocolMappers: [
         {
           ...audience,
+          name: 'waitlist-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-waitlist' },
+        },
+        {
+          ...audience,
           name: 'analytics-audience',
           config: { ...audience.config, 'included.custom.audience': 'eventflow-analytics' },
         },
@@ -130,6 +135,25 @@ export function clientConfigurations(env) {
       serviceAccountsEnabled: true,
       defaultClientScopes: ['basic', 'roles'],
       protocolMappers: [audience],
+    },
+    {
+      clientId: 'eventflow-waitlist',
+      protocol: 'openid-connect',
+      publicClient: false,
+      secret: env.WAITLIST_CLIENT_SECRET,
+      standardFlowEnabled: false,
+      implicitFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: true,
+      defaultClientScopes: ['basic', 'roles'],
+      protocolMappers: [
+        audience,
+        {
+          ...audience,
+          name: 'booking-audience',
+          config: { ...audience.config, 'included.custom.audience': 'eventflow-booking' },
+        },
+      ],
     },
     {
       clientId: 'eventflow-operator',
