@@ -42,5 +42,9 @@
   "services/analytics/migrations/001-journal.sql": {
     "sha256": "e5bb04b5e4f2b9ec68701afca061a9ccc4b56e3e984eea6ea0d1e4150aa0f097",
     "backwardCompatible": true
+  },
+  "services/booking/prisma/migrations/202611100001_waitlist_entry/migration.sql": {
+    "backwardCompatible": true,
+    "sha256": "fb5dcf262f64d0c0cb20d11139ff2d814a3828104bc36cc67617e60f02bd6561"
   }
 }

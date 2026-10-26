@@ -15,6 +15,7 @@ export async function testIdentity() {
       const roles = {
         'eventflow-payments': 'booking-payments',
         'eventflow-ticket-delivery': 'booking-ticket-delivery',
+        'eventflow-waitlist': 'booking-waitlist',
       };
       if (!Object.hasOwn(roles, client) || fields.get('client_secret') !== serviceSecret) {
         res.writeHead(401);

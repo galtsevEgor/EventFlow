@@ -43,10 +43,44 @@ export class Reserve {
     email?: string,
     analyticsSessionId?: string,
   ): Promise<Result> {
+    return this.execute(
+      buyer,
+      keyInput,
+      parseInput(reserveInput, input),
+      email,
+      analyticsSessionId,
+    );
+  }
+  async category(
+    buyer: string,
+    key: string,
+    saleId: string,
+    categoryId: string,
+    entryId: string,
+    email: string,
+  ) {
+    return this.execute(buyer, key, { saleId, seatIds: [] }, email, undefined, {
+      id: categoryId,
+      entryId,
+    });
+  }
+  private async execute(
+    buyer: string,
+    keyInput: unknown,
+    data: Input,
+    email?: string,
+    analyticsSessionId?: string,
+    category?: { id: string; entryId: string },
+  ): Promise<Result> {
     const key = parseInput(z.uuid(), keyInput).toLowerCase();
-    const data = parseInput(reserveInput, input);
     const hash = createHash('sha256')
-      .update(JSON.stringify({ saleId: data.saleId, seatIds: [...data.seatIds].sort() }))
+      .update(
+        JSON.stringify(
+          category
+            ? { saleId: data.saleId, category }
+            : { saleId: data.saleId, seatIds: [...data.seatIds].sort() },
+        ),
+      )
       .digest('hex');
     return transaction(this.db, async (tx) => {
       // A key is scoped to the buyer, including retries that accidentally name another sale.
@@ -62,7 +96,7 @@ export class Reserve {
           body: z.record(z.string(), z.json()).parse(previous.response),
         };
       }
-      const result = await this.create(tx, buyer, data, email, analyticsSessionId);
+      const result = await this.create(tx, buyer, data, email, analyticsSessionId, category);
       await tx.reservationRequest.create({
         data: {
           buyerSubject: buyer,
@@ -82,6 +116,7 @@ export class Reserve {
     data: Input,
     email?: string,
     analyticsSessionId?: string,
+    category?: { id: string; entryId: string },
   ): Promise<Result> {
     // SHARE permits concurrent buyers but conflicts with the pause UPDATE.
     const [sale] = await tx.$queryRaw<
@@ -91,8 +126,14 @@ export class Reserve {
     const slot = await lockSlot(tx, buyer, sale.id);
     const old = slot.currentOrderId ? await lockOrder(tx, slot.currentOrderId) : undefined;
     const oldItems = old ? await tx.orderItem.findMany({ where: { orderId: old.id } }) : [];
+    const candidates = category
+      ? await tx.seatInventory.findMany({
+          where: { saleId: sale.id, categoryId: category.id },
+          select: { seatId: true },
+        })
+      : [];
     const seats = await lockSeats(tx, sale.id, [
-      ...data.seatIds,
+      ...(category ? candidates.map((s) => s.seatId) : data.seatIds),
       ...oldItems.map((item) => item.seatId),
     ]);
     const now = await decisionTime(tx);
@@ -101,6 +142,21 @@ export class Reserve {
       return failure(409, 'ACTIVE_ORDER', 'У вас уже есть бронь на это мероприятие.');
     if (salesState(sale, now) !== 'OPEN')
       return failure(409, 'SALES_NOT_OPEN', 'Новые брони сейчас недоступны.');
+    if (category) {
+      if (
+        await tx.order.count({
+          where: { saleId: sale.id, buyerSubject: buyer, state: 'CONFIRMED' },
+        })
+      )
+        return failure(409, 'ALREADY_PURCHASED', 'Билет уже приобретён.');
+      const available = seats.find(
+        (s) =>
+          s.categoryId === category.id &&
+          (s.state === 'AVAILABLE' || (s.state === 'HELD' && s.expiresAt && s.expiresAt <= now)),
+      );
+      if (!available) return failure(409, 'SEATS_UNAVAILABLE', 'Свободных мест пока нет.');
+      data = { ...data, seatIds: [available.seatId] };
+    }
     const selected = seats.filter((seat) => data.seatIds.includes(seat.seatId));
     if (selected.length !== data.seatIds.length)
       return failure(422, 'INVALID_SEATS', 'Места не принадлежат этому мероприятию.');
@@ -121,6 +177,7 @@ export class Reserve {
         saleId: sale.id,
         buyerSubject: buyer,
         analyticsSessionId: analyticsSessionId ?? null,
+        waitlistEntryId: category?.entryId ?? null,
         organizationId: sale.organizationId,
         title: sale.title,
         currency: sale.currency,

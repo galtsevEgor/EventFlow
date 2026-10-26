@@ -9,6 +9,7 @@ import { SaleReader } from './sale-reader';
 import { SaleController } from './sale.controller';
 import type { BookingConfig } from './config';
 import { Reserve } from './orders/reserve';
+import { WaitlistReservationsController } from './orders/waitlist.controller';
 import { OrderReader } from './orders/reader';
 import { OrderController } from './orders/controller';
 import { DeliveryContextController } from './orders/delivery.controller';
@@ -36,6 +37,7 @@ export class AppModule {
           : [
               SaleController,
               OrderController,
+              WaitlistReservationsController,
               BookingPaymentsController,
               DeliveryContextController,
               OrganizerOrdersController,
