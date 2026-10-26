@@ -25,6 +25,7 @@ export const dependencies = [
   'mailpit',
   'opensearch',
   'clickhouse',
+  'temporal',
 ];
 
 export function run(program, args, options = {}) {

@@ -35,7 +35,7 @@
     "generate:spikes": "prisma generate --schema=spikes/booking/schema.prisma",
     "test:spikes": "pnpm generate:spikes && tsc -p spikes/tsconfig.json && tsx --env-file=.env --test --test-timeout=30000 spikes/booking/*.test.ts spikes/payments/*.test.ts",
     "audit:runtime": "pnpm audit --prod --audit-level high",
-    "ci:local": "pnpm tools:setup && pnpm check:workflow && pnpm cluster check && pnpm check:secrets && pnpm audit:runtime && pnpm check && pnpm build && pnpm storybook:build && pnpm env:init && pnpm infra:check && pnpm infra:up && pnpm observability check && pnpm observability up && pnpm identity:seed && pnpm db:migrate && pnpm test:catalog && pnpm test:publication && pnpm test:booking && pnpm test:payments && pnpm test:tickets && pnpm test:operators && pnpm test:realtime && pnpm test:collaboration && pnpm test:search && pnpm test:analytics && pnpm test:analytics-load --smoke && pnpm test:search-load --smoke && pnpm test:realtime-load --smoke && pnpm test:telemetry && pnpm test:telemetry-load --smoke && pnpm test:load --smoke && pnpm test:overload --smoke && pnpm browser:install && pnpm test:identity && pnpm test:e2e && pnpm test:smoke && pnpm test:infra && pnpm test:spikes",
+    "ci:local": "pnpm tools:setup && pnpm check:workflow && pnpm cluster check && pnpm check:secrets && pnpm audit:runtime && pnpm check && pnpm build && pnpm storybook:build && pnpm env:init && pnpm infra:check && pnpm infra:up && pnpm observability check && pnpm observability up && pnpm identity:seed && pnpm db:migrate && pnpm test:catalog && pnpm test:publication && pnpm test:booking && pnpm test:payments && pnpm test:tickets && pnpm test:operators && pnpm test:realtime && pnpm test:collaboration && pnpm test:search && pnpm test:analytics && pnpm test:waitlist && pnpm test:analytics-load --smoke && pnpm test:search-load --smoke && pnpm test:realtime-load --smoke && pnpm test:telemetry && pnpm test:telemetry-load --smoke && pnpm test:load --smoke && pnpm test:overload --smoke && pnpm browser:install && pnpm test:identity && pnpm test:e2e && pnpm test:smoke && pnpm test:infra && pnpm test:spikes",
     "identity:seed": "node --env-file=.env scripts/keycloak-seed.mjs",
     "test:identity": "node --env-file=.env --test --test-timeout=45000 apps/bff/tests/auth.integration.mjs",
     "db:migrate": "node --env-file=.env scripts/migrate.mjs",
@@ -71,7 +71,8 @@
     "search:reindex": "node --env-file=.env scripts/reindex-search.mjs",
     "test:analytics": "node --env-file=.env --test --test-concurrency=1 --test-timeout=120000 tests/analytics/*.integration.mjs",
     "test:analytics-load": "node --env-file=.env tests/load/analytics.mjs",
-    "analytics:rebuild": "node --env-file=.env scripts/rebuild-analytics.mjs"
+    "analytics:rebuild": "node --env-file=.env scripts/rebuild-analytics.mjs",
+    "test:waitlist": "node --env-file=.env --test --test-concurrency=1 --test-timeout=180000 tests/waitlist/*.integration.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "3.1158.0",

@@ -1,4 +1,5 @@
 x-databases: &databases
+  WAITLIST_DATABASE_URL: postgresql://waitlist:${WAITLIST_DB_PASSWORD}@postgres:5432/waitlist
   ANALYTICS_DATABASE_URL: postgresql://analytics:${ANALYTICS_DB_PASSWORD}@postgres:5432/analytics
   CATALOG_DATABASE_URL: postgresql://catalog:${CATALOG_DB_PASSWORD}@postgres:5432/catalog
   BOOKING_DATABASE_URL: postgresql://booking:${BOOKING_DB_PASSWORD}@postgres:5432/booking
@@ -6,6 +7,8 @@ x-databases: &databases
   TICKETS_DATABASE_URL: postgresql://tickets:${TICKETS_DB_PASSWORD}@postgres:5432/tickets
 
 services:
+  temporal:
+    ports: !reset []
   clickhouse:
     ports: !reset []
   opensearch:
@@ -82,6 +85,12 @@ services:
       TICKETS_URL: http://127.0.0.1:4004
       SEARCH_URL: http://127.0.0.1:4005
       ANALYTICS_URL: http://127.0.0.1:4006
+      WAITLIST_URL: http://127.0.0.1:4007
+      WAITLIST_ENABLED: 'true'
+      WAITLIST_CLIENT_SECRET: ${WAITLIST_CLIENT_SECRET}
+      WAITLIST_CONTACT_KEY: ${WAITLIST_CONTACT_KEY}
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: eventflow
       ANALYTICS_ENABLED: 'true'
       ANALYTICS_CLIENT_SECRET: ${ANALYTICS_CLIENT_SECRET}
       ANALYTICS_SESSION_KEY: ${ANALYTICS_SESSION_KEY}

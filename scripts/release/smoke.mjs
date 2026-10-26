@@ -11,7 +11,7 @@ async function verify(url, text) {
   assert.ok((await (await request(url)).text()).includes(text), new URL(url).pathname);
 }
 await Promise.all([
-  ...[4000, 4001, 4002, 4003, 4004, 4005, 4006].map(async (port) => {
+  ...[4000, 4001, 4002, 4003, 4004, 4005, 4006, 4007].map(async (port) => {
     const response = await request(`http://127.0.0.1:${port}/health/ready`);
     assert.equal((await response.json()).status, 'ok');
   }),

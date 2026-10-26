@@ -72,6 +72,7 @@ jobs:
       - run: pnpm test:collaboration
       - run: pnpm test:search
       - run: pnpm test:analytics
+      - run: pnpm test:waitlist
       - run: pnpm test:analytics-load --smoke
       - run: pnpm test:search-load --smoke
       - run: pnpm test:realtime-load --smoke

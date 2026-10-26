@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { cleanBroker } from '../tests/helpers/broker.mjs';
 import { searchEngineFixture } from '../tests/helpers/opensearch.mjs';
 import { analyticsFixture } from '../tests/helpers/analytics.mjs';
+import { waitlistDatabase } from '../tests/helpers/waitlist-database.mjs';
 import { AnalyticsProjection } from '../services/analytics/dist/projection.js';
 import { IndexStore } from '../services/search/dist/index-store.js';
 
@@ -98,6 +99,21 @@ try {
 }
 
 const analytics = await analyticsFixture();
+const waitlist = await waitlistDatabase();
+try {
+  await checkProcess(
+    'waitlist',
+    'services/waitlist',
+    () => ['dist/main.js'],
+    '/health/ready',
+    async (response) => {
+      assert.deepEqual(await response.json(), { status: 'ok', service: 'waitlist' });
+    },
+    { EVENTFLOW_WORKLOAD: 'http', WAITLIST_DATABASE_URL: waitlist.databaseUrl },
+  );
+} finally {
+  await waitlist.close();
+}
 try {
   await new AnalyticsProjection(analytics.journal, analytics.engine).sync();
   await checkProcess(

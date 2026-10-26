@@ -17,7 +17,16 @@ import {
 } from './local.mjs';
 import { withEnvironmentLock } from './compatibility.mjs';
 
-const databases = ['catalog', 'booking', 'payments', 'tickets', 'analytics', 'keycloak'];
+const databases = [
+  'catalog',
+  'booking',
+  'payments',
+  'tickets',
+  'analytics',
+  'waitlist',
+  'keycloak',
+];
+const optionalDatabases = new Set(['analytics', 'waitlist']);
 const names = (databases) => [
   ...databases.map((name) => name + '.dump'),
   'assets.tgz',
@@ -27,13 +36,15 @@ const names = (databases) => [
 export function backupDatabaseNames(index) {
   const selected =
     index.databases === undefined
-      ? databases.filter((name) => name !== 'analytics')
+      ? databases.filter((name) => !optionalDatabases.has(name))
       : index.databases;
   if (
     !Array.isArray(selected) ||
     new Set(selected).size !== selected.length ||
     selected.some((name) => !databases.includes(name)) ||
-    databases.filter((name) => name !== 'analytics').some((name) => !selected.includes(name))
+    databases
+      .filter((name) => !optionalDatabases.has(name))
+      .some((name) => !selected.includes(name))
   )
     throw new Error('Invalid backup database set');
   return databases.filter((name) => selected.includes(name));
@@ -126,24 +137,25 @@ export async function backup(target) {
       compose(target, ['stop', 'app', 'keycloak', 's3'], { image });
       requireQuiescentBroker(target);
       const snapshotAt = new Date().toISOString();
-      const hasAnalytics =
-        composeOutput(
-          target,
-          [
-            'exec',
-            '-T',
-            'postgres',
-            'psql',
-            '-U',
-            'eventflow_admin',
-            '-d',
-            'eventflow_admin',
-            '-Atc',
-            "SELECT 1 FROM pg_database WHERE datname='analytics'",
-          ],
-          { image },
-        ) === '1';
-      const snapshotDatabases = databases.filter((name) => name !== 'analytics' || hasAnalytics);
+      const available = composeOutput(
+        target,
+        [
+          'exec',
+          '-T',
+          'postgres',
+          'psql',
+          '-U',
+          'eventflow_admin',
+          '-d',
+          'eventflow_admin',
+          '-Atc',
+          "SELECT datname FROM pg_database WHERE datname IN ('analytics','waitlist')",
+        ],
+        { image },
+      ).split(/\s+/);
+      const snapshotDatabases = databases.filter(
+        (name) => !optionalDatabases.has(name) || available.includes(name),
+      );
       for (const name of snapshotDatabases) {
         save(
           name + '.dump',
