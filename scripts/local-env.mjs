@@ -52,6 +52,12 @@ export function initializeEnvironment(directory) {
   analyticsUrl.password = analyticsPassword;
   analyticsUrl.pathname = '/analytics';
   const additions = {
+    WAITLIST_DB_PASSWORD: values.WAITLIST_DB_PASSWORD || randomBytes(24).toString('hex'),
+    WAITLIST_URL: 'http://127.0.0.1:4007',
+    WAITLIST_CLIENT_SECRET: randomBytes(32).toString('hex'),
+    WAITLIST_CONTACT_KEY: randomBytes(32).toString('hex'),
+    TEMPORAL_ADDRESS: '127.0.0.1:17233',
+    TEMPORAL_NAMESPACE: 'eventflow',
     ANALYTICS_DB_PASSWORD: analyticsPassword,
     ANALYTICS_DATABASE_URL: analyticsUrl.href,
     CLICKHOUSE_URL: 'http://127.0.0.1:18123',
@@ -91,6 +97,13 @@ export function initializeEnvironment(directory) {
       appendFileSync(path, `\n${key}=${value}\n`);
       values[key] = value;
     }
+  }
+  if (!values.WAITLIST_DATABASE_URL) {
+    const url = new URL(values.CATALOG_DATABASE_URL);
+    url.username = 'waitlist';
+    url.password = values.WAITLIST_DB_PASSWORD;
+    url.pathname = '/waitlist';
+    appendFileSync(path, `\nWAITLIST_DATABASE_URL=${url.href}\n`);
   }
   mkdirSync(resolve(directory, 'work/local'), { recursive: true });
   writeFileSync(

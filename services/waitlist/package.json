@@ -1,0 +1,33 @@
+{
+  "name": "@eventflow/waitlist",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@eventflow/event-contracts": "workspace:*",
+    "@eventflow/messaging": "workspace:*",
+    "@eventflow/service-runtime": "workspace:*",
+    "@eventflow/telemetry": "workspace:*",
+    "@nestjs/common": "12.3.2",
+    "@nestjs/platform-express": "12.3.2",
+    "@temporalio/client": "1.25.0",
+    "@temporalio/worker": "1.25.0",
+    "@temporalio/workflow": "1.25.0",
+    "@temporalio/activity": "1.25.0",
+    "pg": "8.23.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@temporalio/testing": "1.25.0",
+    "@types/pg": "8.23.1",
+    "tsx": "4.23.15"
+  }
+}
