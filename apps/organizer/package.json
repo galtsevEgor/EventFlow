@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 3001 --strictPort",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --fsModuleCachePath=node_modules/.vitest-cache"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",
