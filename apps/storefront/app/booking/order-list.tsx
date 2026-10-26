@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { BookingProvider, money, orderLabels, SignIn, useBuyer } from './client';
+import { BuyerWaitlist } from './waitlist';
 
 function List() {
   const { api, session } = useBuyer();
@@ -71,6 +72,7 @@ export function OrderList() {
   return (
     <BookingProvider>
       <List />
+      <BuyerWaitlist />
     </BookingProvider>
   );
 }

@@ -40,7 +40,11 @@ export class AnalyticsProxy {
     response.setHeader('cache-control', 'no-store');
     return this.analytics.send('events', { sessionId: session.id, events, searchIds });
   }
-  @All(['api/v1/organizations/:id/analytics', 'api/v1/analytics/search-quality'])
+  @All([
+    'api/v1/organizations/:id/analytics',
+    'api/v1/organizations/:id/analytics/waitlist',
+    'api/v1/analytics/search-quality',
+  ])
   async report(@Req() request: Request, @Res() response: Response) {
     if (request.method !== 'GET') throw new ApiError(404, 'NOT_FOUND', 'Маршрут не найден.');
     const { session } = await this.auth.requireSession(request);

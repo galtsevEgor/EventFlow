@@ -2053,6 +2053,487 @@
         }
       }
     },
+    "/api/v1/organizations/{id}/analytics/waitlist": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "in": "query",
+            "name": "eventId",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WaitlistAnalytics" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{id}/waitlist": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WaitlistInfo" } }
+            }
+          },
+          "401": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "403": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "404": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "409": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "422": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "503": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waitlist": {
+      "get": {
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WaitlistEntries" } }
+            }
+          },
+          "401": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "403": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "404": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "409": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "422": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "503": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WaitlistEntry" } }
+            }
+          },
+          "401": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "403": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "404": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "409": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "422": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "503": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/WaitlistJoin" } }
+          }
+        }
+      }
+    },
+    "/api/v1/waitlist/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WaitlistEntry" } }
+            }
+          },
+          "401": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "403": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "404": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "409": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "422": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "503": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waitlist/{id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WaitlistEntry" } }
+            }
+          },
+          "401": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "403": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "404": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "409": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "422": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "503": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [],
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/waitlist/{id}/updates": {
+      "get": {
+        "operationId": "subscribeWaitlistUpdates",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE update frames; ready requires a fresh API snapshot. No replay is promised.",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          },
+          "default": {
+            "description": "Connection denied or temporarily unavailable",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{org}/events/{id}/waitlist": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WaitlistSummary" } }
+            }
+          },
+          "401": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "403": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "404": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "409": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "422": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "503": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WaitlistSummary" } }
+            }
+          },
+          "401": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "403": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "404": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "409": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "422": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          },
+          "503": {
+            "description": "Request failed",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["enabled"],
+                "properties": { "enabled": { "type": "boolean" } }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders/{id}/payment-attempt": {
       "post": {
         "operationId": "createPaymentAttempt",
@@ -3515,6 +3996,156 @@
         "type": "object",
         "required": ["accepted"],
         "properties": { "accepted": { "type": "integer", "minimum": 0 } }
+      },
+      "WaitlistAnalytics": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "joined",
+          "offered",
+          "purchased",
+          "expired",
+          "cancelled",
+          "closed",
+          "skipped",
+          "conversion",
+          "offerConversion",
+          "period",
+          "status",
+          "generatedAt",
+          "timeZone"
+        ],
+        "properties": {
+          "joined": { "type": "integer", "minimum": 0 },
+          "offered": { "type": "integer", "minimum": 0 },
+          "purchased": { "type": "integer", "minimum": 0 },
+          "expired": { "type": "integer", "minimum": 0 },
+          "cancelled": { "type": "integer", "minimum": 0 },
+          "closed": { "type": "integer", "minimum": 0 },
+          "skipped": { "type": "integer", "minimum": 0 },
+          "conversion": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "offerConversion": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "period": { "$ref": "#/components/schemas/AnalyticsPeriod" },
+          "status": {
+            "type": "object",
+            "properties": {
+              "sequence": { "type": "string", "pattern": "^\\d+$" },
+              "pending": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "stale": { "type": "boolean" }
+            },
+            "required": ["sequence", "pending", "updatedAt", "stale"],
+            "additionalProperties": false
+          },
+          "generatedAt": { "type": "string", "format": "date-time" },
+          "timeZone": { "type": "string", "const": "UTC" }
+        }
+      },
+      "WaitlistEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "saleId",
+          "title",
+          "categoryId",
+          "state",
+          "orderId",
+          "expiresAt",
+          "serverNow",
+          "position",
+          "createdAt"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "saleId": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "categoryId": { "type": "string" },
+          "state": {
+            "type": "string",
+            "enum": [
+              "WAITING",
+              "RESERVING",
+              "OFFERED",
+              "CANCELLING",
+              "PURCHASED",
+              "EXPIRED",
+              "CANCELLED",
+              "SKIPPED",
+              "CLOSED"
+            ]
+          },
+          "orderId": { "type": ["string", "null"], "format": "uuid" },
+          "expiresAt": { "type": ["string", "null"], "format": "date-time" },
+          "serverNow": { "type": "string", "format": "date-time" },
+          "position": { "type": ["integer", "null"], "minimum": 0 },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "WaitlistInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["enabled", "state", "categories"],
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "state": { "type": "string", "enum": ["OPEN", "PAUSED", "SCHEDULED", "CLOSED"] },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "name"],
+              "properties": { "id": { "type": "string" }, "name": { "type": "string" } }
+            }
+          }
+        }
+      },
+      "WaitlistEntries": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entries"],
+        "properties": {
+          "entries": { "type": "array", "items": { "$ref": "#/components/schemas/WaitlistEntry" } }
+        }
+      },
+      "WaitlistSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["enabled", "counts", "entries"],
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "counts": {
+            "type": "object",
+            "additionalProperties": { "type": "integer", "minimum": 0 }
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "categoryId", "state", "createdAt"],
+              "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "categoryId": { "type": "string" },
+                "state": { "type": "string" },
+                "createdAt": { "type": "string", "format": "date-time" }
+              }
+            }
+          }
+        }
+      },
+      "WaitlistJoin": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["saleId", "categoryId"],
+        "properties": {
+          "saleId": { "type": "string", "format": "uuid" },
+          "categoryId": { "type": "string", "pattern": "^[a-zA-Z0-9_-]{1,32}$" }
+        }
       },
       "PaymentAttemptReference": {
         "type": "object",

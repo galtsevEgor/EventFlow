@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tan
 import { createApiClient, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { SeatPicker } from './booking/seat-picker';
+import { EventWaitlist } from './booking/waitlist';
 import { useLiveUpdates } from './booking/use-live-updates';
 
 const labels = {
@@ -112,6 +113,7 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
         ))}
       </ul>
       <SeatPicker sale={data} live={live} />
+      <EventWaitlist saleId={id} />
       <p className="muted" data-live={live ? 'true' : 'false'}>
         Обновляем свободные места автоматически.
       </p>

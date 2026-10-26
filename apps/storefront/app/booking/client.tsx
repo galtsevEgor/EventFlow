@@ -33,6 +33,7 @@ export function useBuyer() {
     },
     refetchInterval: 60000,
   });
+  if (session.data) api.setCsrfToken(session.data.user ? session.data.csrfToken : '');
   return { api, session };
 }
 export function SignIn({ returnTo }: { returnTo: string }) {

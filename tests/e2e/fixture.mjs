@@ -11,6 +11,7 @@ import { paymentService } from '../helpers/payment-service.mjs';
 import { ticketsService } from '../helpers/tickets-service.mjs';
 import { createGateway } from '../../scripts/gateway.mjs';
 import { analyticsFixture } from '../helpers/analytics.mjs';
+import { waitlistDatabase } from '../helpers/waitlist-database.mjs';
 import { searchEngineFixture } from '../helpers/opensearch.mjs';
 import {
   S3Client,
@@ -33,6 +34,7 @@ export async function fullStack({
   tickets = false,
   search = false,
   analytics = false,
+  waitlist = false,
   gatewayLimits,
   httpConcurrency,
 } = {}) {
@@ -56,6 +58,7 @@ export async function fullStack({
   let catalogOrigin;
   const bookingPort = await availablePort();
   const analyticsData = analytics ? await analyticsFixture() : undefined;
+  const waitlistData = waitlist ? await waitlistDatabase(namespace) : undefined;
   const searchIndex = search ? searchEngineFixture() : undefined;
   async function startBooking() {
     bookingService ??= await bookingFixture(namespace, bookingPort, {
@@ -103,6 +106,7 @@ export async function fullStack({
     await ticketsApp?.close();
     await searchIndex?.close();
     await analyticsData?.close();
+    await waitlistData?.close();
     await paymentsService?.close();
     await bookingService?.close();
     await admin.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
@@ -147,6 +151,8 @@ export async function fullStack({
           }
         : {}),
       ANALYTICS_ENABLED: analytics ? 'true' : 'false',
+      WAITLIST_ENABLED: waitlist ? 'true' : 'false',
+      ...(waitlistData ? { WAITLIST_DATABASE_URL: waitlistData.databaseUrl } : {}),
       SEARCH_ENABLED: search ? 'true' : 'false',
       SEARCH_INDEX_NAMESPACE: searchIndex?.namespace ?? process.env.SEARCH_INDEX_NAMESPACE,
       ...(httpConcurrency === undefined
@@ -213,6 +219,12 @@ export async function fullStack({
         })
       : 'http://127.0.0.1:1';
     const bff = await start('apps/bff', () => ['dist/main.js'], '/health/ready', {
+      WAITLIST_URL: waitlistData
+        ? await start('services/waitlist', () => ['dist/main.js'], '/health/ready', {
+            CATALOG_URL: catalog,
+            BOOKING_URL: (await startBooking()).origin,
+          })
+        : 'http://127.0.0.1:1',
       CATALOG_URL: catalog,
       SEARCH_URL: searchOrigin,
       ANALYTICS_URL: analyticsOrigin,
@@ -259,6 +271,7 @@ export async function fullStack({
       analytics: analyticsData && { ...analyticsData, origin: analyticsOrigin },
       search: searchIndex && { origin: searchOrigin, engine: searchIndex.engine },
       catalogDatabase: database,
+      waitlist: waitlistData,
       close,
       startBooking,
       startPayments,

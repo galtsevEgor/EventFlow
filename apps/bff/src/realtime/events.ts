@@ -5,6 +5,7 @@ import {
   paymentSucceededSchema,
   refundOutcomeSchema,
   realtimeHintSchema,
+  waitlistChangedSchema,
   type EventEnvelope,
   type RealtimeHint,
 } from '@eventflow/event-contracts';
@@ -12,6 +13,15 @@ import { PermanentMessageError } from '@eventflow/messaging';
 
 export function realtimeHints(event: EventEnvelope): RealtimeHint[] {
   const invalid = () => new PermanentMessageError('Invalid realtime event');
+  if (event.eventType === 'WaitlistChanged.v1') {
+    const d = waitlistChangedSchema.safeParse(event.data);
+    if (!d.success || event.producer !== 'waitlist' || d.data.entryId !== event.aggregateId)
+      throw invalid();
+    return [
+      { scope: 'waitlist', id: d.data.entryId },
+      { scope: 'organizer-orders', id: d.data.saleId, organizationId: d.data.organizationId },
+    ];
+  }
   if (event.eventType === 'RealtimeInvalidated.v1') {
     const result = realtimeHintSchema.safeParse(event.data);
     if (

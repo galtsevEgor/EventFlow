@@ -24,10 +24,16 @@ export class UpdatesAccess {
     if (!first.session.user.emailVerified)
       throw new ApiError(403, 'EMAIL_UNVERIFIED', 'Подтвердите email.');
     const path =
-      target.scope === 'order'
-        ? `/api/v1/orders/${target.id}`
-        : `/internal/organizations/${target.organizationId}/events/${target.id}/order-updates-access`;
-    await this.probe(path, first.session.accessToken);
+      target.scope === 'waitlist'
+        ? '/api/v1/waitlist/' + target.id
+        : target.scope === 'order'
+          ? `/api/v1/orders/${target.id}`
+          : `/internal/organizations/${target.organizationId}/events/${target.id}/order-updates-access`;
+    await this.probe(
+      path,
+      first.session.accessToken,
+      target.scope === 'waitlist' ? this.auth.config.WAITLIST_URL : this.auth.config.BOOKING_URL,
+    );
     return {
       principal: `user:${first.session.user.sub}`,
       check: async () => {

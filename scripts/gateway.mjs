@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createAdmission } from './gateway-limits.mjs';
 const updatesPath =
-  /^\/api\/v1\/(?:sales\/[a-f0-9-]{36}\/updates|orders\/[a-f0-9-]{36}\/updates|organizations\/[a-f0-9-]{36}\/events\/[a-f0-9-]{36}\/orders\/updates)$/i;
+  /^\/api\/v1\/(?:(?:sales|orders|waitlist)\/[a-f0-9-]{36}\/updates|organizations\/[a-f0-9-]{36}\/events\/[a-f0-9-]{36}\/orders\/updates)$/i;
 
 export function createGateway({
   bff = 'http://127.0.0.1:4000',

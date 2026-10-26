@@ -5,7 +5,7 @@ const frame = z.strictObject({
   kind: z.enum(['ready', 'changed', 'heartbeat']),
 }) satisfies z.ZodType<components['schemas']['UpdateFrame']>;
 const route =
-  /^\/api\/v1\/(?:sales\/[a-f0-9-]{36}\/updates|orders\/[a-f0-9-]{36}\/updates|organizations\/[a-f0-9-]{36}\/events\/[a-f0-9-]{36}\/orders\/updates)$/i;
+  /^\/api\/v1\/(?:(?:sales|orders|waitlist)\/[a-f0-9-]{36}\/updates|organizations\/[a-f0-9-]{36}\/events\/[a-f0-9-]{36}\/orders\/updates)$/i;
 type Source = Pick<EventSource, 'addEventListener' | 'close' | 'onerror'>;
 type Options = {
   onUpdate: () => void | Promise<unknown>;

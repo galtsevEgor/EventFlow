@@ -8,6 +8,7 @@ import { api, queryClient, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
 import { EventCover } from './event-cover';
 import { EventPublication } from './event-publication';
+import { WaitlistSettings } from './waitlist';
 import { hasPendingCopy } from './collaboration/cache';
 const CollaborativeEditor = lazy(() =>
   import('./collaboration/editor').then((module) => ({ default: module.CollaborativeEditor })),
@@ -114,6 +115,9 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
               pendingCopy={hasPendingCopy(subject, id, event.id)}
             />
             <h3>{event.title}</h3>
+            {canEdit && event.publication?.state === 'PUBLISHED' && (
+              <WaitlistSettings organizationId={id} eventId={event.id} />
+            )}
             <p>{event.description || 'Описание ещё не добавлено.'}</p>
             {!event.publication && (
               <Button variant="secondary" onClick={() => setCollaborating(event)}>

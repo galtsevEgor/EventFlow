@@ -15,6 +15,19 @@ class Source extends EventTarget {
   }
 }
 const path = `/api/v1/orders/${randomUUID()}/updates`;
+test('waitlist subscriptions use the same validated SSE client', () => {
+  const source = new Source(),
+    states = [];
+  const stop = watchUpdates('/api/v1/waitlist/' + randomUUID() + '/updates', {
+    createSource: () => source,
+    onConnection: (value) => states.push(value),
+    onUpdate: async () => {},
+  });
+  source.emit('ready');
+  assert.deepEqual(states, [false, true]);
+  stop();
+  assert.equal(source.closed, true);
+});
 
 test('ready reloads the snapshot and coalesces bursts behind an in-flight read', async (context) => {
   context.mock.timers.enable({ apis: ['setTimeout'] });

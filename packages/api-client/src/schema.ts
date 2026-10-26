@@ -795,6 +795,680 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/organizations/{id}/analytics/waitlist': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query: {
+          from: string;
+          to: string;
+          eventId?: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Result */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WaitlistAnalytics'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/events/{id}/waitlist': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Success */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WaitlistInfo'];
+          };
+        };
+        /** @description Request failed */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/waitlist': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Success */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WaitlistEntries'];
+          };
+        };
+        /** @description Request failed */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['WaitlistJoin'];
+        };
+      };
+      responses: {
+        /** @description Success */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WaitlistEntry'];
+          };
+        };
+        /** @description Request failed */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/waitlist/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Success */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WaitlistEntry'];
+          };
+        };
+        /** @description Request failed */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/waitlist/{id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': Record<string, never>;
+        };
+      };
+      responses: {
+        /** @description Success */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WaitlistEntry'];
+          };
+        };
+        /** @description Request failed */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/waitlist/{id}/updates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['subscribeWaitlistUpdates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/organizations/{org}/events/{id}/waitlist': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          org: string;
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Success */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WaitlistSummary'];
+          };
+        };
+        /** @description Request failed */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          org: string;
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            enabled: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description Success */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WaitlistSummary'];
+          };
+        };
+        /** @description Request failed */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+        /** @description Request failed */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiError'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/payment-attempt': {
     parameters: {
       query?: never;
@@ -1544,6 +2218,88 @@ export interface components {
     };
     AnalyticsAccepted: {
       accepted: number;
+    };
+    WaitlistAnalytics: {
+      joined: number;
+      offered: number;
+      purchased: number;
+      expired: number;
+      cancelled: number;
+      closed: number;
+      skipped: number;
+      conversion: number | null;
+      offerConversion: number | null;
+      period: components['schemas']['AnalyticsPeriod'];
+      status: {
+        sequence: string;
+        pending: number;
+        /** Format: date-time */
+        updatedAt: string;
+        stale: boolean;
+      };
+      /** Format: date-time */
+      generatedAt: string;
+      /** @constant */
+      timeZone: 'UTC';
+    };
+    WaitlistEntry: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      saleId: string;
+      title: string;
+      categoryId: string;
+      /** @enum {string} */
+      state:
+        | 'WAITING'
+        | 'RESERVING'
+        | 'OFFERED'
+        | 'CANCELLING'
+        | 'PURCHASED'
+        | 'EXPIRED'
+        | 'CANCELLED'
+        | 'SKIPPED'
+        | 'CLOSED';
+      /** Format: uuid */
+      orderId: string | null;
+      /** Format: date-time */
+      expiresAt: string | null;
+      /** Format: date-time */
+      serverNow: string;
+      position: number | null;
+      /** Format: date-time */
+      createdAt: string;
+    };
+    WaitlistInfo: {
+      enabled: boolean;
+      /** @enum {string} */
+      state: 'OPEN' | 'PAUSED' | 'SCHEDULED' | 'CLOSED';
+      categories: {
+        id: string;
+        name: string;
+      }[];
+    };
+    WaitlistEntries: {
+      entries: components['schemas']['WaitlistEntry'][];
+    };
+    WaitlistSummary: {
+      enabled: boolean;
+      counts: {
+        [key: string]: number;
+      };
+      entries: {
+        /** Format: uuid */
+        id: string;
+        categoryId: string;
+        state: string;
+        /** Format: date-time */
+        createdAt: string;
+      }[];
+    };
+    WaitlistJoin: {
+      /** Format: uuid */
+      saleId: string;
+      categoryId: string;
     };
     PaymentAttemptReference: {
       /** Format: uuid */
@@ -3508,6 +4264,37 @@ export interface operations {
       };
       /** @description Search temporarily unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  subscribeWaitlistUpdates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description SSE update frames; ready requires a fresh API snapshot. No replay is promised. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/event-stream': string;
+        };
+      };
+      /** @description Connection denied or temporarily unavailable */
+      default: {
         headers: {
           [name: string]: unknown;
         };
