@@ -7,6 +7,13 @@ export const analyticsKinds = [
   'search',
   'held',
   'confirmed',
+  'waitlist_joined',
+  'waitlist_offered',
+  'waitlist_purchased',
+  'waitlist_expired',
+  'waitlist_cancelled',
+  'waitlist_closed',
+  'waitlist_skipped',
 ] as const;
 export const analyticsFactSchema = z.strictObject({
   key: z.string().min(1).max(180),
@@ -16,8 +23,9 @@ export const analyticsFactSchema = z.strictObject({
   sessionId: z.uuid().nullable(),
   orderId: z.uuid().nullable(),
   searchId: z.uuid().nullable(),
+  waitlistEntryId: z.uuid().optional(),
   occurredAt: z.iso.datetime(),
-  source: z.enum(['catalog', 'search', 'direct', 'booking']),
+  source: z.enum(['catalog', 'search', 'direct', 'booking', 'waitlist']),
   resultCount: z.number().int().min(0).max(1000000).default(0),
   limited: z.boolean().default(false),
 });

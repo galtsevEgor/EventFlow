@@ -48,6 +48,9 @@ export class ClickHouse {
       occurredAt DateTime64(3, 'UTC'), source LowCardinality(String), resultCount UInt32, limited UInt8
     ) ENGINE = ReplacingMergeTree(sequence)
     PARTITION BY toYYYYMM(occurredAt) ORDER BY (organizationId, eventId, key)`);
+    await this.command(
+      `ALTER TABLE ${this.table(name)} ADD COLUMN IF NOT EXISTS waitlistEntryId String DEFAULT ''`,
+    );
   }
   async generation() {
     const rows = await this.rows<{ uuid: string }>(

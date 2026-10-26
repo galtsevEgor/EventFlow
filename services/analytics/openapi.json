@@ -165,6 +165,60 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{id}/analytics/waitlist": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "eventId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistAnalytics"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -717,6 +771,100 @@
           "accepted": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "WaitlistAnalytics": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "joined",
+          "offered",
+          "purchased",
+          "expired",
+          "cancelled",
+          "closed",
+          "skipped",
+          "conversion",
+          "offerConversion",
+          "period",
+          "status",
+          "generatedAt",
+          "timeZone"
+        ],
+        "properties": {
+          "joined": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offered": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "purchased": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expired": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cancelled": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "closed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "conversion": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "offerConversion": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "period": {
+            "$ref": "#/components/schemas/AnalyticsPeriod"
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "sequence": {
+                "type": "string",
+                "pattern": "^\\d+$"
+              },
+              "pending": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "stale": {
+                "type": "boolean"
+              }
+            },
+            "required": ["sequence", "pending", "updatedAt", "stale"],
+            "additionalProperties": false
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timeZone": {
+            "type": "string",
+            "const": "UTC"
           }
         }
       }

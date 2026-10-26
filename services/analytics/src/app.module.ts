@@ -13,6 +13,7 @@ import { Journal } from './journal';
 import { AnalyticsProjection, AnalyticsWorker } from './projection';
 import { BookingAnalytics } from './booking';
 import { AnalyticsReport } from './report';
+import { WaitlistReport } from './waitlist-report';
 import { AnalyticsIngest } from './ingest';
 import { AnalyticsMetrics } from './metrics';
 import { AnalyticsController, ANALYTICS_CONFIG } from './controller';
@@ -30,6 +31,12 @@ export class AppModule {
           useFactory: (projection: AnalyticsProjection) => new AnalyticsMetrics(projection),
         },
         { provide: ANALYTICS_CONFIG, useValue: config },
+        {
+          provide: WaitlistReport,
+          inject: [ClickHouse, AnalyticsProjection],
+          useFactory: (engine: ClickHouse, projection: AnalyticsProjection) =>
+            new WaitlistReport(engine, projection),
+        },
         { provide: ClickHouse, useFactory: () => new ClickHouse(config) },
         { provide: Journal, useFactory: () => new Journal(config.ANALYTICS_DATABASE_URL) },
         {

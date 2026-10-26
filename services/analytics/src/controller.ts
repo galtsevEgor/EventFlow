@@ -24,6 +24,7 @@ import { AnalyticsIngest } from './ingest';
 import { AnalyticsReport } from './report';
 import { AnalyticsProjection } from './projection';
 import type { AnalyticsConfig } from './config';
+import { WaitlistReport } from './waitlist-report';
 export const ANALYTICS_CONFIG = Symbol('ANALYTICS_CONFIG');
 @Controller()
 export class AnalyticsController {
@@ -34,6 +35,7 @@ export class AnalyticsController {
     @Inject(AnalyticsIngest) private readonly ingest: AnalyticsIngest,
     @Inject(AnalyticsReport) private readonly report: AnalyticsReport,
     @Inject(AnalyticsProjection) private readonly projection: AnalyticsProjection,
+    @Inject(WaitlistReport) private readonly waitlist: WaitlistReport,
   ) {}
   @Post('internal/analytics/events')
   @HttpCode(202)
@@ -71,6 +73,34 @@ export class AnalyticsController {
         'ANALYTICS_UNAVAILABLE',
         'Аналитика обновляется или временно недоступна. Повторите позже.',
       );
+    }
+  }
+  @Get('api/v1/organizations/:id/analytics/waitlist')
+  async waitlistReport(
+    @Headers('authorization') auth: string | undefined,
+    @Param('id') id: string,
+    @Query() input: unknown,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const user = await this.tokens.user(auth),
+      organizationId = parseInput(z.uuid(), id),
+      query = parseInput(
+        analyticsPeriodSchema.refine(
+          (q) => q.source === undefined,
+          'У листа ожидания нет браузерного источника.',
+        ),
+        input,
+      );
+    await requirePolicy(this.config.CATALOG_URL, await this.policy.token(), {
+      actorSubject: user.subject,
+      organizationId,
+      action: 'events:write',
+    });
+    response.setHeader('cache-control', 'no-store');
+    try {
+      return await this.waitlist.read(organizationId, query);
+    } catch {
+      throw new ApiError(503, 'ANALYTICS_UNAVAILABLE', 'Аналитика временно недоступна.');
     }
   }
   @Get('api/v1/analytics/search-quality')
