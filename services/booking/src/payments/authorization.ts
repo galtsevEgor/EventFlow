@@ -22,12 +22,17 @@ function snapshot(order: Order, now: Date) {
 }
 export class PaymentAuthorization {
   constructor(private readonly db: Database) {}
-  async read(id: string, buyer?: string) {
+  async read(id: string, buyer?: string, serialized = false) {
     return transaction(this.db, async (tx) => {
       const order = await tx.order.findFirst({
         where: { id, ...(buyer ? { buyerSubject: buyer } : {}) },
       });
       if (!order) throw new ApiError(404, 'NOT_FOUND', 'Заказ не найден.');
+      if (serialized) {
+        await lockSlot(tx, order.buyerSubject, order.saleId);
+        const current = await lockOrder(tx, id);
+        return snapshot(current, await decisionTime(tx));
+      }
       return snapshot(order, await decisionTime(tx));
     });
   }

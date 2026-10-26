@@ -6,6 +6,13 @@ import { testIdentity, jsonRequest } from '../helpers/identity.mjs';
 import { seedSale } from '../helpers/sale.mjs';
 import { cleanBroker } from '../helpers/broker.mjs';
 import { Reserve } from '../../services/booking/dist/orders/reserve.js';
+import {
+  lockOrder,
+  lockSeats,
+  lockSlot,
+  transaction,
+  decisionTime,
+} from '../../services/booking/dist/orders/transaction.js';
 const namespace = 'eventflow-test-' + randomUUID();
 let fixture, identity, machine;
 before(async () => {
@@ -153,4 +160,49 @@ test('already purchased and paused sales do not produce offers', async () => {
   assert.equal((await create(body(sale.id, buyer))).body.code, 'ALREADY_PURCHASED');
   await fixture.db.sale.update({ where: { id: sale.id }, data: { paused: true } });
   assert.equal((await create(body(sale.id, 'paused-buyer'))).body.code, 'SALES_NOT_OPEN');
+});
+test('status waits for a payment that owns the locks across the expiry boundary', async () => {
+  const sale = await seedSale(fixture.db),
+    d = body(sale.id, 'boundary-buyer'),
+    offer = await create(d);
+  assert.equal(offer.status, 201);
+  const id = offer.body.id,
+    expiresAt = new Date(Date.now() + 300);
+  await fixture.db.order.update({ where: { id }, data: { expiresAt } });
+  let release, locked;
+  const hold = new Promise((resolve) => {
+      release = resolve;
+    }),
+    ready = new Promise((resolve) => {
+      locked = resolve;
+    });
+  const confirm = transaction(fixture.db, async (tx) => {
+    await lockSlot(tx, d.buyerSubject, sale.id);
+    const order = await lockOrder(tx, id);
+    await lockSeats(tx, sale.id, ['r1-s1']);
+    assert.ok((await decisionTime(tx)) < order.expiresAt);
+    locked();
+    await hold;
+    await tx.order.update({ where: { id }, data: { state: 'CONFIRMED', confirmedAt: new Date() } });
+  });
+  try {
+    await ready;
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, +expiresAt - Date.now() + 20)));
+    let finished = false;
+    const result = jsonRequest(fixture.origin, '/internal/waitlist/status', machine, 'POST', {
+      entryId: d.entryId,
+      buyerSubject: d.buyerSubject,
+    }).then((r) => {
+      finished = true;
+      return r;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    assert.equal(finished, false);
+    release();
+    await confirm;
+    assert.equal((await result).body.state, 'CONFIRMED');
+  } finally {
+    release();
+    await confirm;
+  }
 });

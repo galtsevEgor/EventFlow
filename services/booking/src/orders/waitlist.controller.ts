@@ -57,7 +57,7 @@ export class WaitlistReservationsController {
   async status(@Headers('authorization') auth: string | undefined, @Body() input: unknown) {
     await this.authorize(auth);
     const order = await this.owned(input);
-    return this.orders.read(order.id, order.buyerSubject);
+    return this.orders.read(order.id, order.buyerSubject, true);
   }
   @Post('cancel')
   @HttpCode(200)
@@ -74,6 +74,6 @@ export class WaitlistReservationsController {
       )
         throw error;
     }
-    return this.orders.read(order.id, order.buyerSubject);
+    return this.orders.read(order.id, order.buyerSubject, true);
   }
 }
