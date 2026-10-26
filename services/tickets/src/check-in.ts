@@ -76,7 +76,7 @@ export class CheckInTicket {
           session.organizationId !== organizationId ||
           session.eventId !== eventId)
       )
-        throw new ApiError(403, 'FORBIDDEN', '������ ����������.');
+        throw new ApiError(403, 'FORBIDDEN', 'Сессия недоступна.');
 
       const candidate = await tx.ticket.findUnique({
         where: { qrHash: credentialHash },

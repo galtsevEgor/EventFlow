@@ -55,6 +55,7 @@ export function initializeEnvironment(directory) {
     WAITLIST_DB_PASSWORD: values.WAITLIST_DB_PASSWORD || randomBytes(24).toString('hex'),
     WAITLIST_URL: 'http://127.0.0.1:4007',
     WAITLIST_ENABLED: 'true',
+    OFFLINE_CHECK_IN_KEY: randomBytes(32).toString('hex'),
     WAITLIST_CLIENT_SECRET: randomBytes(32).toString('hex'),
     WAITLIST_CONTACT_KEY: randomBytes(32).toString('hex'),
     TEMPORAL_ADDRESS: '127.0.0.1:17233',

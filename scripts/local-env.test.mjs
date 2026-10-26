@@ -21,6 +21,8 @@ test('initialization generates distinct secrets and preserves them on repeated r
     assert.notEqual(env.ANALYTICS_SESSION_KEY, env.OIDC_CLIENT_SECRET);
     assert.match(env.CLICKHOUSE_PASSWORD, /^[a-f0-9]{64}$/);
     assert.match(env.TICKET_QR_KEYS, /^v1:[0-9a-f]{64}$/);
+    assert.match(env.OFFLINE_CHECK_IN_KEY, /^[0-9a-f]{64}$/);
+    assert.notEqual(env.OFFLINE_CHECK_IN_KEY, env.TICKET_QR_KEYS.slice(3));
     initializeEnvironment(directory);
     assert.equal(readFileSync(join(directory, '.env'), 'utf8'), original);
     const s3 = JSON.parse(readFileSync(join(directory, 'work/local/s3.json'), 'utf8'));

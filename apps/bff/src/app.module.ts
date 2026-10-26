@@ -2,6 +2,7 @@ import { Module, type DynamicModule } from '@nestjs/common';
 import { HealthModule, Readiness, probeIdentity, TokenVerifier } from '@eventflow/service-runtime';
 import { AnalyticsProxy } from './analytics/controller';
 import { WaitlistProxy } from './waitlist.controller';
+import { OfflineCheckInProxy } from './offline-check-in.controller';
 import { AnalyticsBridge } from './analytics/service';
 import { OpsController } from './ops.controller';
 import { AuthModule } from './auth/auth.module';
@@ -35,6 +36,7 @@ export class AppModule {
       controllers: [
         AnalyticsProxy,
         WaitlistProxy,
+        OfflineCheckInProxy,
         UpdatesController,
         CoverProxyController,
         PublicController,

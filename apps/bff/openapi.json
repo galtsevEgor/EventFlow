@@ -2730,6 +2730,75 @@
           "404": { "description": "No matching ticket available to this buyer" }
         }
       }
+    },
+    "/api/v1/offline-check-in/keys": {
+      "get": {
+        "operationId": "getOfflineCheckInKeys",
+        "responses": {
+          "200": {
+            "description": "Authenticated Ed25519 verification keys",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OfflineKeys" } }
+            }
+          },
+          "401": { "description": "Authentication required" },
+          "403": { "description": "Verified email and current scope permission required" },
+          "409": {
+            "description": "Idempotency conflict or unavailable preparation window/snapshot size"
+          },
+          "503": { "description": "Signing key or policy unavailable" }
+        }
+      }
+    },
+    "/api/v1/offline-check-in/sessions": {
+      "post": {
+        "operationId": "prepareOfflineCheckIn",
+        "responses": {
+          "200": {
+            "description": "Signed snapshot for current assigned gate staff or owner/manager; 30-minute TTL capped at admission end",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OfflineBundle" } }
+            }
+          },
+          "401": { "description": "Authentication required" },
+          "403": { "description": "Verified email and current scope permission required" },
+          "409": {
+            "description": "Idempotency conflict or unavailable preparation window/snapshot size"
+          },
+          "503": { "description": "Signing key or policy unavailable" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/OfflinePrepare" } }
+          }
+        }
+      }
+    },
+    "/api/v1/offline-check-in/sync": {
+      "post": {
+        "operationId": "syncOfflineCheckIn",
+        "responses": {
+          "200": {
+            "description": "Authoritative per-operation results. Partial progress persists; exact retries replay after expiry. Current admission policy required.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OfflineSyncResult" } }
+            }
+          },
+          "401": { "description": "Authentication required" },
+          "403": { "description": "Verified email and current scope permission required" },
+          "409": {
+            "description": "Idempotency conflict or unavailable preparation window/snapshot size"
+          },
+          "503": { "description": "Signing key or policy unavailable" }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/OfflineSync" } }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4243,6 +4312,154 @@
           "number": { "type": "integer" },
           "categoryName": { "type": "string" }
         }
+      },
+      "OfflinePrepare": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "deviceId": { "type": "string", "format": "uuid" },
+          "organizationId": { "type": "string", "format": "uuid" },
+          "eventId": { "type": "string", "format": "uuid" }
+        },
+        "required": ["deviceId", "organizationId", "eventId"]
+      },
+      "OfflinePublicKey": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "jwk": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kty": { "const": "OKP" },
+              "crv": { "const": "Ed25519" },
+              "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+            },
+            "required": ["kty", "crv", "x"]
+          }
+        },
+        "required": ["id", "jwk"]
+      },
+      "OfflineKeys": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "keys": { "type": "array", "items": { "$ref": "#/components/schemas/OfflinePublicKey" } }
+        },
+        "required": ["keys"]
+      },
+      "OfflineBundle": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000000,
+            "description": "Original UTF-8 JSON OfflineManifest signed by Ed25519. Verify signature before parsing."
+          },
+          "signature": { "type": "string", "pattern": "^[A-Za-z0-9_-]{86}$" },
+          "keyId": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        },
+        "required": ["payload", "signature", "keyId"]
+      },
+      "OfflineManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": { "const": 1 },
+          "sessionId": { "type": "string", "format": "uuid" },
+          "deviceId": { "type": "string", "format": "uuid" },
+          "actorSubject": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "organizationId": { "type": "string", "format": "uuid" },
+          "eventId": { "type": "string", "format": "uuid" },
+          "issuedAt": { "type": "string", "format": "date-time" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "admissionStartsAt": { "type": "string", "format": "date-time" },
+          "admissionEndsAt": { "type": "string", "format": "date-time" },
+          "hashes": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        },
+        "required": [
+          "version",
+          "sessionId",
+          "deviceId",
+          "actorSubject",
+          "organizationId",
+          "eventId",
+          "issuedAt",
+          "expiresAt",
+          "admissionStartsAt",
+          "admissionEndsAt",
+          "hashes"
+        ]
+      },
+      "OfflineScan": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "requestId": { "type": "string", "format": "uuid" },
+          "credential": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" },
+          "capturedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "credential", "capturedAt"]
+      },
+      "OfflineSync": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": { "type": "string", "format": "uuid" },
+          "deviceId": { "type": "string", "format": "uuid" },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": { "$ref": "#/components/schemas/OfflineScan" },
+            "description": "requestId values must be unique in the batch."
+          }
+        },
+        "required": ["sessionId", "deviceId", "operations"]
+      },
+      "OfflineResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "requestId": { "type": "string", "format": "uuid" },
+          "result": {
+            "type": "string",
+            "enum": [
+              "ADMITTED",
+              "ALREADY_USED",
+              "INVALID_TICKET",
+              "WRONG_EVENT",
+              "REFUNDED",
+              "REFUND_PENDING",
+              "WINDOW_CLOSED"
+            ]
+          },
+          "admittedAt": { "type": ["string", "null"], "format": "date-time" },
+          "reason": {
+            "type": ["string", "null"],
+            "enum": ["SNAPSHOT_EXPIRED", "NOT_IN_SNAPSHOT", null]
+          }
+        },
+        "required": ["requestId", "result", "admittedAt", "reason"]
+      },
+      "OfflineSyncResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "results": {
+            "type": "array",
+            "maxItems": 50,
+            "items": { "$ref": "#/components/schemas/OfflineResult" }
+          }
+        },
+        "required": ["results"]
       }
     },
     "parameters": {

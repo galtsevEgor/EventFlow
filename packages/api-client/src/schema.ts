@@ -1597,6 +1597,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/offline-check-in/keys': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations['getOfflineCheckInKeys'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/offline-check-in/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['prepareOfflineCheckIn'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/offline-check-in/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations['syncOfflineCheckIn'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2367,6 +2415,90 @@ export interface components {
       row: number;
       number: number;
       categoryName: string;
+    };
+    OfflinePrepare: {
+      /** Format: uuid */
+      deviceId: string;
+      /** Format: uuid */
+      organizationId: string;
+      /** Format: uuid */
+      eventId: string;
+    };
+    OfflinePublicKey: {
+      id: string;
+      jwk: {
+        /** @constant */
+        kty: 'OKP';
+        /** @constant */
+        crv: 'Ed25519';
+        x: string;
+      };
+    };
+    OfflineKeys: {
+      keys: components['schemas']['OfflinePublicKey'][];
+    };
+    OfflineBundle: {
+      /** @description Original UTF-8 JSON OfflineManifest signed by Ed25519. Verify signature before parsing. */
+      payload: string;
+      signature: string;
+      keyId: string;
+    };
+    OfflineManifest: {
+      /** @constant */
+      version: 1;
+      /** Format: uuid */
+      sessionId: string;
+      /** Format: uuid */
+      deviceId: string;
+      actorSubject: string;
+      /** Format: uuid */
+      organizationId: string;
+      /** Format: uuid */
+      eventId: string;
+      /** Format: date-time */
+      issuedAt: string;
+      /** Format: date-time */
+      expiresAt: string;
+      /** Format: date-time */
+      admissionStartsAt: string;
+      /** Format: date-time */
+      admissionEndsAt: string;
+      hashes: string[];
+    };
+    OfflineScan: {
+      /** Format: uuid */
+      requestId: string;
+      credential: string;
+      /** Format: date-time */
+      capturedAt: string;
+    };
+    OfflineSync: {
+      /** Format: uuid */
+      sessionId: string;
+      /** Format: uuid */
+      deviceId: string;
+      /** @description requestId values must be unique in the batch. */
+      operations: components['schemas']['OfflineScan'][];
+    };
+    OfflineResult: {
+      /** Format: uuid */
+      requestId: string;
+      /** @enum {string} */
+      result:
+        | 'ADMITTED'
+        | 'ALREADY_USED'
+        | 'INVALID_TICKET'
+        | 'WRONG_EVENT'
+        | 'REFUNDED'
+        | 'REFUND_PENDING'
+        | 'WINDOW_CLOSED';
+      /** Format: date-time */
+      admittedAt: string | null;
+      /** @enum {string|null} */
+      reason: 'SNAPSHOT_EXPIRED' | 'NOT_IN_SNAPSHOT' | null;
+    };
+    OfflineSyncResult: {
+      results: components['schemas']['OfflineResult'][];
     };
   };
   responses: never;
@@ -4517,6 +4649,158 @@ export interface operations {
       };
       /** @description No matching ticket available to this buyer */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getOfflineCheckInKeys: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Authenticated Ed25519 verification keys */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OfflineKeys'];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Verified email and current scope permission required */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Idempotency conflict or unavailable preparation window/snapshot size */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Signing key or policy unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  prepareOfflineCheckIn: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OfflinePrepare'];
+      };
+    };
+    responses: {
+      /** @description Signed snapshot for current assigned gate staff or owner/manager; 30-minute TTL capped at admission end */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OfflineBundle'];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Verified email and current scope permission required */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Idempotency conflict or unavailable preparation window/snapshot size */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Signing key or policy unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  syncOfflineCheckIn: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OfflineSync'];
+      };
+    };
+    responses: {
+      /** @description Authoritative per-operation results. Partial progress persists; exact retries replay after expiry. Current admission policy required. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OfflineSyncResult'];
+        };
+      };
+      /** @description Authentication required */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Verified email and current scope permission required */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Idempotency conflict or unavailable preparation window/snapshot size */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Signing key or policy unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };
