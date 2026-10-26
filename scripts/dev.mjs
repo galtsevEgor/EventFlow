@@ -1,6 +1,17 @@
 import { execFile, spawn } from 'node:child_process';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createGateway } from './gateway.mjs';
 
+const persistentTasks = ['apps', 'services', 'packages']
+  .flatMap((group) =>
+    readdirSync(group, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map(
+        (entry) =>
+          JSON.parse(readFileSync(`${group}/${entry.name}/package.json`, 'utf8')).scripts?.dev,
+      ),
+  )
+  .filter(Boolean).length;
 const origin = new URL(process.env.PUBLIC_ORIGIN);
 if (origin.hostname !== '127.0.0.1' || origin.protocol !== 'http:')
   throw new Error('Local development requires an HTTP PUBLIC_ORIGIN on 127.0.0.1');
@@ -11,7 +22,13 @@ await new Promise((done, reject) => {
 });
 const child = spawn(
   process.execPath,
-  ['node_modules/turbo/bin/turbo', 'run', 'dev', '--env-mode=loose'],
+  [
+    'node_modules/turbo/bin/turbo',
+    'run',
+    'dev',
+    `--concurrency=${persistentTasks + 1}`,
+    '--env-mode=loose',
+  ],
   {
     stdio: 'inherit',
     windowsHide: true,
