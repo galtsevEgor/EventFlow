@@ -1,4 +1,4 @@
-import { admissionWindowSchema, type CheckInInput } from '@eventflow/event-contracts';
+import { admissionWindowSchema } from '@eventflow/event-contracts';
 import { ApiError, ClientCredentials } from '@eventflow/service-runtime';
 import type { TicketsConfig } from './config';
 
@@ -13,7 +13,10 @@ export class AdmissionPolicy {
     );
   }
 
-  async window(actorSubject: string, { organizationId, eventId }: CheckInInput) {
+  async window(
+    actorSubject: string,
+    { organizationId, eventId }: { organizationId: string; eventId: string },
+  ) {
     try {
       const response = await fetch(new URL('/internal/policy/admission', this.config.CATALOG_URL), {
         method: 'POST',

@@ -50,5 +50,9 @@
   "services/waitlist/migrations/001-waitlist.sql": {
     "backwardCompatible": true,
     "sha256": "32fe8626a91fd0749948e94df4a177164f7c186f1b41e7d87f21b694bf77ae23"
+  },
+  "services/tickets/prisma/migrations/202611100002_offline_check_in/migration.sql": {
+    "backwardCompatible": true,
+    "sha256": "396cdaea83ea3456cf2e1bd3f3b64a576360a2fb45e60f8681d091d810d9cb26"
   }
 }

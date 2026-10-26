@@ -52,7 +52,21 @@ model Ticket {
   @@unique([orderId, seatId])
 }
 
+model OfflineSession {
+  id String @id @db.Uuid
+  deviceId String @db.Uuid
+  actorSubject String @db.VarChar(255)
+  organizationId String @db.Uuid
+  eventId String @db.Uuid
+  issuedAt DateTime @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  hashes String[]
+}
+
 model CheckIn {
+  offlineSessionId String? @db.Uuid
+  capturedAt DateTime? @db.Timestamptz(3)
+  offlineReason String? @db.VarChar(24)
   requestId      String    @id @db.Uuid
   requestHash    String    @db.Char(64)
   actorSubject   String    @db.VarChar(255)

@@ -19,6 +19,8 @@ import { AdmissionPolicy } from './admission-policy';
 import { CheckInController } from './check-in.controller';
 import { CheckInTicket } from './check-in';
 import { TicketRefunds } from './refunds';
+import { OfflineCheckIn } from './offline-check-in';
+import { OfflineCheckInController } from './offline-check-in.controller';
 import { TicketOps } from './ops.controller';
 
 @Module({ imports: [HealthModule.forService('tickets')] })
@@ -30,7 +32,13 @@ export class AppModule {
       controllers:
         config.EVENTFLOW_WORKLOAD === 'worker'
           ? []
-          : [TicketController, MailOperator, CheckInController, TicketOps],
+          : [
+              TicketController,
+              MailOperator,
+              CheckInController,
+              TicketOps,
+              OfflineCheckInController,
+            ],
       providers: [
         ...(runWorkers
           ? [
@@ -92,6 +100,11 @@ export class AppModule {
           useFactory: () => new TokenVerifier(config.OIDC_ISSUER, 'eventflow-tickets'),
         },
         { provide: QrCredentials, useFactory: () => new QrCredentials(config.TICKET_QR_KEYS) },
+        {
+          provide: OfflineCheckIn,
+          inject: [Database],
+          useFactory: (db: Database) => new OfflineCheckIn(db, config.OFFLINE_CHECK_IN_KEY),
+        },
         IssueTickets,
         { provide: AdmissionPolicy, useFactory: () => new AdmissionPolicy(config) },
         {

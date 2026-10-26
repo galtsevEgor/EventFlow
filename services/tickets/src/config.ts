@@ -18,6 +18,10 @@ export function readTicketsConfig(env: NodeJS.ProcessEnv) {
         .regex(/^[a-z0-9-]{1,80}$/)
         .default('eventflow'),
       TICKET_QR_KEYS: z.string(),
+      OFFLINE_CHECK_IN_KEY: z
+        .string()
+        .regex(/^[a-fA-F0-9]{64}$/)
+        .optional(),
     })
     .parse(env);
 }

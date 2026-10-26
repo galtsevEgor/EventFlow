@@ -18,14 +18,33 @@ type LockedTicket = {
   usedAt: Date | null;
 };
 
+export type OfflineContext = { sessionId: string; deviceId: string; capturedAt: string };
+
 export class CheckInTicket {
   constructor(private readonly db: Database) {}
 
-  async run(actorSubject: string, input: CheckInInput, window: AdmissionWindow) {
+  async run(
+    actorSubject: string,
+    input: CheckInInput,
+    window: AdmissionWindow,
+    offline?: OfflineContext,
+  ) {
     const { requestId, organizationId, eventId } = input;
     const credentialHash = sha256(input.credential);
     const requestHash = sha256(
-      JSON.stringify([actorSubject, organizationId, eventId, credentialHash]),
+      JSON.stringify(
+        offline
+          ? [
+              actorSubject,
+              organizationId,
+              eventId,
+              credentialHash,
+              offline.sessionId,
+              offline.deviceId,
+              offline.capturedAt,
+            ]
+          : [actorSubject, organizationId, eventId, credentialHash],
+      ),
     );
     return this.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${requestId}, 2))`;
@@ -37,8 +56,27 @@ export class CheckInTicket {
             'IDEMPOTENCY_CONFLICT',
             'Запрос уже использован для другой проверки.',
           );
-        return { result: checkInResult.parse(previous.result), admittedAt: previous.admittedAt };
+        return {
+          result: checkInResult.parse(previous.result),
+          admittedAt: previous.admittedAt,
+          ...(offline
+            ? { reason: previous.offlineReason as 'SNAPSHOT_EXPIRED' | 'NOT_IN_SNAPSHOT' | null }
+            : {}),
+        };
       }
+
+      const session = offline
+        ? await tx.offlineSession.findUnique({ where: { id: offline.sessionId } })
+        : null;
+      if (
+        offline &&
+        (!session ||
+          session.actorSubject !== actorSubject ||
+          session.deviceId !== offline.deviceId ||
+          session.organizationId !== organizationId ||
+          session.eventId !== eventId)
+      )
+        throw new ApiError(403, 'FORBIDDEN', '������ ����������.');
 
       const candidate = await tx.ticket.findUnique({
         where: { qrHash: credentialHash },
@@ -57,7 +95,14 @@ export class CheckInTicket {
 
       let result: CheckInResult;
       let admittedAt: Date | null = null;
-      if (
+      let reason: 'SNAPSHOT_EXPIRED' | 'NOT_IN_SNAPSHOT' | null = null;
+      if (session && clock.now >= session.expiresAt) {
+        result = 'WINDOW_CLOSED';
+        reason = 'SNAPSHOT_EXPIRED';
+      } else if (session && !session.hashes.includes(credentialHash)) {
+        result = 'INVALID_TICKET';
+        reason = 'NOT_IN_SNAPSHOT';
+      } else if (
         clock.now < new Date(window.admissionStartsAt) ||
         clock.now >= new Date(window.admissionEndsAt)
       ) {
@@ -92,9 +137,16 @@ export class CheckInTicket {
           result,
           admittedAt,
           checkedAt: clock.now,
+          ...(offline
+            ? {
+                offlineSessionId: offline.sessionId,
+                capturedAt: new Date(offline.capturedAt),
+                offlineReason: reason,
+              }
+            : {}),
         },
       });
-      return { result, admittedAt };
+      return { result, admittedAt, ...(offline ? { reason } : {}) };
     });
   }
 }
