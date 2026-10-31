@@ -14,6 +14,7 @@ export async function loadSession() {
   const session = await api.getSession();
   api.setCsrfToken(session.user ? session.csrfToken : '');
   if (!session.user) {
+    await import('./gate/database').then((m) => m.gateDatabase.identity(null)).catch(() => {});
     clearOperatorRequests();
     clearDraftCopies();
     queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'session' });

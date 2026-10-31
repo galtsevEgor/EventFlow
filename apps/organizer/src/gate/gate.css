@@ -1,0 +1,86 @@
+.gate-shell {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  overflow-wrap: anywhere;
+}
+.gate-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.gate-shell section {
+  background: #fff;
+  border: 1px solid #d6dfd7;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+}
+.gate-notice {
+  padding: 1rem;
+  background: #fff5d9;
+  border-left: 4px solid #af7c13;
+  border-radius: 0.5rem;
+  line-height: 1.6;
+}
+.gate-connection {
+  padding: 0.65rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+.gate-connection.online {
+  background: #eaf2e8;
+}
+.gate-connection.offline {
+  background: #fff0d0;
+}
+.gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.gate-results {
+  list-style: none;
+  padding: 0;
+}
+.gate-result {
+  padding: 1rem;
+  margin: 0.75rem 0;
+  border-radius: 0.5rem;
+  background: #f0f2ef;
+}
+.gate-result small {
+  display: block;
+  margin-top: 0.5rem;
+}
+.gate-result.confirmed {
+  background: #e4f0e1;
+}
+.gate-result.conflict {
+  background: #fff0e8;
+}
+.gate-result.pending {
+  background: #fff7df;
+}
+.gate-shell button {
+  max-width: 100%;
+  white-space: normal;
+}
+.gate-shell input {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 480px) {
+  .gate-shell {
+    padding: 1rem;
+  }
+  .gate-shell section {
+    padding: 1rem;
+  }
+  .gate-header .brand {
+    font-size: 1.3rem;
+  }
+}

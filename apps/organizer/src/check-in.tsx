@@ -49,6 +49,11 @@ export function CheckIn({ organizationId, eventId }: { organizationId: string; e
     check.error && (!(check.error instanceof ApiRequestError) || check.error.problem.retryable);
   return (
     <div className="check-in">
+      <p>
+        <a href={'/organizer/gate/?org=' + organizationId + '&event=' + eventId}>
+          Открыть PWA-сканер с офлайн-очередью
+        </a>
+      </p>
       <form onSubmit={manual}>
         <Field
           ref={input}

@@ -38,6 +38,7 @@ export function App() {
       queryClient.clear();
       clearOperatorRequests();
       clearDraftCopies();
+      await import('./gate/database').then((m) => m.gateDatabase.identity(null)).catch(() => {});
       api.setCsrfToken('');
       location.assign(result.logoutUrl);
     },
