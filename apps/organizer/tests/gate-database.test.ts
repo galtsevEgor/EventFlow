@@ -166,7 +166,7 @@ describe('durable gate scan queue', () => {
         'operator',
         f.snapshot.eventId,
         async () => {
-          throw new GateSyncError(403, 'Forbidden');
+          throw new GateSyncError(403, 'Forbidden', 'FORBIDDEN');
         },
         lock,
       ),
@@ -187,5 +187,27 @@ describe('durable gate scan queue', () => {
     ).rejects.toThrow('неполный');
     expect(await f.db.scans.count()).toBe(1);
     expect(await f.db.snapshots.count()).toBe(2);
+  });
+  it('an expired session or stale CSRF keeps the queue and does not revoke an otherwise valid snapshot', async () => {
+    const f = await fixture();
+    await f.db.capture(f.snapshot, f.credential, f.now);
+    for (const [status, code] of [
+      [401, 'UNAUTHENTICATED'],
+      [403, 'CSRF_FAILED'],
+    ] as const) {
+      await expect(
+        synchronize(
+          f.db,
+          'operator',
+          f.snapshot.eventId,
+          async () => {
+            throw new GateSyncError(status, 'Login again', code);
+          },
+          lock,
+        ),
+      ).rejects.toThrow('Login again');
+      expect((await f.db.snapshots.get(f.snapshot.id))!.blocked).toBe(false);
+      expect((await f.db.scans.toArray())[0]!.sealed).not.toBeNull();
+    }
   });
 });

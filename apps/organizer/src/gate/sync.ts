@@ -5,6 +5,7 @@ export class GateSyncError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -54,7 +55,11 @@ export async function synchronize(
         try {
           data = await send({ sessionId, deviceId: first.deviceId, operations });
         } catch (error) {
-          if (error instanceof GateSyncError && error.status === 403)
+          if (
+            error instanceof GateSyncError &&
+            error.status === 403 &&
+            ['FORBIDDEN', 'EMAIL_UNVERIFIED'].includes(error.code ?? '')
+          )
             await db.block(actorSubject, eventId);
           throw error;
         }

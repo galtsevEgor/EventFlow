@@ -4,6 +4,7 @@ import test from 'node:test';
 import { chromium, expect } from '@playwright/test';
 import { loginBuyer, publishForBooking } from './booking-setup.mjs';
 import { fullStack } from './fixture.mjs';
+import { virtualCamera } from './gate-setup.mjs';
 
 function schedule(open) {
   const now = Date.now();
@@ -16,31 +17,6 @@ function schedule(open) {
     admissionStartsAt: minute(open ? -10 : 10),
     admissionEndsAt: minute(90),
   };
-}
-
-async function virtualCamera(page, image) {
-  await page.evaluate(async (data) => {
-    const qr = new Image();
-    qr.src = 'data:image/png;base64,' + data;
-    await qr.decode();
-    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
-      configurable: true,
-      value: async () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 360;
-        const context = canvas.getContext('2d');
-        context.fillStyle = 'white';
-        context.fillRect(0, 0, 360, 360);
-        const stream = canvas.captureStream(12);
-        const [track] = stream.getVideoTracks();
-        const timer = setInterval(() => {
-          if (track.readyState === 'ended') clearInterval(timer);
-          else context.drawImage(qr, 32, 32, qr.width, qr.height);
-        }, 70);
-        return stream;
-      },
-    });
-  }, image.toString('base64'));
 }
 
 test(

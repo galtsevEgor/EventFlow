@@ -123,7 +123,16 @@ export function useGate(organizationId: string, eventId: string) {
         throw new Error('Сначала подготовьте мероприятие онлайн.');
       const now = Date.now();
       await worker.check(credential, now);
-      return db.capture(snapshot, credential, now);
+      try {
+        return await db.capture(snapshot, credential, now);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'QuotaExceededError')
+          throw new Error(
+            'Не удалось сохранить проверку: хранилище заполнено. Освободите место и повторите сканирование.',
+            { cause: error },
+          );
+        throw error;
+      }
     },
   });
   const sync = useMutation({
@@ -133,7 +142,8 @@ export function useGate(organizationId: string, eventId: string) {
       await synchronize(db, actor, eventId, (body) => gateRequest('sync', csrf, body));
     },
     onError: (error) => {
-      if (error instanceof GateSyncError && error.status === 401) void session.refetch();
+      if (error instanceof GateSyncError && (error.status === 401 || error.code === 'CSRF_FAILED'))
+        void session.refetch();
     },
   });
   const pending = rows?.filter((r) => r.state === 'PENDING').length ?? 0;

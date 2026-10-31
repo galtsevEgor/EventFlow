@@ -7,40 +7,8 @@ import { chromium, expect } from '@playwright/test';
 import { fullStack } from './fixture.mjs';
 import { loginBuyer, publishForBooking } from './booking-setup.mjs';
 import { QrCredentials } from '../../services/tickets/dist/qr-credentials.js';
-async function gate(page, origin, org, event) {
-  await page.goto(origin + '/organizer/gate/?org=' + org + '&event=' + event);
-  await page.getByRole('button', { name: 'Подготовить мероприятие', exact: true }).click();
-  await expect(page.getByText(/В снимке:/)).toBeVisible();
-  await page.waitForFunction(() => !!navigator.serviceWorker.controller);
-  await expect(page.getByLabel('Код билета', { exact: true })).toBeEnabled();
-}
-async function scan(page, credential) {
-  await page.getByLabel('Код билета', { exact: true }).fill(credential);
-  await page.getByRole('button', { name: 'Сохранить проверку', exact: true }).click();
-}
-async function localRows(page, store = 'scans') {
-  return page.evaluate(async (name) => {
-    const db = await new Promise((resolve, reject) => {
-      const r = indexedDB.open('eventflow-gate');
-      r.onsuccess = () => resolve(r.result);
-      r.onerror = () => reject(r.error);
-    });
-    try {
-      return await new Promise((resolve, reject) => {
-        const r = db.transaction(name).objectStore(name).getAll();
-        r.onsuccess = () =>
-          resolve(
-            name === 'vaults'
-              ? r.result.map((v) => ({ id: v.id, extractable: v.key.extractable }))
-              : r.result,
-          );
-        r.onerror = () => reject(r.error);
-      });
-    } finally {
-      db.close();
-    }
-  }, store);
-}
+import { gate, scan, localRows, purchase } from './gate-setup.mjs';
+
 test(
   'PWA keeps encrypted scans across offline reload, resolves two-device conflicts and survives a lost sync ACK',
   { timeout: 300000 },
@@ -77,39 +45,7 @@ test(
       });
       const orders = [];
       for (const seatId of ['r1-s1', 'r1-s2']) {
-        const r = await owner.request.post(root + '/orders', {
-          headers: { ...headers, 'idempotency-key': randomUUID() },
-          data: { saleId: event, seatIds: [seatId] },
-        });
-        assert.equal(r.status(), 201);
-        const order = await r.json();
-        orders.push(order);
-        assert.equal(
-          (
-            await owner.request.post(root + '/orders/' + order.id + '/payment-attempt', {
-              headers: { ...headers, 'idempotency-key': randomUUID() },
-              data: {},
-            })
-          ).status(),
-          202,
-        );
-        await owner.goto(stack.origin + '/orders/' + order.id);
-        await expect(owner.getByText('Демо-режим · без списания денег')).toBeVisible({
-          timeout: 15000,
-        });
-        assert.ok(
-          [200, 202].includes(
-            (
-              await owner.request.post(
-                root + '/orders/' + order.id + '/payment-attempt/fake-confirm',
-                { headers, data: { outcome: 'success' } },
-              )
-            ).status(),
-          ),
-        );
-        await expect
-          .poll(() => stack.tickets.db.ticket.count({ where: { orderId: order.id } }))
-          .toBe(1);
+        orders.push(await purchase(owner, stack.origin, headers, event, [seatId]));
       }
       const tickets = await stack.tickets.db.ticket.findMany({
         where: { saleId: event },

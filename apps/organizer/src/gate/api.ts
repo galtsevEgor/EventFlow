@@ -14,11 +14,12 @@ export async function gateRequest(
     ...(body ? { body: JSON.stringify(body) } : {}),
     signal: AbortSignal.timeout(25000),
   });
-  const result = (await response.json()) as { message?: string };
+  const result = (await response.json()) as { message?: string; code?: string };
   if (!response.ok)
     throw new GateSyncError(
       response.status,
       result.message ?? 'Синхронизация временно недоступна.',
+      typeof result.code === 'string' ? result.code : undefined,
     );
   return result as unknown;
 }

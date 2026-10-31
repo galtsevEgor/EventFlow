@@ -2,7 +2,7 @@
   "uid": "eventflow-delivery",
   "title": "EventFlow — delivery and realtime",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": false,
   "tags": ["eventflow"],
   "refresh": "5s",
@@ -577,6 +577,88 @@
           },
           "expr": "max by (service_name) (eventflow_tickets_used{deployment_environment_name=\"$environment\"})",
           "legendFormat": "{{service_name}} {{__name__}} {{component}} {{operation}} {{outcome}} {{state}} {{kind}} {{alertname}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "Offline admission sessions",
+      "description": "Unexpired signed snapshots counted using the Tickets database clock. Replicas observe the same rows.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "max by (state) (eventflow_offline_sessions{service_name=\"tickets\",deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{state}}",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "Offline scan outcomes",
+      "description": "Durable unique operations by authoritative result, including conflicts. Replaying a lost acknowledgement does not increment these counts. Device queues remain local.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eventflow-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "eventflow-prometheus"
+          },
+          "expr": "max by (state) (eventflow_offline_scans{service_name=\"tickets\",deployment_environment_name=\"$environment\"})",
+          "legendFormat": "{{state}}",
           "range": true
         }
       ],
