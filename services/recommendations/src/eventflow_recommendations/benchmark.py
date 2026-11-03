@@ -386,8 +386,16 @@ async def benchmark(event_vectors: list[list[float]], query_vectors: list[list[f
                     started = time.perf_counter()
                     await conn.execute(
                         "CREATE INDEX recommendation_vectors ON recommendation_documents "
-                        "USING hnsw (embedding vector_cosine_ops)"
+                        "USING hnsw (embedding vector_cosine_ops) "
+                        "WITH (m=32, ef_construction=400)"
                     )
+                    index_options = await (
+                        await conn.execute(
+                            "SELECT reloptions FROM pg_class "
+                            "WHERE oid='recommendation_vectors'::regclass"
+                        )
+                    ).fetchone()
+                    assert index_options is not None
                     await conn.execute("ANALYZE recommendation_documents")
                     build_seconds = time.perf_counter() - started
                     measurements = await search_measurements(conn, query_vectors, generation)
@@ -395,6 +403,7 @@ async def benchmark(event_vectors: list[list[float]], query_vectors: list[list[f
                         {
                             "construction": construction + 1,
                             "indexBuildSeconds": build_seconds,
+                            "indexParameters": index_options["reloptions"],
                             **measurements,
                         }
                     )
