@@ -37,11 +37,15 @@ export class RecommendationsProxy {
     let token: string | undefined;
     if (!metadata) {
       const { session } = await this.auth.requireSession(request);
+      const expectedActor = request.header('x-eventflow-actor');
+      if (expectedActor && expectedActor !== session.user.sub)
+        throw new ApiError(401, 'ACCOUNT_CHANGED', 'Аккаунт изменился. Обновите страницу.');
       if (!session.user.emailVerified)
         throw new ApiError(403, 'EMAIL_UNVERIFIED', 'Подтвердите email.');
       if (request.method !== 'GET') this.auth.assertCsrf(request, session.csrf);
       await this.auth.store.rateLimit('recommendations:user:' + session.user.sub, 120);
       token = session.accessToken;
+      response.setHeader('x-eventflow-actor', session.user.sub);
     } else await this.auth.store.rateLimit('recommendations:' + request.ip, 120);
     try {
       const result = await fetch(

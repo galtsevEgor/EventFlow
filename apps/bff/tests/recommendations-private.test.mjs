@@ -11,6 +11,34 @@ const eventId = randomUUID();
 const hasError = (status, code) => (error) =>
   error.getStatus() === status && error.getResponse().code === code;
 
+test('a stale browser actor cannot read or mutate a newly signed-in account', async () => {
+  let forwarded = 0;
+  const upstream = await server((_req, res) => {
+    forwarded++;
+    res.end(JSON.stringify(profile()));
+  });
+  try {
+    const controller = new RecommendationsProxy(auth(upstream.origin));
+    for (const method of ['GET', 'PUT']) {
+      const input = request(method, 'profile', { revision: 0, interests: [] });
+      input.headers['x-eventflow-actor'] = 'previous-account';
+      await assert.rejects(
+        controller.personal(input, response()),
+        hasError(401, 'ACCOUNT_CHANGED'),
+      );
+    }
+    assert.equal(forwarded, 0);
+    const input = request('GET', 'profile');
+    input.headers['x-eventflow-actor'] = 'buyer-fixture';
+    const output = response();
+    await controller.personal(input, output);
+    assert.equal(output.headers['x-eventflow-actor'], 'buyer-fixture');
+    assert.equal(forwarded, 1);
+  } finally {
+    await upstream.close();
+  }
+});
+
 async function server(handle) {
   const app = createServer(async (req, res) => {
     let body = '';

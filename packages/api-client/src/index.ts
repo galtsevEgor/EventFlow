@@ -21,11 +21,27 @@ export const sessionSchema = z.union([
 
 export function createApiClient(baseUrl = '') {
   let csrfToken = '';
+  let actor = '';
   const client = createClient<paths>({ baseUrl, credentials: 'same-origin' });
   client.use({
     onRequest({ request }) {
       if (!['GET', 'HEAD'].includes(request.method)) request.headers.set('x-csrf-token', csrfToken);
+      if (
+        actor &&
+        /^\/api\/v1\/recommendations\/(?:profile$|me$|favorites\/)/.test(
+          new URL(request.url).pathname,
+        )
+      )
+        request.headers.set('x-eventflow-actor', actor);
       return request;
+    },
+    async onResponse({ request, response }) {
+      const expected = request.headers.get('x-eventflow-actor');
+      if (expected && response.ok && response.headers.get('x-eventflow-actor') !== expected) {
+        await response.body?.cancel();
+        throw new Error('Аккаунт изменился. Обновите страницу.');
+      }
+      return response;
     },
   });
   return {
@@ -35,6 +51,9 @@ export function createApiClient(baseUrl = '') {
     },
     setCsrfToken(value: string) {
       csrfToken = value;
+    },
+    setActor(value: string) {
+      actor = value;
     },
   };
 }

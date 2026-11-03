@@ -29,11 +29,15 @@ export function useBuyer() {
     queryFn: async () => {
       const result = await api.getSession();
       api.setCsrfToken(result.user ? result.csrfToken : '');
+      api.setActor(result.user?.sub ?? '');
       return result;
     },
     refetchInterval: 60000,
   });
-  if (session.data) api.setCsrfToken(session.data.user ? session.data.csrfToken : '');
+  if (session.data) {
+    api.setCsrfToken(session.data.user ? session.data.csrfToken : '');
+    api.setActor(session.data.user?.sub ?? '');
+  }
   return { api, session };
 }
 export function SignIn({ returnTo }: { returnTo: string }) {
