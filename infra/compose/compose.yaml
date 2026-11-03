@@ -1,6 +1,24 @@
 name: eventflow-local
 
 services:
+  recommendations-db:
+    image: pgvector/pgvector:0.8.7-pg18@sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47
+    environment:
+      POSTGRES_USER: recommendations_admin
+      POSTGRES_DB: recommendations
+      POSTGRES_PASSWORD: ${RECOMMENDATIONS_ADMIN_PASSWORD:?Run pnpm env:init}
+      RECOMMENDATIONS_DB_PASSWORD: ${RECOMMENDATIONS_DB_PASSWORD:?Run pnpm env:init}
+    ports: ['127.0.0.1:26432:5432']
+    volumes:
+      - recommendations-data:/var/lib/postgresql
+      - ./infra/compose/recommendations-init.sh:/docker-entrypoint-initdb.d/01-recommendations.sh:ro
+    mem_limit: 512m
+    cpus: 1
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U recommendations_admin -d recommendations']
+      interval: 5s
+      timeout: 5s
+      retries: 30
   temporal:
     image: temporalio/temporal:1.10.0@sha256:003508da05989e7cf0d583cfce521c4bb2732e733574e3040db8f1284783baa2
     command:
@@ -184,6 +202,7 @@ services:
       retries: 20
 
 volumes:
+  recommendations-data:
   temporal-data:
   clickhouse-data:
   opensearch-data:

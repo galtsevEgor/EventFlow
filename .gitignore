@@ -35,6 +35,12 @@ coverage/
 .turbo/
 playwright-report/
 test-results/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.py[cod]
 *.log
 *.tsbuildinfo
 **/next-env.d.ts

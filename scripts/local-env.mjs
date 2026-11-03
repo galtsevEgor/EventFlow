@@ -51,7 +51,29 @@ export function initializeEnvironment(directory) {
   analyticsUrl.username = 'analytics';
   analyticsUrl.password = analyticsPassword;
   analyticsUrl.pathname = '/analytics';
+  const recommendationsPassword =
+    values.RECOMMENDATIONS_DB_PASSWORD || randomBytes(24).toString('hex');
+  const recommendationsAdmin =
+    values.RECOMMENDATIONS_ADMIN_PASSWORD || randomBytes(24).toString('hex');
+  const recommendationsUrl = new URL(
+    'postgresql://recommendations@127.0.0.1:26432/recommendations',
+  );
+  recommendationsUrl.password = recommendationsPassword;
+  const recommendationsAdminUrl = new URL(recommendationsUrl);
+  recommendationsAdminUrl.username = 'recommendations_admin';
+  recommendationsAdminUrl.password = recommendationsAdmin;
   const additions = {
+    RECOMMENDATIONS_DB_PASSWORD: recommendationsPassword,
+    RECOMMENDATIONS_ADMIN_PASSWORD: recommendationsAdmin,
+    RECOMMENDATIONS_DATABASE_URL: recommendationsUrl.href,
+    RECOMMENDATIONS_ADMIN_DATABASE_URL: recommendationsAdminUrl.href,
+    RECOMMENDATIONS_CLIENT_SECRET: randomBytes(32).toString('hex'),
+    RECOMMENDATIONS_URL: 'http://127.0.0.1:4008',
+    RECOMMENDATIONS_ENABLED: 'true',
+    RECOMMENDATIONS_MODEL_PATH: resolve(
+      directory,
+      'work/e21/models/paraphrase-multilingual-MiniLM-L12-v2',
+    ).replaceAll('\\', '/'),
     WAITLIST_DB_PASSWORD: values.WAITLIST_DB_PASSWORD || randomBytes(24).toString('hex'),
     WAITLIST_URL: 'http://127.0.0.1:4007',
     WAITLIST_ENABLED: 'true',

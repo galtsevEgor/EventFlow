@@ -17,6 +17,13 @@ test('initialization generates distinct secrets and preserves them on repeated r
     assert.equal(new URL(env.ANALYTICS_DATABASE_URL).password, env.ANALYTICS_DB_PASSWORD);
     assert.equal(new URL(env.WAITLIST_DATABASE_URL).password, env.WAITLIST_DB_PASSWORD);
     assert.equal(new URL(env.WAITLIST_DATABASE_URL).username, 'waitlist');
+    assert.equal(
+      new URL(env.RECOMMENDATIONS_DATABASE_URL).password,
+      env.RECOMMENDATIONS_DB_PASSWORD,
+    );
+    assert.equal(new URL(env.RECOMMENDATIONS_DATABASE_URL).port, '26432');
+    assert.equal(new URL(env.RECOMMENDATIONS_ADMIN_DATABASE_URL).username, 'recommendations_admin');
+    assert.notEqual(env.RECOMMENDATIONS_DB_PASSWORD, env.RECOMMENDATIONS_ADMIN_PASSWORD);
     assert.notEqual(env.WAITLIST_CONTACT_KEY, env.BOOKING_CONTACT_KEY);
     assert.notEqual(env.ANALYTICS_SESSION_KEY, env.OIDC_CLIENT_SECRET);
     assert.match(env.CLICKHOUSE_PASSWORD, /^[a-f0-9]{64}$/);
