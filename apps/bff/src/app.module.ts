@@ -3,6 +3,7 @@ import { HealthModule, Readiness, probeIdentity, TokenVerifier } from '@eventflo
 import { AnalyticsProxy } from './analytics/controller';
 import { WaitlistProxy } from './waitlist.controller';
 import { OfflineCheckInProxy } from './offline-check-in.controller';
+import { RecommendationsProxy } from './recommendations.controller';
 import { AnalyticsBridge } from './analytics/service';
 import { OpsController } from './ops.controller';
 import { AuthModule } from './auth/auth.module';
@@ -37,6 +38,7 @@ export class AppModule {
         AnalyticsProxy,
         WaitlistProxy,
         OfflineCheckInProxy,
+        RecommendationsProxy,
         UpdatesController,
         CoverProxyController,
         PublicController,

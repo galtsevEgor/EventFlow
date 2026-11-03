@@ -49,6 +49,27 @@ test('recommendations machine reads durable changes and hydrates only current up
     );
     assert.equal(result.body.events[0].title, live.title);
     assert.equal(result.body.events[0].organizationId, undefined);
+    const upcoming = await f.request('/internal/recommendations/upcoming', machine, 'POST', {
+      city: 'кишинёв',
+      from: '2035-06-01',
+      to: '2035-06-01',
+      maxPriceMinor: 2500,
+      limit: 2,
+    });
+    assert.equal(upcoming.status, 200);
+    assert.deepEqual(
+      upcoming.body.events.map((event) => event.id),
+      [live.eventId],
+    );
+    assert.equal(
+      (
+        await f.request('/internal/recommendations/upcoming', machine, 'POST', {
+          exclude: [live.eventId],
+          limit: 2,
+        })
+      ).body.events.length,
+      0,
+    );
     assert.equal(
       (await f.request(route, machine, 'POST', { ids: [live.eventId, live.eventId] })).status,
       422,

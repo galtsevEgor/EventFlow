@@ -595,3 +595,12 @@ summary:focus-visible {
     font-size: 14px;
   }
 }
+.recommendations-section {
+  margin-block: 2.5rem;
+  padding-block: 1.5rem;
+  border-top: 1px solid #d6dfd7;
+}
+.recommendation-reason {
+  color: #245942;
+  font-size: 0.85rem;
+}

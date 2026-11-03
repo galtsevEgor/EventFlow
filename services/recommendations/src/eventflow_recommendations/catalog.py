@@ -11,7 +11,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from .config import Config
-from .contracts import SourceDocument, SourcePage
+from .contracts import RecommendationFilters, SourceDocument, SourcePage
 
 
 class SourceChanged(Exception):
@@ -31,6 +31,11 @@ class TokenResponse(BaseModel):
     access_token: str = Field(min_length=1, max_length=32768)
     expires_in: int = Field(strict=True, ge=1, le=86400)
     token_type: str
+
+
+class DocumentPage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    events: list[SourceDocument] = Field(max_length=100)
 
 
 class CatalogClient:
@@ -123,12 +128,28 @@ class CatalogClient:
         result = await self._request(
             "POST", "/internal/recommendations/hydrate", json={"ids": [str(i) for i in ids]}
         )
-        if not isinstance(result, list) or len(result) > len(ids):
+        documents = DocumentPage.model_validate(result).events
+        if len(documents) > len(ids):
             raise InvalidSource("Invalid hydration response")
-        documents = [SourceDocument.model_validate(document) for document in result]
         found = [document.id for document in documents]
         if len(set(found)) != len(found) or not set(found).issubset(ids):
             raise InvalidSource("Hydration identity mismatch")
+        return documents
+
+    async def upcoming(
+        self, filters: RecommendationFilters, exclude: list[UUID]
+    ) -> list[SourceDocument]:
+        result = await self._request(
+            "POST",
+            "/internal/recommendations/upcoming",
+            json={
+                **filters.model_dump(mode="json", by_alias=True, exclude_none=True),
+                "exclude": [str(item) for item in exclude],
+            },
+        )
+        documents = DocumentPage.model_validate(result).events
+        if len(documents) > filters.limit or len({item.id for item in documents}) != len(documents):
+            raise InvalidSource("Invalid upcoming response")
         return documents
 
 

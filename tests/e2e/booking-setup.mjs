@@ -24,7 +24,14 @@ export async function publishForBooking(
   page,
   origin,
   headers,
-  { organizationId, title = 'Вечер музыки', schedule = {}, layout = { rows: 4, columns: 8 } } = {},
+  {
+    organizationId,
+    title = 'Вечер музыки',
+    description = 'Концерт для проверки бронирования.',
+    city = 'Кишинёв',
+    schedule = {},
+    layout = { rows: 4, columns: 8 },
+  } = {},
 ) {
   if (!organizationId) {
     const created = await page.request.post(origin + '/api/v1/organizations', {
@@ -37,7 +44,7 @@ export async function publishForBooking(
   const draft = await (
     await page.request.post(`${origin}/api/v1/organizations/${organizationId}/events`, {
       headers,
-      data: { title, description: 'Концерт для проверки бронирования.' },
+      data: { title, description },
     })
   ).json();
   const path = `${origin}/api/v1/organizations/${organizationId}/events/${draft.id}`;
@@ -46,7 +53,7 @@ export async function publishForBooking(
     data: {
       revision: 0,
       configuration: {
-        city: 'Кишинёв',
+        city,
         address: 'Улица Музыки, 12',
         timeZone: 'Europe/Chisinau',
         startsAt: '2035-06-01T16:00:00Z',

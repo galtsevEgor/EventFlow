@@ -4,6 +4,25 @@ import { z } from 'zod';
 import { parseInput, TokenVerifier } from '@eventflow/service-runtime';
 import { searchDocumentSchema, type SearchDocument } from '@eventflow/event-contracts';
 import { Database } from './database';
+import { Prisma } from './generated/client';
+
+const upcomingSchema = z
+  .strictObject({
+    city: z.string().trim().max(100).default(''),
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+    minPriceMinor: z.number().int().min(0).max(100_000_000).optional(),
+    maxPriceMinor: z.number().int().min(0).max(100_000_000).optional(),
+    limit: z.number().int().min(1).max(12).default(6),
+    exclude: z.array(z.uuid()).max(101).default([]),
+  })
+  .refine((v) => !v.from || !v.to || v.from <= v.to)
+  .refine(
+    (v) =>
+      v.minPriceMinor === undefined ||
+      v.maxPriceMinor === undefined ||
+      v.minPriceMinor <= v.maxPriceMinor,
+  );
 
 @Controller('internal/recommendations')
 export class RecommendationCatalog {
@@ -29,6 +48,30 @@ export class RecommendationCatalog {
       body,
     );
     if (!ids.length) return { events: [] };
+    return this.read(Prisma.sql`p."eventId"=ANY(${ids}::uuid[])`, 100);
+  }
+  @Post('upcoming')
+  @HttpCode(200)
+  async upcoming(@Req() request: Request, @Body() body: unknown) {
+    await this.tokens.service(
+      request.header('authorization'),
+      'eventflow-recommendations',
+      'recommendations-index',
+    );
+    const query = parseInput(upcomingSchema, body);
+    return this.read(
+      Prisma.sql`
+      p."eventId"<>ALL(${query.exclude}::uuid[])
+      ${query.city ? Prisma.sql`AND lower(p.city)=lower(${query.city})` : Prisma.empty}
+      ${query.from ? Prisma.sql`AND p."localDate">=${query.from}` : Prisma.empty}
+      ${query.to ? Prisma.sql`AND p."localDate"<=${query.to}` : Prisma.empty}
+      ${query.minPriceMinor !== undefined ? Prisma.sql`AND p."minPriceMinor">=${query.minPriceMinor}` : Prisma.empty}
+      ${query.maxPriceMinor !== undefined ? Prisma.sql`AND p."minPriceMinor"<=${query.maxPriceMinor}` : Prisma.empty}
+    `,
+      query.limit,
+    );
+  }
+  private async read(where: Prisma.Sql, limit: number) {
     const rows = await this.db.$queryRaw<
       (Omit<SearchDocument, 'startsAt' | 'endsAt'> & { startsAt: Date; endsAt: Date })[]
     >`
@@ -36,10 +79,10 @@ export class RecommendationCatalog {
         p."startsAt",p."endsAt",p."localDate",p."minPriceMinor",p.currency,p.capacity
       FROM "PublicEvent" p JOIN "EventDraft" e ON e.id=p."eventId"
       JOIN "Publication" publication ON publication."eventId"=p."eventId"
-      WHERE p."eventId"=ANY(${ids}::uuid[]) AND p."startsAt">statement_timestamp()
+      WHERE ${where} AND p."startsAt">statement_timestamp()
         AND publication.state='PUBLISHED'
         AND NOT publication."desiredPaused" AND NOT publication."acknowledgedPaused"
-      ORDER BY p."eventId"
+      ORDER BY p."startsAt",p."eventId" LIMIT ${limit}
     `;
     return {
       events: rows.map((row) =>

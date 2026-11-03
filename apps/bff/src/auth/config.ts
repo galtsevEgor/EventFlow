@@ -24,6 +24,8 @@ const schema = z.object({
   TICKETS_URL: httpUrl.default('http://127.0.0.1:4004'),
   WAITLIST_URL: httpUrl.default('http://127.0.0.1:4007'),
   WAITLIST_ENABLED: z.enum(['true', 'false']).default('false'),
+  RECOMMENDATIONS_URL: httpUrl.default('http://127.0.0.1:4008'),
+  RECOMMENDATIONS_ENABLED: z.enum(['true', 'false']).default('false'),
   OBSERVABILITY_PUBLIC_ORIGIN: httpUrl
     .refine((value) => {
       const url = new URL(value);

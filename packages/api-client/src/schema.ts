@@ -1469,6 +1469,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/events/{id}/similar': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Similar */
+    get: operations['similarEvents'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/orders/{id}/payment-attempt': {
     parameters: {
       query?: never;
@@ -2348,6 +2365,82 @@ export interface components {
       /** Format: uuid */
       saleId: string;
       categoryId: string;
+    };
+    /** RecommendationError */
+    RecommendationError: {
+      /** Code */
+      code: string;
+      /** Message */
+      message: string;
+      /** Requestid */
+      requestId: string;
+      /** Retryable */
+      retryable: boolean;
+    };
+    /** RecommendationItem */
+    RecommendationItem: {
+      event: components['schemas']['SourceDocument'];
+      /**
+       * Reason
+       * @enum {string}
+       */
+      reason: 'SIMILAR' | 'INTERESTS' | 'FAVORITES' | 'UPCOMING';
+    };
+    /** RecommendationPage */
+    RecommendationPage: {
+      /** Items */
+      items: components['schemas']['RecommendationItem'][];
+      /**
+       * Mode
+       * @enum {string}
+       */
+      mode: 'similar' | 'personal' | 'upcoming';
+      /** Degraded */
+      degraded: boolean;
+    };
+    /** SourceDocument */
+    SourceDocument: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Title */
+      title: string;
+      /** Description */
+      description: string;
+      /** City */
+      city: string;
+      /** Address */
+      address: string;
+      /** Timezone */
+      timeZone: string;
+      /**
+       * Startsat
+       * Format: date-time
+       */
+      startsAt: string;
+      /**
+       * Endsat
+       * Format: date-time
+       */
+      endsAt: string;
+      /**
+       * Localdate
+       * Format: date
+       */
+      localDate: string;
+      /** Minpriceminor */
+      minPriceMinor: number;
+      /**
+       * Currency
+       * @constant
+       */
+      currency: 'EUR';
+      /** Capacity */
+      capacity: number;
+      /** Coverid */
+      coverId: string | null;
     };
     PaymentAttemptReference: {
       /** Format: uuid */
@@ -4432,6 +4525,62 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ApiError'];
+        };
+      };
+    };
+  };
+  similarEvents: {
+    parameters: {
+      query?: {
+        city?: string;
+        from?: string | null;
+        to?: string | null;
+        minPriceMinor?: number | null;
+        maxPriceMinor?: number | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecommendationPage'];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecommendationError'];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecommendationError'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecommendationError'];
         };
       };
     };

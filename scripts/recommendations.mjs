@@ -42,6 +42,8 @@ export function pythonTask(task, extra = [], env = process.env) {
     integration: [['-m', 'pytest', 'tests', '-q', '-m', 'integration', ...extra]],
     migrate: [['-m', 'eventflow_recommendations.migrate', ...extra]],
     worker: [['-m', 'eventflow_recommendations.worker', ...extra]],
+    api: [['-m', 'eventflow_recommendations.main', ...extra]],
+    schema: [['-m', 'eventflow_recommendations.openapi', ...extra]],
     'model:setup': [
       ['-m', 'eventflow_recommendations.embeddings', 'setup-model', '--model-path', model],
     ],

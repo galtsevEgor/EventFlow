@@ -13,6 +13,7 @@ import { createGateway } from '../../scripts/gateway.mjs';
 import { analyticsFixture } from '../helpers/analytics.mjs';
 import { waitlistDatabase } from '../helpers/waitlist-database.mjs';
 import { searchEngineFixture } from '../helpers/opensearch.mjs';
+import { recommendationsFixture } from '../helpers/recommendations.mjs';
 import {
   S3Client,
   ListObjectsV2Command,
@@ -35,6 +36,7 @@ export async function fullStack({
   search = false,
   analytics = false,
   waitlist = false,
+  recommendations = false,
   gatewayLimits,
   httpConcurrency,
 } = {}) {
@@ -56,6 +58,7 @@ export async function fullStack({
   let paymentsService;
   let ticketsApp;
   let catalogOrigin;
+  let recommendationsApp;
   const bookingPort = await availablePort();
   const analyticsData = analytics ? await analyticsFixture() : undefined;
   const waitlistData = waitlist ? await waitlistDatabase(namespace) : undefined;
@@ -104,6 +107,7 @@ export async function fullStack({
       if (redis.isOpen) await redis.quit();
     }
     await ticketsApp?.close();
+    await recommendationsApp?.close();
     await searchIndex?.close();
     await analyticsData?.close();
     await waitlistData?.close();
@@ -154,6 +158,7 @@ export async function fullStack({
       WAITLIST_ENABLED: waitlist ? 'true' : 'false',
       ...(waitlistData ? { WAITLIST_DATABASE_URL: waitlistData.databaseUrl } : {}),
       SEARCH_ENABLED: search ? 'true' : 'false',
+      RECOMMENDATIONS_ENABLED: recommendations ? 'true' : 'false',
       SEARCH_INDEX_NAMESPACE: searchIndex?.namespace ?? process.env.SEARCH_INDEX_NAMESPACE,
       ...(httpConcurrency === undefined
         ? {}
@@ -200,6 +205,7 @@ export async function fullStack({
     }
     const catalog = await start('services/catalog', () => ['dist/main.js'], '/health/ready');
     catalogOrigin = catalog;
+    if (recommendations) recommendationsApp = await recommendationsFixture(catalog, namespace);
     const searchOrigin = search
       ? await start('services/search', () => ['dist/main.js'], '/health/ready', {
           CATALOG_URL: catalog,
@@ -226,6 +232,7 @@ export async function fullStack({
           })
         : 'http://127.0.0.1:1',
       CATALOG_URL: catalog,
+      RECOMMENDATIONS_URL: recommendationsApp?.origin ?? 'http://127.0.0.1:1',
       SEARCH_URL: searchOrigin,
       ANALYTICS_URL: analyticsOrigin,
       BOOKING_URL: `http://127.0.0.1:${bookingPort}`,
@@ -267,6 +274,7 @@ export async function fullStack({
     return {
       origin: origin.origin,
       catalog,
+      recommendations: recommendationsApp,
       bff,
       analytics: analyticsData && { ...analyticsData, origin: analyticsOrigin },
       search: searchIndex && { origin: searchOrigin, engine: searchIndex.engine },

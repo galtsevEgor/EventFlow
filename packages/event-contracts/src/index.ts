@@ -30,3 +30,4 @@ export * from './search.js';
 export * from './analytics.js';
 export * from './waitlist.js';
 export * from './offline.js';
+export * from './recommendations.js';

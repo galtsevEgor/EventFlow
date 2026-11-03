@@ -1592,6 +1592,86 @@
           }
         ]
       }
+    },
+    "/internal/recommendations/upcoming": {
+      "post": {
+        "operationId": "upcomingRecommendationEvents",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "city": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "minPriceMinor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000
+                  },
+                  "maxPriceMinor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                  },
+                  "exclude": {
+                    "type": "array",
+                    "maxItems": 101,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current upcoming published events matching filters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["events"],
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "$ref": "#/components/schemas/PublicEvent"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

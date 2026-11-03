@@ -4,6 +4,8 @@ import { Account } from '../../account';
 import { getEvent } from '../../catalog-api';
 import { formatDate } from '../../format';
 import { SalePanel } from '../../sale-panel';
+import { Suspense } from 'react';
+import { SimilarEvents } from '../../recommendations/similar';
 
 export const dynamic = 'force-dynamic';
 type Props = { params: Promise<{ id: string }> };
@@ -87,6 +89,15 @@ export default async function EventPage({ params }: Props) {
           </aside>
         </div>
       </section>
+      <Suspense
+        fallback={
+          <section className="recommendations-section" aria-busy="true">
+            <h2>Подбираем мероприятия…</h2>
+          </section>
+        }
+      >
+        <SimilarEvents id={event.id} />
+      </Suspense>
       <footer>EventFlow · События, которые объединяют</footer>
       <script
         type="application/ld+json"

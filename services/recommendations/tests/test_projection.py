@@ -344,7 +344,7 @@ async def test_catalog_singleflight_pin_validation_and_current_hydration():
         assert request.headers["authorization"] == "Bearer secret"
         if request.url.path.endswith("hydrate"):
             return httpx.Response(
-                200, json=[document(event).model_dump(mode="json", by_alias=True)]
+                200, json={"events": [document(event).model_dump(mode="json", by_alias=True)]}
             )
         return httpx.Response(
             200,
@@ -460,7 +460,9 @@ async def test_catalog_reconcile_and_hydration_reject_bad_identity_or_order():
         calls += 1
         if mode == "reconcile":
             return httpx.Response(200, json={"next": str(event)})
-        return httpx.Response(200, json=[document(uuid4()).model_dump(mode="json", by_alias=True)])
+        return httpx.Response(
+            200, json={"events": [document(uuid4()).model_dump(mode="json", by_alias=True)]}
+        )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
         feed = CatalogClient(config(), client)

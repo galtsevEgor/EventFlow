@@ -13,6 +13,7 @@ const ops = JSON.parse(readFileSync('apps/bff/ops.openapi.json', 'utf8'));
 const search = JSON.parse(readFileSync('services/search/openapi.json', 'utf8'));
 const analytics = JSON.parse(readFileSync('services/analytics/openapi.json', 'utf8'));
 const waitlist = JSON.parse(readFileSync('services/waitlist/openapi.json', 'utf8'));
+const recommendations = JSON.parse(readFileSync('services/recommendations/openapi.json', 'utf8'));
 const schema = {
   openapi: '3.1.0',
   info: { title: 'EventFlow public API', version: '1.0.0' },
@@ -29,6 +30,7 @@ const schema = {
     ...search.paths,
     ...analytics.paths,
     ...waitlist.paths,
+    ...recommendations.paths,
     ...Object.fromEntries(
       Object.entries(payments.paths).filter(([path]) => path.startsWith('/api/v1/')),
     ),
@@ -44,6 +46,7 @@ const schema = {
       ...search.components.schemas,
       ...analytics.components.schemas,
       ...waitlist.components.schemas,
+      ...recommendations.components.schemas,
       ...payments.components.schemas,
       ...tickets.components.schemas,
     },
