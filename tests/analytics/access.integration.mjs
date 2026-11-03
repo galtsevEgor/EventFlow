@@ -6,6 +6,7 @@ import { catalogFixture } from '../../services/catalog/tests/fixture.mjs';
 import { AppModule } from '../../services/analytics/dist/app.module.js';
 import { readAnalyticsConfig } from '../../services/analytics/dist/config.js';
 import { AnalyticsProjection } from '../../services/analytics/dist/projection.js';
+import { AnalyticsReport } from '../../services/analytics/dist/report.js';
 import { createApplication, ClientCredentials } from '../../packages/service-runtime/dist/index.js';
 test('HTTP reports recheck current roles, isolate tenants and never accept browser confirmations', async () => {
   const f = await analyticsFixture(),
@@ -43,13 +44,29 @@ test('HTTP reports recheck current roles, isolate tenants and never accept brows
     app.useLogger(false);
     await app.listen(0, '127.0.0.1');
     await app.get(AnalyticsProjection).sync();
+    const reports = app.get(AnalyticsReport),
+      read = reports.read.bind(reports);
+    let failureType;
+    reports.read = async (...args) => {
+      try {
+        return await read(...args);
+      } catch (error) {
+        failureType = error instanceof Error ? error.name : 'Unknown';
+        throw error;
+      }
+    };
     const origin = await app.getUrl(),
       user = await catalog.token({ aud: 'eventflow-analytics' });
     const report =
       '/api/v1/organizations/' + organizationId + '/analytics?from=2026-11-09&to=2026-11-09';
     const get = async (path, token = user) =>
       fetch(origin + path, { headers: { authorization: 'Bearer ' + token } });
-    assert.equal((await get(report)).status, 200);
+    const response = await get(report);
+    assert.equal(
+      response.status,
+      200,
+      JSON.stringify({ body: await response.json(), failureType }),
+    );
     const stranger = await catalog.token({ sub: 'stranger', aud: 'eventflow-analytics' });
     assert.equal((await get(report, stranger)).status, 403);
     await catalog.db.membership.update({
