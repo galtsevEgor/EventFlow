@@ -44,6 +44,7 @@ export function pythonTask(task, extra = [], env = process.env) {
     worker: [['-m', 'eventflow_recommendations.worker', ...extra]],
     api: [['-m', 'eventflow_recommendations.main', ...extra]],
     schema: [['-m', 'eventflow_recommendations.openapi', ...extra]],
+    'schema:check': [['-m', 'eventflow_recommendations.openapi', '--check']],
     evaluate: [['-m', 'eventflow_recommendations.evaluation', '--model-path', model, ...extra]],
     'model:setup': [
       ['-m', 'eventflow_recommendations.embeddings', 'setup-model', '--model-path', model],
@@ -77,10 +78,50 @@ export async function execute(command, args, options = {}) {
   });
 }
 
+export async function runGroup(commands, options = {}) {
+  const children = commands.map(([command, args]) =>
+    spawn(command, args, { stdio: 'inherit', windowsHide: true, ...options }),
+  );
+  const stop = () => {
+    for (const child of children)
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+  };
+  process.once('SIGTERM', stop);
+  process.once('SIGINT', stop);
+  const finished = children.map(
+    (child) =>
+      new Promise((done) => {
+        child.once('error', () => {
+          done(1);
+          stop();
+        });
+        child.once('close', (code) => done(code ?? 1));
+      }),
+  );
+  try {
+    const code = await Promise.race(finished);
+    stop();
+    await Promise.all(finished);
+    return code;
+  } finally {
+    process.off('SIGTERM', stop);
+    process.off('SIGINT', stop);
+  }
+}
+
 async function main() {
   const root = fileURLToPath(new URL('../', import.meta.url)),
     paths = pythonPaths(root);
   const [task, ...extra] = process.argv.slice(2);
+  if (task === 'dev') {
+    if (process.env.RECOMMENDATIONS_ENABLED !== 'true') return;
+    if (!existsSync(paths.python)) throw new Error('Run pnpm recommendations setup first.');
+    process.exitCode = await runGroup(
+      ['api', 'worker'].map((name) => [paths.python, pythonTask(name)[0]]),
+      { cwd: paths.service, env: paths.variables },
+    );
+    return;
+  }
   if (task === 'setup') {
     mkdirSync(resolve(root, 'work/e21'), { recursive: true });
     const code = await execute(

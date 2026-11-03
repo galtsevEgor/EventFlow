@@ -10,7 +10,11 @@ pnpm db:migrate        Apply service database migrations
 pnpm dev               Start applications behind the shared local origin
 pnpm check             Repository policy, boundaries, format, lint, types and unit tests
 pnpm build             Build every workspace
-pnpm test:smoke        Launch and check all seven built applications
+pnpm test:smoke        Launch and check all eleven applications
+pnpm recommendations setup | model:setup  Install the isolated Python environment and pinned local model
+pnpm recommendations evaluate --benchmark  Compare multilingual quality and exact/HNSW retrieval locally
+pnpm recommendations worker --rebuild  Rebuild vectors while retaining the active generation
+pnpm test:recommendations  Test vector projection, private profiles and real telemetry
 pnpm test:infra        Test actual local dependencies and database isolation
 pnpm test:catalog      Test access, schedules, covers and public catalog in isolated databases
 pnpm test:publication  Test RabbitMQ publication, recovery, idempotency and sales windows
@@ -50,5 +54,5 @@ Runtime: Node.js 24.22.1, pnpm 10.34.9
 Storefront: http://127.0.0.1:18000
 Organizer: http://127.0.0.1:18000/organizer/
 Local demo credentials: work/local/demo-users.json (never committed)
-Backend health: http://127.0.0.1:4000/health/ready (services: 4001–4004)
+Backend health: http://127.0.0.1:4000/health/ready (services: 4001–4008)
 `);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { pythonPaths, pythonTask } from './recommendations.mjs';
+import { pythonPaths, pythonTask, runGroup } from './recommendations.mjs';
 test('Python runtime and model assets stay outside tracked service sources', () => {
   const paths = pythonPaths(process.cwd(), {}, 'win32');
   assert.match(paths.environment, /work[\\/]e21[\\/]python$/);
@@ -24,3 +24,20 @@ test('Python runtime and model assets stay outside tracked service sources', () 
   );
   assert.throws(() => pythonTask('arbitrary-executable'), /Unknown/);
 });
+
+test(
+  'local API and worker group stops its sibling when one process fails',
+  { timeout: 5000 },
+  async () => {
+    const started = Date.now();
+    const code = await runGroup(
+      [
+        [process.execPath, ['-e', 'setTimeout(() => process.exit(17), 250)']],
+        [process.execPath, ['-e', 'setInterval(() => {}, 1000)']],
+      ],
+      { stdio: 'ignore' },
+    );
+    assert.equal(code, 17);
+    assert.ok(Date.now() - started < 4000);
+  },
+);

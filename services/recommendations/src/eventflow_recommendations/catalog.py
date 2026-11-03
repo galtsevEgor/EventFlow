@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID
 
 import httpx
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, ConfigDict, Field
 
 from .config import Config
@@ -78,10 +79,12 @@ class CatalogClient:
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
         token = await self._credentials()
+        headers = {"authorization": "Bearer " + token}
+        TraceContextTextMapPropagator().inject(headers)
         response = await self.client.request(
             method,
             self.config.catalog_url + path,
-            headers={"authorization": "Bearer " + token},
+            headers=headers,
             timeout=5,
             follow_redirects=False,
             **kwargs,

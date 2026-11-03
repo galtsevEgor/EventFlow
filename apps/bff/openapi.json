@@ -2718,7 +2718,7 @@
             }
           }
         },
-        "security": [{ "HTTPBearer": [] }]
+        "security": [{ "session": [] }]
       },
       "put": {
         "summary": "Save Profile",
@@ -2785,14 +2785,14 @@
             }
           }
         },
-        "security": [{ "HTTPBearer": [] }]
+        "security": [{ "session": [] }]
       }
     },
     "/api/v1/recommendations/favorites/{id}": {
       "put": {
         "summary": "Add Favorite",
         "operationId": "addRecommendationFavorite",
-        "security": [{ "HTTPBearer": [] }],
+        "security": [{ "session": [] }],
         "parameters": [
           {
             "name": "id",
@@ -2861,7 +2861,7 @@
       "delete": {
         "summary": "Remove Favorite",
         "operationId": "removeRecommendationFavorite",
-        "security": [{ "HTTPBearer": [] }],
+        "security": [{ "session": [] }],
         "parameters": [
           {
             "name": "id",
@@ -2932,7 +2932,7 @@
       "get": {
         "summary": "Personal",
         "operationId": "personalRecommendations",
-        "security": [{ "HTTPBearer": [] }],
+        "security": [{ "session": [] }],
         "parameters": [
           {
             "name": "city",

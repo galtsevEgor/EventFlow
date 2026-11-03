@@ -3,6 +3,7 @@
   "version": "0.1.0-alpha.0",
   "private": true,
   "scripts": {
+    "dev": "node ../../scripts/recommendations.mjs dev",
     "build": "node ../../scripts/recommendations.mjs check",
     "typecheck": "node ../../scripts/recommendations.mjs check",
     "test": "node ../../scripts/recommendations.mjs test"

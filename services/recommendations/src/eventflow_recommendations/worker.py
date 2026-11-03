@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import logging
 import signal
+import time
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -19,6 +20,7 @@ from .database import pool
 from .embeddings import LocalEmbedder, model_manifest
 from .projection import Projection
 from .runtime import run
+from .telemetry import Telemetry
 
 logger = logging.getLogger("recommendations.worker")
 
@@ -110,12 +112,22 @@ async def consume_notifications(config: Config, wake: asyncio.Event, stop: async
                 await connection.close()
 
 
-async def poll(projection: Projection, wake: asyncio.Event, stop: asyncio.Event) -> None:
+async def poll(
+    projection: Projection,
+    wake: asyncio.Event,
+    stop: asyncio.Event,
+    telemetry: Telemetry | None = None,
+) -> None:
     failures = 0
+    signals = telemetry or Telemetry("worker", {})
     while not stop.is_set():
         wake.clear()
+        started = time.perf_counter()
         try:
-            complete = await projection.sync_once()
+            with signals.span("projection"):
+                complete = await projection.sync_once()
+            if telemetry:
+                await telemetry.projection(projection.pool, True, started)
             if failures:
                 logger.info("recommendations_projection_recovered")
             failures = 0
@@ -123,6 +135,8 @@ async def poll(projection: Projection, wake: asyncio.Event, stop: asyncio.Event)
         except asyncio.CancelledError:
             raise
         except Exception:
+            if telemetry:
+                await telemetry.projection(projection.pool, False, started)
             failures += 1
             logger.warning("recommendations_projection_unavailable")
             delay = min(30.0, 2.0 ** min(failures, 5))
@@ -137,6 +151,7 @@ async def poll(projection: Projection, wake: asyncio.Event, stop: asyncio.Event)
 
 async def serve(rebuild: bool = False) -> None:
     config = Config.read()
+    signals = Telemetry("worker")
     stop, wake = asyncio.Event(), asyncio.Event()
     loop = asyncio.get_running_loop()
     for signum in (signal.SIGINT, signal.SIGTERM):
@@ -148,11 +163,12 @@ async def serve(rebuild: bool = False) -> None:
         await service_pool.open()
         await service_pool.wait()
         manifest = model_manifest()
-        embedder = (
-            None
-            if rebuild
-            else await asyncio.to_thread(LocalEmbedder, config.model_path, config.threads)
-        )
+        with signals.span("model_load"):
+            embedder = (
+                None
+                if rebuild
+                else await asyncio.to_thread(LocalEmbedder, config.model_path, config.threads)
+            )
         projection = Projection(
             service_pool, feed, embedder, manifest["modelId"] + "@" + manifest["revision"]
         )
@@ -160,7 +176,7 @@ async def serve(rebuild: bool = False) -> None:
             await projection.rebuild()
             return
         consumer = asyncio.create_task(consume_notifications(config, wake, stop))
-        await poll(projection, wake, stop)
+        await poll(projection, wake, stop, signals)
     finally:
         stop.set()
         if consumer is not None:
@@ -168,6 +184,7 @@ async def serve(rebuild: bool = False) -> None:
             await asyncio.gather(consumer, return_exceptions=True)
         await feed.close()
         await service_pool.close()
+        await asyncio.to_thread(signals.close)
 
 
 def main() -> None:
@@ -176,7 +193,14 @@ def main() -> None:
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     # Library transports can include private URLs in log messages.
-    for name in ("aio_pika", "aiormq", "httpx", "httpcore", "psycopg.pool"):
+    for name in (
+        "aio_pika",
+        "aiormq",
+        "httpx",
+        "httpcore",
+        "psycopg.pool",
+        "opentelemetry.exporter",
+    ):
         logging.getLogger(name).setLevel(logging.CRITICAL)
     run(serve(args.rebuild))
 

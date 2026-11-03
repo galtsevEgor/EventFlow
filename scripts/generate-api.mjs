@@ -14,6 +14,12 @@ const search = JSON.parse(readFileSync('services/search/openapi.json', 'utf8'));
 const analytics = JSON.parse(readFileSync('services/analytics/openapi.json', 'utf8'));
 const waitlist = JSON.parse(readFileSync('services/waitlist/openapi.json', 'utf8'));
 const recommendations = JSON.parse(readFileSync('services/recommendations/openapi.json', 'utf8'));
+// The browser authenticates with the BFF cookie; upstream bearer tokens stay server-side.
+for (const path of Object.values(recommendations.paths)) {
+  for (const operation of Object.values(path)) {
+    if (operation.security?.length) operation.security = [{ session: [] }];
+  }
+}
 const schema = {
   openapi: '3.1.0',
   info: { title: 'EventFlow public API', version: '1.0.0' },

@@ -48,7 +48,7 @@ jobs:
 
   integration:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -71,6 +71,9 @@ jobs:
       - run: pnpm observability up
       - run: pnpm identity:seed
       - run: pnpm db:migrate
+      - run: pnpm recommendations model:setup
+      - run: pnpm recommendations evaluate --benchmark
+      - run: pnpm test:recommendations
       - run: pnpm build
       - run: pnpm test:catalog
       - run: pnpm test:publication

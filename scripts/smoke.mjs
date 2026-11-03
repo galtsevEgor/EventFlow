@@ -10,6 +10,7 @@ import { analyticsFixture } from '../tests/helpers/analytics.mjs';
 import { waitlistDatabase } from '../tests/helpers/waitlist-database.mjs';
 import { AnalyticsProjection } from '../services/analytics/dist/projection.js';
 import { IndexStore } from '../services/search/dist/index-store.js';
+import { pythonPaths } from './recommendations.mjs';
 
 const probeOptions = { headers: { connection: 'close' } };
 
@@ -24,9 +25,17 @@ async function availablePort() {
   return port;
 }
 
-async function checkProcess(name, directory, args, route, verify, overrides = {}) {
+async function checkProcess(
+  name,
+  directory,
+  args,
+  route,
+  verify,
+  overrides = {},
+  executable = process.execPath,
+) {
   const port = await availablePort();
-  const child = spawn(process.execPath, args(port), {
+  const child = spawn(executable, args(port), {
     cwd: resolve(directory),
     env: {
       ...process.env,
@@ -76,6 +85,19 @@ async function checkProcess(name, directory, args, route, verify, overrides = {}
     }
   }
 }
+
+const python = pythonPaths(process.cwd());
+await checkProcess(
+  'recommendations',
+  'services/recommendations',
+  () => ['-m', 'eventflow_recommendations.main'],
+  '/health/live',
+  async (response) => {
+    assert.deepEqual(await response.json(), { status: 'ok', service: 'recommendations' });
+  },
+  { PYTHONPATH: python.variables.PYTHONPATH, PYTHONUTF8: '1', PYTHONDONTWRITEBYTECODE: '1' },
+  python.python,
+);
 
 const smokeNamespace = `eventflow-test-${randomUUID()}`;
 try {

@@ -1,13 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { chromium, expect } from '@playwright/test';
 import { fullStack } from './fixture.mjs';
 import { loginBuyer, publishForBooking } from './booking-setup.mjs';
+import { readTrace, traceSpans } from '../helpers/traces.mjs';
 
 test(
   'real local embeddings feed SSR recommendations with truthful cold fallback and immediate Catalog exclusion',
   { timeout: 240000 },
   async () => {
+    const telemetryKeys = [
+      'EVENTFLOW_TELEMETRY_ENABLED',
+      'EVENTFLOW_ENVIRONMENT',
+      'EVENTFLOW_TRACE_SAMPLE_RATIO',
+    ];
+    const previous = telemetryKeys.map((key) => process.env[key]);
+    Object.assign(process.env, {
+      EVENTFLOW_TELEMETRY_ENABLED: 'true',
+      EVENTFLOW_ENVIRONMENT: 'test',
+      EVENTFLOW_TRACE_SAMPLE_RATIO: '1',
+    });
     const stack = await fullStack({ booking: true, recommendations: true }),
       browser = await chromium.launch();
     try {
@@ -70,6 +83,16 @@ test(
       assert.equal(result.items[1].event.id, theatre);
       assert.ok(result.items.every((item) => ![source, elsewhere].includes(item.event.id)));
       assert.ok(result.items.every((item) => item.reason === 'SIMILAR'));
+      const traceId = randomBytes(16).toString('hex');
+      const traced = await page.request.get(url, {
+        headers: { traceparent: '00-' + traceId + '-' + randomBytes(8).toString('hex') + '-01' },
+      });
+      assert.equal(traced.status(), 200);
+      const trace = await readTrace(traceId, (body) => {
+        const services = new Set(traceSpans(body).map((span) => span.service));
+        return ['bff', 'recommendations', 'catalog'].every((service) => services.has(service));
+      });
+      assert.ok(traceSpans(trace).some((span) => span.name === 'recommendations.http'));
       assert.equal(
         (await (await page.request.get(url + '&maxPriceMinor=2000')).json()).items.length,
         0,
@@ -174,6 +197,10 @@ test(
     } finally {
       await browser.close();
       await stack.close();
+      telemetryKeys.forEach((key, index) => {
+        if (previous[index] === undefined) delete process.env[key];
+        else process.env[key] = previous[index];
+      });
     }
   },
 );

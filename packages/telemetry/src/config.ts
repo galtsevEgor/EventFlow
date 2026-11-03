@@ -36,6 +36,7 @@ export function telemetryConfig(
     'PAYMENTS_URL',
     'TICKETS_URL',
     'SEARCH_URL',
+    'RECOMMENDATIONS_URL',
     'OPENSEARCH_URL',
   ].flatMap((key) => (env[key] ? [new URL(env[key]).origin] : []));
   const metricsEndpoint = new URL(

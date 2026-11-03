@@ -1,3 +1,4 @@
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
@@ -7,6 +8,7 @@ from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from opentelemetry.trace import Status, StatusCode
 from psycopg import Error as DatabaseError
 from psycopg_pool import PoolTimeout
 from starlette.middleware.base import RequestResponseEndpoint
@@ -29,6 +31,7 @@ from .errors import ApiError
 from .interests import INTERESTS
 from .profiles import Profiles
 from .ranking import Recommendations
+from .telemetry import Telemetry
 
 
 def create_app(
@@ -36,12 +39,14 @@ def create_app(
     service_pool: Pool | None = None,
     catalog: CatalogClient | None = None,
     identity: JwtIdentity | None = None,
+    telemetry: Telemetry | None = None,
 ) -> FastAPI:
     database = service_pool or pool(config.database_url)
     source = catalog or CatalogClient(config)
     recommendations = Recommendations(database, source)
     profiles = Profiles(database, source)
     users = identity or JwtIdentity(config)
+    signals = telemetry or Telemetry("api", {})
     bearer = HTTPBearer(auto_error=False)
 
     async def actor(
@@ -73,10 +78,18 @@ def create_app(
             request.state.request_id = str(UUID(request.headers.get("x-request-id", "")))
         except ValueError:
             request.state.request_id = str(uuid4())
-        try:
-            response = await call_next(request)
-        except Exception as error:
-            response = await unavailable(request, error)
+        started = time.perf_counter()
+        with signals.span("http", request.headers.get("traceparent", "")) as span:
+            try:
+                response = await call_next(request)
+            except Exception as error:
+                response = await unavailable(request, error)
+            operation = getattr(request.scope.get("route"), "operation_id", "other") or "other"
+            signals.http(operation, response.status_code, started)
+            span.set_attribute("http.response.status_code", response.status_code)
+            span.set_attribute("http.route", operation)
+            if response.status_code >= 500:
+                span.set_status(Status(StatusCode.ERROR))
         response.headers["cache-control"] = "no-store"
         response.headers["x-request-id"] = request.state.request_id
         return response
@@ -140,7 +153,9 @@ def create_app(
     async def similar(
         id: UUID, filters: Annotated[RecommendationFilters, Query()]
     ) -> RecommendationPage:
-        return await recommendations.similar(id, filters)
+        result = await recommendations.similar(id, filters)
+        signals.result(result.mode, result.degraded)
+        return result
 
     errors: dict[int | str, dict[str, Any]] = {
         code: {"model": RecommendationError} for code in (401, 403, 404, 409, 422, 503)
@@ -204,6 +219,8 @@ def create_app(
     async def personal(
         filters: Annotated[RecommendationFilters, Query()], user: Annotated[UUID, Depends(actor)]
     ) -> RecommendationPage:
-        return await profiles.feed(user, filters)
+        result = await profiles.feed(user, filters)
+        signals.result(result.mode, result.degraded)
+        return result
 
     return app

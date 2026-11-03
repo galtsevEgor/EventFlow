@@ -9,6 +9,6 @@ COPY --chown=node:node . .
 ARG EVENTFLOW_BUILD_ID
 ENV EVENTFLOW_BUILD_ID=${EVENTFLOW_BUILD_ID}
 RUN --mount=type=cache,target=/home/node/.local/share/pnpm/store,uid=1000,gid=1000 \
-    pnpm install --frozen-lockfile && pnpm audit --prod --audit-level high && pnpm build --concurrency=2
+    pnpm install --frozen-lockfile && pnpm audit --prod --audit-level high && pnpm build --filter='!@eventflow/recommendations' --concurrency=2
 
 CMD ["node", "scripts/release/runtime.mjs"]
