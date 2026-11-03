@@ -1,0 +1,441 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "protocol": "cross-language-topic-relevance",
+  "events": [
+    {
+      "id": "jazz-ru",
+      "topic": "jazz",
+      "language": "ru",
+      "text": "Джазовый квартет: саксофон, контрабас и импровизация в камерном клубе."
+    },
+    {
+      "id": "jazz-ro",
+      "topic": "jazz",
+      "language": "ro",
+      "text": "Cvartet de jazz cu saxofon, contrabas și improvizație într-un club intim."
+    },
+    {
+      "id": "jazz-en",
+      "topic": "jazz",
+      "language": "en",
+      "text": "A jazz quartet with saxophone, double bass and improvisation in an intimate club."
+    },
+    {
+      "id": "rock-ru",
+      "topic": "rock",
+      "language": "ru",
+      "text": "Рок-группа играет громкие электрогитары и барабаны на концертной сцене."
+    },
+    {
+      "id": "rock-ro",
+      "topic": "rock",
+      "language": "ro",
+      "text": "O trupă rock cântă cu chitare electrice și tobe pe scena de concert."
+    },
+    {
+      "id": "rock-en",
+      "topic": "rock",
+      "language": "en",
+      "text": "A rock band plays loud electric guitars and drums on a concert stage."
+    },
+    {
+      "id": "classical-ru",
+      "topic": "classical",
+      "language": "ru",
+      "text": "Симфонический оркестр исполняет Бетховена: скрипки, виолончели и фортепиано."
+    },
+    {
+      "id": "classical-ro",
+      "topic": "classical",
+      "language": "ro",
+      "text": "Orchestra simfonică interpretează Beethoven cu viori, violoncele și pian."
+    },
+    {
+      "id": "classical-en",
+      "topic": "classical",
+      "language": "en",
+      "text": "A symphony orchestra performs Beethoven with violins, cellos and piano."
+    },
+    {
+      "id": "electronic-ru",
+      "topic": "electronic",
+      "language": "ru",
+      "text": "Ночная вечеринка электронной музыки: диджей, синтезаторы и танцевальное техно."
+    },
+    {
+      "id": "electronic-ro",
+      "topic": "electronic",
+      "language": "ro",
+      "text": "Petrecere nocturnă de muzică electronică, DJ, sintetizatoare și techno pentru dans."
+    },
+    {
+      "id": "electronic-en",
+      "topic": "electronic",
+      "language": "en",
+      "text": "An electronic music night with a DJ, synthesizers and dancefloor techno."
+    },
+    {
+      "id": "theatre-ru",
+      "topic": "theatre",
+      "language": "ru",
+      "text": "Актёры драматического театра ставят трагическую пьесу на сцене."
+    },
+    {
+      "id": "theatre-ro",
+      "topic": "theatre",
+      "language": "ro",
+      "text": "Actorii teatrului dramatic prezintă o piesă tragică pe scenă."
+    },
+    {
+      "id": "theatre-en",
+      "topic": "theatre",
+      "language": "en",
+      "text": "Dramatic theatre actors perform a tragic stage play."
+    },
+    {
+      "id": "comedy-ru",
+      "topic": "comedy",
+      "language": "ru",
+      "text": "Стендап-комик рассказывает остроумные шутки и смешные истории для взрослых."
+    },
+    {
+      "id": "comedy-ro",
+      "topic": "comedy",
+      "language": "ro",
+      "text": "Un comediant de stand-up spune glume și povești amuzante pentru adulți."
+    },
+    {
+      "id": "comedy-en",
+      "topic": "comedy",
+      "language": "en",
+      "text": "A stand-up comedian tells witty jokes and funny stories for adults."
+    },
+    {
+      "id": "cinema-ru",
+      "topic": "cinema",
+      "language": "ru",
+      "text": "Кинопоказ документального фильма и обсуждение с режиссёром после сеанса."
+    },
+    {
+      "id": "cinema-ro",
+      "topic": "cinema",
+      "language": "ro",
+      "text": "Proiecție de film documentar și discuție cu regizorul după vizionare."
+    },
+    {
+      "id": "cinema-en",
+      "topic": "cinema",
+      "language": "en",
+      "text": "A documentary film screening followed by a discussion with the director."
+    },
+    {
+      "id": "art-ru",
+      "topic": "art",
+      "language": "ru",
+      "text": "Выставка современной живописи и скульптуры в художественной галерее."
+    },
+    {
+      "id": "art-ro",
+      "topic": "art",
+      "language": "ro",
+      "text": "Expoziție de pictură contemporană și sculptură într-o galerie de artă."
+    },
+    {
+      "id": "art-en",
+      "topic": "art",
+      "language": "en",
+      "text": "An exhibition of contemporary paintings and sculpture in an art gallery."
+    },
+    {
+      "id": "technology-ru",
+      "topic": "technology",
+      "language": "ru",
+      "text": "Конференция разработчиков: программирование, программное обеспечение и практикум по коду."
+    },
+    {
+      "id": "technology-ro",
+      "topic": "technology",
+      "language": "ro",
+      "text": "Conferință pentru dezvoltatori despre programare, software și atelier de cod."
+    },
+    {
+      "id": "technology-en",
+      "topic": "technology",
+      "language": "en",
+      "text": "A developer conference about programming, software and a practical coding workshop."
+    },
+    {
+      "id": "sport-ru",
+      "topic": "sport",
+      "language": "ru",
+      "text": "Спортивный турнир: футбольные команды соревнуются на стадионе за кубок."
+    },
+    {
+      "id": "sport-ro",
+      "topic": "sport",
+      "language": "ro",
+      "text": "Turneu sportiv: echipe de fotbal concurează pe stadion pentru cupă."
+    },
+    {
+      "id": "sport-en",
+      "topic": "sport",
+      "language": "en",
+      "text": "A sports tournament with football teams competing for a cup in the stadium."
+    },
+    {
+      "id": "family-ru",
+      "topic": "family",
+      "language": "ru",
+      "text": "Семейный праздник для маленьких детей: куклы, игры, сказки и развлечения с родителями."
+    },
+    {
+      "id": "family-ro",
+      "topic": "family",
+      "language": "ro",
+      "text": "Sărbătoare de familie pentru copii mici cu păpuși, jocuri, povești și părinți."
+    },
+    {
+      "id": "family-en",
+      "topic": "family",
+      "language": "en",
+      "text": "A family celebration for young children with puppets, games, stories and parents."
+    },
+    {
+      "id": "food-ru",
+      "topic": "food",
+      "language": "ru",
+      "text": "Кулинарный мастер-класс: повар учит готовить блюда, затем дегустация еды."
+    },
+    {
+      "id": "food-ro",
+      "topic": "food",
+      "language": "ro",
+      "text": "Atelier culinar: bucătarul arată cum se prepară mâncăruri, urmat de degustare."
+    },
+    {
+      "id": "food-en",
+      "topic": "food",
+      "language": "en",
+      "text": "A culinary workshop where a chef teaches cooking dishes, followed by food tasting."
+    }
+  ],
+  "queries": [
+    {
+      "id": "query-jazz-ru",
+      "topic": "jazz",
+      "language": "ru",
+      "text": "Хочу послушать живую джазовую импровизацию и саксофон."
+    },
+    {
+      "id": "query-jazz-ro",
+      "topic": "jazz",
+      "language": "ro",
+      "text": "Caut muzică jazz live, saxofon și improvizație."
+    },
+    {
+      "id": "query-jazz-en",
+      "topic": "jazz",
+      "language": "en",
+      "text": "I want live jazz improvisation and saxophone music."
+    },
+    {
+      "id": "query-rock-ru",
+      "topic": "rock",
+      "language": "ru",
+      "text": "Ищу энергичный рок-концерт с электрогитарами."
+    },
+    {
+      "id": "query-rock-ro",
+      "topic": "rock",
+      "language": "ro",
+      "text": "Vreau un concert rock energic cu chitare electrice."
+    },
+    {
+      "id": "query-rock-en",
+      "topic": "rock",
+      "language": "en",
+      "text": "Looking for an energetic rock concert with electric guitars."
+    },
+    {
+      "id": "query-classical-ru",
+      "topic": "classical",
+      "language": "ru",
+      "text": "Хочу на симфоническую классическую музыку в исполнении оркестра."
+    },
+    {
+      "id": "query-classical-ro",
+      "topic": "classical",
+      "language": "ro",
+      "text": "Caut muzică clasică simfonică interpretată de orchestră."
+    },
+    {
+      "id": "query-classical-en",
+      "topic": "classical",
+      "language": "en",
+      "text": "I would like classical symphonic music played by an orchestra."
+    },
+    {
+      "id": "query-electronic-ru",
+      "topic": "electronic",
+      "language": "ru",
+      "text": "Хочу танцевать под электронную музыку и техно-сет диджея."
+    },
+    {
+      "id": "query-electronic-ro",
+      "topic": "electronic",
+      "language": "ro",
+      "text": "Vreau să dansez pe muzică electronică și un set techno de DJ."
+    },
+    {
+      "id": "query-electronic-en",
+      "topic": "electronic",
+      "language": "en",
+      "text": "I want to dance to electronic music and a techno DJ set."
+    },
+    {
+      "id": "query-theatre-ru",
+      "topic": "theatre",
+      "language": "ru",
+      "text": "Ищу драматический спектакль с актёрами на театральной сцене."
+    },
+    {
+      "id": "query-theatre-ro",
+      "topic": "theatre",
+      "language": "ro",
+      "text": "Caut un spectacol dramatic cu actori pe scena teatrului."
+    },
+    {
+      "id": "query-theatre-en",
+      "topic": "theatre",
+      "language": "en",
+      "text": "Looking for a dramatic theatre play performed by stage actors."
+    },
+    {
+      "id": "query-comedy-ru",
+      "topic": "comedy",
+      "language": "ru",
+      "text": "Хочу посмеяться на стендап-шоу с комиком."
+    },
+    {
+      "id": "query-comedy-ro",
+      "topic": "comedy",
+      "language": "ro",
+      "text": "Vreau să râd la un spectacol de stand-up cu un comediant."
+    },
+    {
+      "id": "query-comedy-en",
+      "topic": "comedy",
+      "language": "en",
+      "text": "I want to laugh at a stand-up comedy show."
+    },
+    {
+      "id": "query-cinema-ru",
+      "topic": "cinema",
+      "language": "ru",
+      "text": "Ищу показ кинофильма с обсуждением режиссёра."
+    },
+    {
+      "id": "query-cinema-ro",
+      "topic": "cinema",
+      "language": "ro",
+      "text": "Caut o proiecție de cinema cu discuție cu regizorul."
+    },
+    {
+      "id": "query-cinema-en",
+      "topic": "cinema",
+      "language": "en",
+      "text": "Looking for a cinema film screening and a director discussion."
+    },
+    {
+      "id": "query-art-ru",
+      "topic": "art",
+      "language": "ru",
+      "text": "Хочу посмотреть картины и скульптуры на художественной выставке."
+    },
+    {
+      "id": "query-art-ro",
+      "topic": "art",
+      "language": "ro",
+      "text": "Vreau să văd tablouri și sculpturi la o expoziție de artă."
+    },
+    {
+      "id": "query-art-en",
+      "topic": "art",
+      "language": "en",
+      "text": "I want to see paintings and sculptures at an art exhibition."
+    },
+    {
+      "id": "query-technology-ru",
+      "topic": "technology",
+      "language": "ru",
+      "text": "Ищу конференцию по разработке программ и программированию."
+    },
+    {
+      "id": "query-technology-ro",
+      "topic": "technology",
+      "language": "ro",
+      "text": "Caut o conferință despre dezvoltare software și programare."
+    },
+    {
+      "id": "query-technology-en",
+      "topic": "technology",
+      "language": "en",
+      "text": "Looking for a software development and programming conference."
+    },
+    {
+      "id": "query-sport-ru",
+      "topic": "sport",
+      "language": "ru",
+      "text": "Хочу посмотреть спортивный матч между футбольными командами."
+    },
+    {
+      "id": "query-sport-ro",
+      "topic": "sport",
+      "language": "ro",
+      "text": "Vreau să urmăresc un meci sportiv între echipe de fotbal."
+    },
+    {
+      "id": "query-sport-en",
+      "topic": "sport",
+      "language": "en",
+      "text": "I want to watch a sports match between football teams."
+    },
+    {
+      "id": "query-family-ru",
+      "topic": "family",
+      "language": "ru",
+      "text": "Ищу развлечения и игры для маленького ребёнка и всей семьи."
+    },
+    {
+      "id": "query-family-ro",
+      "topic": "family",
+      "language": "ro",
+      "text": "Caut activități și jocuri pentru copii mici și întreaga familie."
+    },
+    {
+      "id": "query-family-en",
+      "topic": "family",
+      "language": "en",
+      "text": "Looking for games and entertainment for young children and the whole family."
+    },
+    {
+      "id": "query-food-ru",
+      "topic": "food",
+      "language": "ru",
+      "text": "Хочу научиться готовить с поваром и попробовать еду на дегустации."
+    },
+    {
+      "id": "query-food-ro",
+      "topic": "food",
+      "language": "ro",
+      "text": "Vreau să învăț să gătesc cu un bucătar și să degust mâncarea."
+    },
+    {
+      "id": "query-food-en",
+      "topic": "food",
+      "language": "en",
+      "text": "I want to learn cooking with a chef and taste the food."
+    }
+  ]
+}

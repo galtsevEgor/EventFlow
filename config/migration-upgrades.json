@@ -58,5 +58,9 @@
   "services/recommendations/migrations/001-recommendations.sql": {
     "backwardCompatible": true,
     "sha256": "3cdee0c25e912e8b8387850fec657f60d58d52438629c3948731aadc391b8a88"
+  },
+  "services/recommendations/migrations/002-exact-ranking.sql": {
+    "sha256": "d6efc251a610b0f647e4e039305ebae9278c3176ebca4b4964195e8fd2648d17",
+    "backwardCompatible": true
   }
 }

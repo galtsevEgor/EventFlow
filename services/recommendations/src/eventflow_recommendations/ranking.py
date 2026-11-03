@@ -69,9 +69,11 @@ async def nearest_candidates(
     exclude: list[UUID],
     now: datetime,
 ) -> list[UUID]:
-    """Reuse for personal ranking; callers own a repeatable-read generation snapshot."""
-    await connection.execute("SET LOCAL hnsw.iterative_scan = strict_order")
-    await connection.execute("SET LOCAL hnsw.ef_search = 100")
+    """Exact ranking: materialize eligible vectors before sorting, independently of ANN indexes.
+
+    Callers own a repeatable-read generation snapshot. Approximate retrieval remains
+    an isolated benchmark until its worst-query recall justifies enabling it.
+    """
     where = (
         "generation=%s AND embedding IS NOT NULL AND document IS NOT NULL "
         "AND NOT (event_id=ANY(%s::uuid[])) "
@@ -98,23 +100,12 @@ async def nearest_candidates(
         filters.max_price_minor,
     )
     cursor = await connection.execute(
-        "WITH nearest AS MATERIALIZED (SELECT event_id,embedding<=>%s AS distance "
-        "FROM recommendation_documents WHERE " + where + " ORDER BY embedding<=>%s LIMIT %s) "
-        "SELECT event_id FROM nearest ORDER BY distance,event_id",
-        (vector, *parameters, vector, CANDIDATE_LIMIT),
+        "WITH eligible AS MATERIALIZED (SELECT event_id,embedding "
+        "FROM recommendation_documents WHERE " + where + ") "
+        "SELECT event_id FROM eligible ORDER BY embedding<=>%s,event_id LIMIT %s",
+        (*parameters, vector, CANDIDATE_LIMIT),
     )
     rows = await cursor.fetchall()
-    # Restrictive filters can exhaust ANN's scan budget. Recover exact bounded candidates.
-    if len(rows) < CANDIDATE_LIMIT:
-        await connection.execute("SET LOCAL enable_indexscan = off")
-        cursor = await connection.execute(
-            "SELECT event_id FROM recommendation_documents WHERE "
-            + where
-            + " ORDER BY embedding<=>%s,event_id LIMIT %s",
-            (*parameters, vector, CANDIDATE_LIMIT),
-        )
-        rows = await cursor.fetchall()
-        await connection.execute("SET LOCAL enable_indexscan = on")
     return [row["event_id"] for row in rows]
 
 
