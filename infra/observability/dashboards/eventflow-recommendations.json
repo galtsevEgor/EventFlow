@@ -29,7 +29,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "eventflow_recommendations_ready",
+          "expr": "eventflow_recommendations_ready_ratio",
           "legendFormat": "{{component}} {{operation}} {{mode}} {{degraded}}"
         }
       ],
@@ -58,7 +58,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "eventflow_recommendations_cursor_gap",
+          "expr": "eventflow_recommendations_cursor_gap_ratio",
           "legendFormat": "{{component}} {{operation}} {{mode}} {{degraded}}"
         }
       ],
@@ -159,7 +159,7 @@
     },
     {
       "id": 6,
-      "title": "Projection failures",
+      "title": "Projection sync health",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -174,7 +174,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "eventflow_recommendations_projection_up",
+          "expr": "eventflow_recommendations_projection_up_ratio",
           "legendFormat": "{{component}} {{operation}} {{mode}} {{degraded}}"
         }
       ],

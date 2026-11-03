@@ -5,6 +5,7 @@ import { chromium, expect } from '@playwright/test';
 import { fullStack } from './fixture.mjs';
 import { loginBuyer, publishForBooking } from './booking-setup.mjs';
 import { readTrace, traceSpans } from '../helpers/traces.mjs';
+import { metricValue } from '../helpers/metrics.mjs';
 
 test(
   'real local embeddings feed SSR recommendations with truthful cold fallback and immediate Catalog exclusion',
@@ -93,6 +94,31 @@ test(
         return ['bff', 'recommendations', 'catalog'].every((service) => services.has(service));
       });
       assert.ok(traceSpans(trace).some((span) => span.name === 'recommendations.http'));
+      const workerLabels =
+        'service_name="recommendations",component="worker",service_version="' +
+        stack.recommendations.telemetryVersion +
+        '"';
+      assert.equal(
+        await metricValue(
+          'eventflow_recommendations_ready_ratio{' + workerLabels + '}',
+          (value) => value === 1,
+        ),
+        1,
+      );
+      assert.equal(
+        await metricValue(
+          'eventflow_recommendations_cursor_gap_ratio{' + workerLabels + '}',
+          (value) => value === 0,
+        ),
+        0,
+      );
+      assert.equal(
+        await metricValue(
+          'eventflow_recommendations_projection_up_ratio{' + workerLabels + '}',
+          (value) => value === 1,
+        ),
+        1,
+      );
       assert.equal(
         (await (await page.request.get(url + '&maxPriceMinor=2000')).json()).items.length,
         0,

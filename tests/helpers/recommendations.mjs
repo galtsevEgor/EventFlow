@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -30,12 +30,14 @@ export async function recommendationsFixture(catalog, namespace) {
   }
   const port = await availablePort(),
     children = [];
+  let telemetryVersion = randomBytes(20).toString('hex');
   const env = {
     ...process.env,
     RECOMMENDATIONS_DATABASE_URL: database.href,
     CATALOG_URL: catalog,
     MESSAGE_NAMESPACE: namespace,
     PORT: String(port),
+    EVENTFLOW_BUILD_ID: telemetryVersion,
   };
   function start(command) {
     const child = spawn(process.execPath, ['scripts/recommendations.mjs', command], {
@@ -102,6 +104,9 @@ export async function recommendationsFixture(catalog, namespace) {
     if (!ready) throw new Error('Recommendations startup timed out');
     return {
       origin,
+      get telemetryVersion() {
+        return telemetryVersion;
+      },
       client,
       databaseUrl: database.href,
       close,
@@ -109,6 +114,8 @@ export async function recommendationsFixture(catalog, namespace) {
       stopWorker: () => stop(worker),
       startWorker: () => {
         if (worker.child.exitCode === null) throw new Error('Worker is running');
+        telemetryVersion = randomBytes(20).toString('hex');
+        env.EVENTFLOW_BUILD_ID = telemetryVersion;
         worker = start('worker');
       },
     };
