@@ -6,6 +6,7 @@ import { formatDate } from '../../format';
 import { SalePanel } from '../../sale-panel';
 import { Suspense } from 'react';
 import { SimilarEvents } from '../../recommendations/similar';
+import { FavoriteButton } from '../../recommendations/favorite';
 
 export const dynamic = 'force-dynamic';
 type Props = { params: Promise<{ id: string }> };
@@ -61,6 +62,7 @@ export default async function EventPage({ params }: Props) {
           {event.city} · {event.capacity} мест
         </p>
         <h1>{event.title}</h1>
+        <FavoriteButton id={event.id} />
         <div className="detail-grid">
           <div>
             {event.coverId && (

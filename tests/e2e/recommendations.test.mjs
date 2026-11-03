@@ -86,6 +86,55 @@ test(
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,
       );
+      await owner.goto(stack.origin + '/events/' + source);
+      await owner.getByRole('button', { name: 'В избранное', exact: true }).click();
+      await expect(
+        owner.getByRole('button', { name: 'Убрать из избранного', exact: true }),
+      ).toHaveAttribute('aria-pressed', 'true');
+      await owner.goto(stack.origin + '/recommendations');
+      await owner.getByRole('checkbox', { name: 'Джаз', exact: true }).check();
+      await owner.getByRole('button', { name: 'Сохранить интересы', exact: true }).click();
+      await expect(owner.getByText('Интересы сохранены.', { exact: true })).toBeVisible();
+      await owner.getByLabel('Город', { exact: true }).fill('Кишинёв');
+      await owner.getByRole('button', { name: 'Применить фильтры', exact: true }).click();
+      await expect(owner.getByRole('article').first()).toHaveAttribute(
+        'aria-label',
+        'Джазовое трио: пиано и саксофон',
+      );
+      await expect(owner.getByText('С учётом избранного').first()).toBeVisible();
+      const privateProfile = await owner.request.get(root + '/recommendations/profile');
+      assert.equal(privateProfile.status(), 200);
+      assert.equal(privateProfile.headers()['cache-control'], 'no-store');
+      assert.deepEqual((await privateProfile.json()).interests, ['jazz']);
+      assert.equal((await page.request.get(root + '/recommendations/profile')).status(), 401);
+      assert.equal(
+        (
+          await owner.request.put(root + '/recommendations/profile', {
+            data: { revision: 0, interests: ['rock'] },
+          })
+        ).status(),
+        403,
+      );
+      const stale = await owner.request.put(root + '/recommendations/profile', {
+        headers,
+        data: { revision: 0, interests: ['rock'] },
+      });
+      assert.equal(stale.status(), 409);
+      await owner.setViewportSize({ width: 390, height: 844 });
+      assert.equal(
+        await owner.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+        false,
+      );
+      await owner.getByLabel('Город', { exact: true }).fill('Бельцы');
+      await owner.getByRole('button', { name: 'Применить фильтры', exact: true }).click();
+      await expect(owner.getByRole('article')).toHaveCount(1);
+      await expect(owner.getByRole('article').first()).toHaveAttribute(
+        'aria-label',
+        'Джаз в Бельцах',
+      );
+      await owner.reload();
+      await expect(owner.getByLabel('Город', { exact: true })).toHaveValue('Бельцы');
+      await expect(owner.getByRole('checkbox', { name: 'Джаз', exact: true })).toBeChecked();
       const pause = await owner.request.put(
         root + '/organizations/' + org.id + '/events/' + jazz + '/availability',
         {
@@ -96,6 +145,23 @@ test(
       assert.equal(pause.status(), 200);
       const changed = await (await page.request.get(url)).json();
       assert.ok(changed.items.every((item) => item.event.id !== jazz));
+      await owner.request.put(root + '/recommendations/favorites/' + theatre, { headers });
+      const pauseTheatre = await owner.request.put(
+        root + '/organizations/' + org.id + '/events/' + theatre + '/availability',
+        { headers, data: { paused: true, expectedVersion: 0 } },
+      );
+      assert.equal(pauseTheatre.status(), 200);
+      await owner.reload();
+      await expect(owner.getByText('Мероприятие больше недоступно', { exact: true })).toBeVisible();
+      await owner
+        .getByRole('button', {
+          name: 'Удалить из избранного: недоступное мероприятие',
+          exact: true,
+        })
+        .click();
+      await expect(owner.getByText('Мероприятие больше недоступно', { exact: true })).toHaveCount(
+        0,
+      );
       await stack.recommendations.stopApi();
       await page.reload();
       await expect(

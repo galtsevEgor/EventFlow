@@ -604,3 +604,36 @@ summary:focus-visible {
   color: #245942;
   font-size: 0.85rem;
 }
+.preference-panel {
+  padding: 1.5rem;
+  margin-block: 1rem;
+  border: 1px solid #d6ddd5;
+  border-radius: 12px;
+  background: white;
+}
+.interest-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.interest-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.favorite-list {
+  list-style: none;
+  padding: 0;
+}
+.favorite-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.favorite-control {
+  margin-block: 1rem;
+}

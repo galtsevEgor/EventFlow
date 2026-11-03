@@ -2643,6 +2643,418 @@
         "security": []
       }
     },
+    "/api/v1/recommendations/interests": {
+      "get": {
+        "summary": "Interests",
+        "operationId": "recommendationInterests",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InterestOptions" } }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1/recommendations/profile": {
+      "get": {
+        "summary": "Profile",
+        "operationId": "recommendationProfile",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProfileState" } }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      },
+      "put": {
+        "summary": "Save Profile",
+        "operationId": "saveRecommendationInterests",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/PreferenceInput" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProfileState" } }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            }
+          }
+        },
+        "security": [{ "HTTPBearer": [] }]
+      }
+    },
+    "/api/v1/recommendations/favorites/{id}": {
+      "put": {
+        "summary": "Add Favorite",
+        "operationId": "addRecommendationFavorite",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProfileState" } }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove Favorite",
+        "operationId": "removeRecommendationFavorite",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid", "title": "Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProfileState" } }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/me": {
+      "get": {
+        "summary": "Personal",
+        "operationId": "personalRecommendations",
+        "security": [{ "HTTPBearer": [] }],
+        "parameters": [
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "maxLength": 100, "default": "", "title": "City" }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string", "format": "date" }, { "type": "null" }],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string", "format": "date" }, { "type": "null" }],
+              "title": "To"
+            }
+          },
+          {
+            "name": "minPriceMinor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "integer", "maximum": 100000000, "minimum": 0 },
+                { "type": "null" }
+              ],
+              "title": "Minpriceminor"
+            }
+          },
+          {
+            "name": "maxPriceMinor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "integer", "maximum": 100000000, "minimum": 0 },
+                { "type": "null" }
+              ],
+              "title": "Maxpriceminor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "default": 6,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationPage" }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationError" }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/v1/orders/{id}/payment-attempt": {
       "post": {
         "operationId": "createPaymentAttempt",
@@ -4324,6 +4736,83 @@
           "saleId": { "type": "string", "format": "uuid" },
           "categoryId": { "type": "string", "pattern": "^[a-zA-Z0-9_-]{1,32}$" }
         }
+      },
+      "Favorite": {
+        "properties": {
+          "eventId": { "type": "string", "format": "uuid", "title": "Eventid" },
+          "event": {
+            "anyOf": [{ "$ref": "#/components/schemas/SourceDocument" }, { "type": "null" }]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["eventId", "event"],
+        "title": "Favorite"
+      },
+      "InterestOption": {
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "title": { "type": "string", "title": "Title" }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["id", "title"],
+        "title": "InterestOption"
+      },
+      "InterestOptions": {
+        "properties": {
+          "interests": {
+            "items": { "$ref": "#/components/schemas/InterestOption" },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Interests"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["interests"],
+        "title": "InterestOptions"
+      },
+      "PreferenceInput": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "maximum": 2147483647,
+            "minimum": 0,
+            "title": "Revision"
+          },
+          "interests": {
+            "items": { "type": "string" },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Interests"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["revision", "interests"],
+        "title": "PreferenceInput"
+      },
+      "ProfileState": {
+        "properties": {
+          "revision": { "type": "integer", "minimum": 0, "title": "Revision" },
+          "interests": {
+            "items": { "type": "string" },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Interests"
+          },
+          "favorites": {
+            "items": { "$ref": "#/components/schemas/Favorite" },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Favorites"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["revision", "interests", "favorites"],
+        "title": "ProfileState"
       },
       "RecommendationError": {
         "properties": {

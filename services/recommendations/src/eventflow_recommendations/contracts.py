@@ -87,3 +87,34 @@ class RecommendationError(Contract):
     message: str
     requestId: str
     retryable: bool
+
+
+class PreferenceInput(Contract):
+    revision: Annotated[int, Field(strict=True, ge=0, le=2_147_483_647)]
+    interests: Annotated[list[str], Field(max_length=8)]
+
+    @model_validator(mode="after")
+    def unique(self) -> Self:
+        if len(self.interests) != len(set(self.interests)):
+            raise ValueError("Duplicate interests")
+        return self
+
+
+class Favorite(Contract):
+    event_id: Annotated[UUID, Field(alias="eventId")]
+    event: SourceDocument | None
+
+
+class ProfileState(Contract):
+    revision: Annotated[int, Field(ge=0)]
+    interests: Annotated[list[str], Field(max_length=8)]
+    favorites: Annotated[list[Favorite], Field(max_length=100)]
+
+
+class InterestOption(Contract):
+    id: str
+    title: str
+
+
+class InterestOptions(Contract):
+    interests: Annotated[list[InterestOption], Field(max_length=12)]
