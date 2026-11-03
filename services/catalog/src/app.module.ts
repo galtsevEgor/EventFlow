@@ -1,5 +1,6 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { AnalyticsMetadata } from './analytics-metadata.controller';
+import { RecommendationCatalog } from './recommendations.controller';
 import {
   HealthModule,
   MailOperator,
@@ -62,6 +63,7 @@ export class AppModule {
               SearchFallbackController,
               PolicyController,
               AnalyticsMetadata,
+              RecommendationCatalog,
               CoverController,
               PublicCoverController,
               PublicationController,

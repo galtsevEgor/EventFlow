@@ -54,5 +54,9 @@
   "services/tickets/prisma/migrations/202611100002_offline_check_in/migration.sql": {
     "backwardCompatible": true,
     "sha256": "396cdaea83ea3456cf2e1bd3f3b64a576360a2fb45e60f8681d091d810d9cb26"
+  },
+  "services/recommendations/migrations/001-recommendations.sql": {
+    "backwardCompatible": true,
+    "sha256": "3cdee0c25e912e8b8387850fec657f60d58d52438629c3948731aadc391b8a88"
   }
 }

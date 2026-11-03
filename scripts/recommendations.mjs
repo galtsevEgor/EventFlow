@@ -35,10 +35,13 @@ export function pythonTask(task, extra = [], env = process.env) {
       ['-m', 'mypy', 'src'],
     ],
     format: [
-      ['-m', 'ruff', 'check', '--fix', 'src', 'tests'],
       ['-m', 'ruff', 'format', 'src', 'tests'],
+      ['-m', 'ruff', 'check', '--fix', 'src', 'tests'],
     ],
-    test: [['-m', 'pytest', 'tests', '-q', ...extra]],
+    test: [['-m', 'pytest', 'tests', '-q', '-m', 'not integration', ...extra]],
+    integration: [['-m', 'pytest', 'tests', '-q', '-m', 'integration', ...extra]],
+    migrate: [['-m', 'eventflow_recommendations.migrate', ...extra]],
+    worker: [['-m', 'eventflow_recommendations.worker', ...extra]],
     'model:setup': [
       ['-m', 'eventflow_recommendations.embeddings', 'setup-model', '--model-path', model],
     ],
