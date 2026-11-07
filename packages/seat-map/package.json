@@ -1,0 +1,32 @@
+{
+  "name": "@eventflow/seat-map",
+  "version": "0.1.0-e22",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.check.json",
+    "test": "vitest run --fsModuleCachePath=node_modules/.vitest-cache"
+  },
+  "dependencies": {
+    "@eventflow/event-contracts": "workspace:*",
+    "pixi.js": "8.22.0"
+  },
+  "peerDependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "@types/react": "19.3.0"
+  }
+}
