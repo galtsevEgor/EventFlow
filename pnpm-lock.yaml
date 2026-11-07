@@ -159,6 +159,9 @@ importers:
       '@eventflow/event-contracts':
         specifier: workspace:*
         version: link:../../packages/event-contracts
+      '@eventflow/seat-map':
+        specifier: workspace:*
+        version: link:../../packages/seat-map
       '@eventflow/ui':
         specifier: workspace:*
         version: link:../../packages/ui
