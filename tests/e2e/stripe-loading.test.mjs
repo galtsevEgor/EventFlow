@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
 import { chromium, expect } from '@playwright/test';
@@ -10,45 +9,53 @@ test(
   'a blocked Stripe script shows a recoverable message instead of an indefinitely empty form',
   { timeout: 90000 },
   async () => {
-    const server = createServer();
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-    const port = server.address().port;
-    await new Promise((resolve) => server.close(resolve));
     const child = spawn(
       process.execPath,
-      [
-        'node_modules/next/dist/bin/next',
-        'start',
-        '--hostname',
-        '127.0.0.1',
-        '--port',
-        String(port),
-      ],
+      ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '0'],
       {
         cwd: 'apps/storefront',
-        env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
+        env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1', FORCE_COLOR: '0' },
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       },
     );
-    child.stdout.resume();
-    child.stderr.resume();
+    let output = '',
+      spawnError;
+    for (const stream of [child.stdout, child.stderr])
+      stream.on('data', (chunk) => {
+        output = (output + chunk).slice(-4000);
+      });
+    child.once('error', (error) => {
+      spawnError = error;
+    });
     const closed = new Promise((resolve) => child.once('close', resolve));
-    const origin = `http://127.0.0.1:${port}`;
-    let browser;
+    let browser,
+      origin,
+      ready = false;
     try {
       for (let attempt = 0; attempt < 100; attempt++) {
-        if (child.exitCode !== null) throw new Error('Storefront stopped before readiness');
+        if (spawnError) throw new Error('Could not start Storefront', { cause: spawnError });
+        if (child.exitCode !== null || child.signalCode !== null)
+          throw new Error(
+            `Storefront stopped before readiness (${child.exitCode ?? child.signalCode}): ${output}`,
+          );
+        // Next binds port 0 itself; avoid releasing a reserved port before the child binds.
+        origin ??= output.match(/Local:\s+(http:\/\/127\.0\.0\.1:\d+)/)?.[1];
         try {
-          const response = await fetch(origin, { signal: AbortSignal.timeout(1000) });
-          await response.body?.cancel();
-          if (response.ok) break;
+          if (origin) {
+            const response = await fetch(origin + '/orders', { signal: AbortSignal.timeout(1000) });
+            await response.body?.cancel();
+            if (response.ok) {
+              ready = true;
+              break;
+            }
+          }
         } catch {
           // The server has not finished starting yet.
         }
-        if (attempt === 99) throw new Error('Storefront did not start');
         await delay(200);
       }
+      assert.ok(ready && origin, `Storefront did not become ready: ${output}`);
       browser = await chromium.launch();
       const page = await browser.newPage();
       await page.clock.install();
