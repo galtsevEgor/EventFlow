@@ -59,6 +59,8 @@ export async function createRenderer(
     view: fitViewport(initial.map, host.clientWidth, host.clientHeight),
   };
   const paint = createScene(app.stage);
+  // Native host handlers own input; Pixi must not hit-test the same scene again.
+  app.stage.eventMode = 'none';
   const draw = () => {
     if (!destroyed && !contextLost) {
       paint(state);

@@ -15,7 +15,8 @@ function buildWorld(props: VenueMapViewProps): {
   nodes: Map<string, Container>;
   box: Graphics;
 } {
-  const world = new Container();
+  // Pan/zoom changes one GPU transform instead of every seat's world transform.
+  const world = new Container({ isRenderGroup: true });
   const nodes = new Map<string, Container>();
   const background = new Graphics()
     .rect(0, 0, props.map.width, props.map.height)
@@ -100,6 +101,8 @@ function buildWorld(props: VenueMapViewProps): {
 export function createScene(stage: Container): (state: SceneState) => void {
   let scene: ReturnType<typeof buildWorld> | undefined;
   let previous: VenueMapViewProps | undefined;
+  let previousMoving = new Set<string>();
+  let hadBox = false;
   return (state) => {
     const { props, view } = state;
     if (
@@ -112,21 +115,29 @@ export function createScene(stage: Container): (state: SceneState) => void {
       scene = buildWorld(props);
       stage.addChild(scene.world);
       previous = props;
+      previousMoving = new Set();
+      hadBox = false;
     }
     scene.world.position.set(view.x, view.y);
     scene.world.scale.set(view.scale);
     const moving = new Set(state.preview?.ids);
-    for (const seat of props.map.seats) {
-      const delta = moving.has(seat.seatId) ? state.preview?.delta : undefined;
-      scene.nodes
-        .get(seat.seatId)
-        ?.position.set(seat.x + (delta?.x ?? 0), seat.y + (delta?.y ?? 0));
+    if (moving.size || previousMoving.size) {
+      for (const seat of props.map.seats) {
+        if (!moving.has(seat.seatId) && !previousMoving.has(seat.seatId)) continue;
+        const delta = moving.has(seat.seatId) ? state.preview?.delta : undefined;
+        scene.nodes
+          .get(seat.seatId)
+          ?.position.set(seat.x + (delta?.x ?? 0), seat.y + (delta?.y ?? 0));
+      }
     }
-    scene.box.clear();
+    previousMoving = moving;
+    // Clearing even an empty Graphics invalidates its group's cached render instructions.
+    if (state.box || hadBox) scene.box.clear();
     if (state.box)
       scene.box
         .rect(state.box.x, state.box.y, state.box.width, state.box.height)
         .fill({ color: 0x2563eb, alpha: 0.1 })
         .stroke({ color: 0x2563eb, width: 1.5 / view.scale });
+    hadBox = Boolean(state.box);
   };
 }
