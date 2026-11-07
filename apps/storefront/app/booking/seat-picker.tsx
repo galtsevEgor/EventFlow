@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiRequestError, unwrap, type Schemas } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { money, SignIn, useBuyer } from './client';
+import { SaleSeats } from './sale-seats';
 
 type Pending = { key: string; seatIds: string[] };
 function restore(key: string): Pending | null {
@@ -37,7 +38,13 @@ export function SeatPicker({ sale, live }: { sale: Schemas['PublicSale']; live: 
         <Button onClick={() => void session.refetch()}>Повторить</Button>
       </Alert>
     );
-  if (!session.data.user) return <SignIn returnTo={`/events/${sale.id}`} />;
+  if (!session.data.user)
+    return (
+      <>
+        {sale.seatMap && <SaleSeats sale={sale} selectedIds={[]} disabled onSelect={() => {}} />}
+        <SignIn returnTo={`/events/${sale.id}`} />
+      </>
+    );
   if (!session.data.user.emailVerified)
     return <Alert>Подтвердите email, чтобы бронировать места.</Alert>;
   return (
@@ -117,9 +124,13 @@ function Selection({
     Boolean(pending) ||
     reserve.isPending ||
     !orders.isSuccess;
-  const columns = Math.max(...sale.seats.map((seat) => seat.number));
-  const rows = [...new Set(sale.seats.map((seat) => seat.row))];
-  const positions = new Map(sale.seats.map((seat) => [`${seat.row}:${seat.number}`, seat]));
+  const chosenIds = chosen.map((seat) => seat.seatId);
+  function select(id: string) {
+    if (disabled || !sale.seats.some((seat) => seat.seatId === id && seat.state === 'AVAILABLE'))
+      return;
+    if (chosenIds.includes(id)) setSelected(chosenIds.filter((value) => value !== id));
+    else if (chosenIds.length < 6) setSelected([...chosenIds, id]);
+  }
   return (
     <section className="seat-selection" aria-label="Выбор мест">
       {active && (
@@ -134,56 +145,7 @@ function Selection({
         </Alert>
       )}
       <p className="muted">Выберите от 1 до 6 мест. Бронь действует до 10 минут.</p>
-      <p className="seat-legend">
-        <span>Свободно</span>
-        <span>Выбрано</span>
-        <span>Занято</span>
-      </p>
-      <div
-        className="seat-map"
-        role="region"
-        aria-label="Схема мест, прокрутка по горизонтали"
-        tabIndex={0}
-      >
-        <div className="stage">СЦЕНА</div>
-        {rows.map((row) => (
-          <div
-            className="seat-row"
-            key={row}
-            style={{ gridTemplateColumns: `44px repeat(${columns}, 42px)` }}
-          >
-            <span className="row-label">Ряд {row}</span>
-            {Array.from({ length: columns }, (_, i) => {
-              const seat = positions.get(`${row}:${i + 1}`);
-              if (!seat) return <span key={i} aria-hidden="true" />;
-              const pressed = chosen.some((item) => item.seatId === seat.seatId);
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  className="seat"
-                  aria-pressed={pressed}
-                  aria-label={`Ряд ${row}, место ${seat.number}, ${seat.categoryName}, ${money(seat.priceMinor)}${seat.state !== 'AVAILABLE' ? ', занято' : ''}`}
-                  disabled={
-                    disabled || seat.state !== 'AVAILABLE' || (!pressed && chosen.length >= 6)
-                  }
-                  onClick={() =>
-                    setSelected(
-                      pressed
-                        ? chosen
-                            .filter((item) => item.seatId !== seat.seatId)
-                            .map((item) => item.seatId)
-                        : [...chosen.map((item) => item.seatId), seat.seatId],
-                    )
-                  }
-                >
-                  {seat.number}
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      <SaleSeats sale={sale} selectedIds={chosenIds} disabled={disabled} onSelect={select} />
       <p aria-live="polite">
         Выбрано: {chosen.length} · {money(chosen.reduce((sum, seat) => sum + seat.priceMinor, 0))}
       </p>

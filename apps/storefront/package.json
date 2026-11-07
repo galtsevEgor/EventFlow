@@ -20,7 +20,8 @@
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "@eventflow/event-contracts": "workspace:*"
+    "@eventflow/event-contracts": "workspace:*",
+    "@eventflow/seat-map": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "19.3.0",
