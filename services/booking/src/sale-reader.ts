@@ -20,6 +20,7 @@ export class SaleReader {
       if (!clock) throw new Error('Database clock unavailable');
       return {
         id: sale.id,
+        seatMap: sale.seatMap,
         currency: sale.currency,
         state: salesState(sale, clock.now),
         serverNow: clock.now,

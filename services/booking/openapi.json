@@ -609,6 +609,16 @@
           "salesEndsAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "seatMap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VenueMap"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -905,6 +915,102 @@
             "format": "date-time"
           }
         }
+      },
+      "VenueMap": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "const": 1
+          },
+          "width": {
+            "type": "number",
+            "minimum": 200,
+            "maximum": 10000
+          },
+          "height": {
+            "type": "number",
+            "minimum": 200,
+            "maximum": 10000
+          },
+          "seats": {
+            "minItems": 1,
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "seatId": {
+                  "type": "string",
+                  "pattern": "^r([1-9]|[1-4]\\d|50)-s([1-9]|[1-4]\\d|50)$"
+                },
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "rotation": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                }
+              },
+              "required": ["seatId", "x", "y", "rotation"],
+              "additionalProperties": false
+            }
+          },
+          "features": {
+            "maxItems": 40,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["stage", "sector", "aisle"]
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "width": {
+                  "type": "number",
+                  "minimum": 20,
+                  "maximum": 10000
+                },
+                "height": {
+                  "type": "number",
+                  "minimum": 20,
+                  "maximum": 10000
+                }
+              },
+              "required": ["id", "kind", "label", "x", "y", "width", "height"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["version", "width", "height", "seats", "features"],
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

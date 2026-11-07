@@ -8,6 +8,7 @@ datasource db {
   provider = "postgresql"
 }
 model Sale {
+  seatMap Json?
   paused Boolean @default(false)
   commandVersion Int @default(0)
   id String @id @db.Uuid

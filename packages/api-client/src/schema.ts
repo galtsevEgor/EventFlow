@@ -1866,6 +1866,7 @@ export interface components {
           categoryId: string;
           disabled: boolean;
         }[];
+        map?: components['schemas']['VenueMap'];
       };
     };
     Publication: {
@@ -1967,6 +1968,28 @@ export interface components {
       pageSize: number;
       pages: number;
     };
+    VenueMap: {
+      /** @constant */
+      version: 1;
+      width: number;
+      height: number;
+      seats: {
+        seatId: string;
+        x: number;
+        y: number;
+        rotation: number;
+      }[];
+      features: {
+        id: string;
+        /** @enum {string} */
+        kind: 'stage' | 'sector' | 'aisle';
+        label: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }[];
+    };
     PublicSale: {
       /** Format: uuid */
       id: string;
@@ -1992,6 +2015,7 @@ export interface components {
       salesStartsAt: string;
       /** Format: date-time */
       salesEndsAt: string;
+      seatMap?: components['schemas']['VenueMap'] | null;
     };
     Order: {
       /** Format: uuid */

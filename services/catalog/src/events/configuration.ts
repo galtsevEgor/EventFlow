@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { venueMapSchema } from '@eventflow/event-contracts';
 
 const instant = z.iso.datetime();
 const categoryId = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,31}$/);
@@ -36,6 +37,7 @@ export const configurationSchema = z
       .min(1)
       .max(20),
     layout: z.strictObject({
+      map: venueMapSchema.optional(),
       rows: z.number().int().min(1).max(50),
       columns: z.number().int().min(1).max(50),
       defaultCategoryId: categoryId,
@@ -84,6 +86,27 @@ export const configurationSchema = z
     if (categories.size !== value.categories.length)
       issue(['categories'], 'Идентификаторы категорий должны быть уникальны.');
     const { rows, columns, defaultCategoryId, overrides } = value.layout;
+    if (value.layout.map) {
+      const positions = value.layout.map.seats;
+      if (
+        positions.length !== rows * columns ||
+        positions.some((seat) => {
+          const match = /^r(\d+)-s(\d+)$/.exec(seat.seatId);
+          return (
+            !match ||
+            Number(match[1]) < 1 ||
+            Number(match[1]) > rows ||
+            Number(match[2]) < 1 ||
+            Number(match[2]) > columns ||
+            seat.seatId !== `r${Number(match[1])}-s${Number(match[2])}`
+          );
+        })
+      )
+        issue(
+          ['layout', 'map', 'seats'],
+          'Схема должна содержать все места сетки с исходными идентификаторами.',
+        );
+    }
     if (rows * columns > 1000) issue(['layout', 'rows'], 'Максимум 1 000 мест в схеме.');
     if (!categories.has(defaultCategoryId))
       issue(['layout', 'defaultCategoryId'], 'Категория не найдена.');

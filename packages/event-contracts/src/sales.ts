@@ -1,33 +1,49 @@
 import { randomUUID } from 'node:crypto';
 import { currentTraceparent } from '@eventflow/telemetry';
 import { z } from 'zod';
+import { venueMapSchema } from './seat-map.js';
 import type { EventEnvelope } from './index.js';
 
-export const provisionSchema = z.strictObject({
-  organizationId: z.uuid(),
-  title: z.string().min(2).max(160),
-  currency: z.literal('EUR'),
-  timeZone: z.string().max(100),
-  startsAt: z.iso.datetime(),
-  endsAt: z.iso.datetime(),
-  salesStartsAt: z.iso.datetime(),
-  salesEndsAt: z.iso.datetime(),
-  admissionStartsAt: z.iso.datetime(),
-  admissionEndsAt: z.iso.datetime(),
-  seats: z
-    .array(
-      z.strictObject({
-        seatId: z.string().regex(/^r\d+-s\d+$/),
-        row: z.number().int().min(1).max(50),
-        number: z.number().int().min(1).max(50),
-        categoryId: z.string().max(32),
-        categoryName: z.string().min(1).max(60),
-        priceMinor: z.number().int().positive().max(100_000_000),
-      }),
+export const provisionSchema = z
+  .strictObject({
+    organizationId: z.uuid(),
+    title: z.string().min(2).max(160),
+    currency: z.literal('EUR'),
+    timeZone: z.string().max(100),
+    startsAt: z.iso.datetime(),
+    endsAt: z.iso.datetime(),
+    salesStartsAt: z.iso.datetime(),
+    salesEndsAt: z.iso.datetime(),
+    admissionStartsAt: z.iso.datetime(),
+    admissionEndsAt: z.iso.datetime(),
+    seats: z
+      .array(
+        z.strictObject({
+          seatId: z.string().regex(/^r\d+-s\d+$/),
+          row: z.number().int().min(1).max(50),
+          number: z.number().int().min(1).max(50),
+          categoryId: z.string().max(32),
+          categoryName: z.string().min(1).max(60),
+          priceMinor: z.number().int().positive().max(100_000_000),
+        }),
+      )
+      .min(1)
+      .max(1000),
+    seatMap: venueMapSchema.optional(),
+  })
+  .superRefine((snapshot, ctx) => {
+    if (!snapshot.seatMap) return;
+    const ids = new Set(snapshot.seats.map((seat) => seat.seatId));
+    if (
+      ids.size !== snapshot.seatMap.seats.length ||
+      snapshot.seatMap.seats.some((seat) => !ids.has(seat.seatId))
     )
-    .min(1)
-    .max(1000),
-});
+      ctx.addIssue({
+        code: 'custom',
+        path: ['seatMap', 'seats'],
+        message: 'Map positions must match the sale inventory.',
+      });
+  });
 export const provisionResultSchema = z.strictObject({
   snapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
 });

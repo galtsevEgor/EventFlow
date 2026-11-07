@@ -31,3 +31,4 @@ export * from './analytics.js';
 export * from './waitlist.js';
 export * from './offline.js';
 export * from './recommendations.js';
+export * from './seat-map.js';

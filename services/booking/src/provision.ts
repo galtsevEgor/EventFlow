@@ -14,7 +14,7 @@ export class ProvisionSale {
       !parsed.success
     )
       throw new PermanentMessageError('Invalid sale snapshot');
-    const { seats, ...sale } = parsed.data;
+    const { seats, seatMap, ...sale } = parsed.data;
     const start = Date.parse(sale.startsAt),
       end = Date.parse(sale.endsAt),
       salesStart = Date.parse(sale.salesStartsAt),
@@ -53,7 +53,13 @@ export class ProvisionSale {
           : null;
       if (!existing && !failure) {
         await tx.sale.create({
-          data: { id: event.aggregateId, version: event.aggregateVersion, snapshotHash, ...sale },
+          data: {
+            id: event.aggregateId,
+            version: event.aggregateVersion,
+            snapshotHash,
+            ...sale,
+            ...(seatMap ? { seatMap } : {}),
+          },
         });
         await tx.seatInventory.createMany({
           data: seats.map((seat) => ({ saleId: event.aggregateId, ...seat })),

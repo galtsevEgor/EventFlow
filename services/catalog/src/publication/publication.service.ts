@@ -26,6 +26,8 @@ export class PublicationService {
       const [clock] = await tx.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS now`;
       if (!clock || new Date(config.salesEndsAt) <= clock.now)
         throw new ApiError(422, 'SALES_ENDED', 'Окончание продаж должно быть в будущем.');
+      const seats = materializeSeats(config);
+      const seatIds = new Set(seats.map((seat) => seat.seatId));
       const snapshot = provisionSchema.parse({
         organizationId,
         title: event.title,
@@ -37,10 +39,25 @@ export class PublicationService {
         salesEndsAt: config.salesEndsAt,
         admissionStartsAt: config.admissionStartsAt,
         admissionEndsAt: config.admissionEndsAt,
-        seats: materializeSeats(config),
+        seats,
+        ...(config.layout.map
+          ? {
+              seatMap: {
+                ...config.layout.map,
+                seats: config.layout.map.seats.filter((position) => seatIds.has(position.seatId)),
+              },
+            }
+          : {}),
       });
       const snapshotHash = createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
-      const envelope = message('catalog', 'SaleProvisionRequested.v1', eventId, 1, snapshot);
+      const { seatMap, ...fields } = snapshot;
+      const envelope = message(
+        'catalog',
+        'SaleProvisionRequested.v1',
+        eventId,
+        1,
+        seatMap ? { ...fields, seatMap } : fields,
+      );
       const publication = await tx.publication.create({
         data: { eventId, snapshot, snapshotHash, requestId: envelope.eventId },
         select: publicationSelect,
@@ -92,12 +109,13 @@ export class PublicationService {
           'Состояние публикации изменилось. Обновите страницу.',
         );
       const snapshot = provisionSchema.parse(publication.snapshot);
+      const { seatMap, ...fields } = snapshot;
       const envelope = message(
         'catalog',
         'SaleProvisionRequested.v1',
         eventId,
         publication.version,
-        snapshot,
+        seatMap ? { ...fields, seatMap } : fields,
       );
       await tx.publicationRetry.create({
         data: { eventId, idempotencyKey, attempt: expectedAttempt + 1 },
