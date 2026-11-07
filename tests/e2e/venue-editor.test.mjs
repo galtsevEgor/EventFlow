@@ -4,7 +4,7 @@ import test from 'node:test';
 import { chromium, expect } from '@playwright/test';
 import { fullStack } from './fixture.mjs';
 import { loginBuyer } from './booking-setup.mjs';
-import { venueDraft, webglArgs } from './venue-setup.mjs';
+import { mappedSeatPoint, venueDraft, webglArgs } from './venue-setup.mjs';
 
 test(
   'organizer edits real WebGL geometry, rejects collisions, restores history and persists the plan',
@@ -21,9 +21,26 @@ test(
       const draft = await venueDraft(page, stack.origin, headers);
       await page.goto(`${stack.origin}/organizer/?org=${draft.organizationId}`);
       await page.getByRole('button', { name: 'Настроить продажи', exact: true }).click();
+      await page.getByLabel('Рядов', { exact: true }).fill('1.5');
+      await expect(
+        page.getByRole('button', { name: 'Открыть конструктор зала', exact: true }),
+      ).toBeDisabled();
+      await page.getByLabel('Рядов', { exact: true }).fill('2');
       await page.getByRole('button', { name: 'Открыть конструктор зала', exact: true }).click();
       const editor = page.getByRole('region', { name: 'Конструктор зала', exact: true });
       await expect(editor.locator('canvas')).toHaveCount(1);
+      await editor.getByLabel('Рядов в новом плане', { exact: true }).fill('3');
+      await editor.getByRole('button', { name: 'Построить ряды', exact: true }).click();
+      await editor.getByLabel('Выбираемый ряд', { exact: true }).fill('3');
+      await editor.getByRole('button', { name: 'Выбрать ряд', exact: true }).click();
+      await editor.getByRole('button', { name: 'Отменить действие', exact: true }).click();
+      await expect(
+        editor.getByRole('status').filter({ hasText: 'Выделено мест: 0' }),
+      ).toBeVisible();
+      await expect(
+        editor.getByRole('button', { name: 'Повторить действие', exact: true }),
+      ).toBeEnabled();
+      await editor.getByLabel('Выбираемый ряд', { exact: true }).fill('1');
       await editor.getByRole('button', { name: 'Выбрать ряд', exact: true }).click();
       await expect(
         editor.getByRole('status').filter({ hasText: 'Выделено мест: 3' }),
@@ -44,10 +61,38 @@ test(
       await editor.getByRole('button', { name: 'Список мест', exact: true }).click();
       await editor.getByRole('button', { name: /^Ряд 1, место 1 ·/ }).click();
       await editor.getByRole('button', { name: 'Отключить места', exact: true }).click();
+      await editor.getByRole('button', { name: 'План зала', exact: true }).click();
+      let submitted, release;
+      const saving = new Promise((resolve) => {
+        release = resolve;
+      });
+      await page.route('**/configuration', async (route) => {
+        submitted = route.request().postDataJSON();
+        await saving;
+        await route.continue();
+      });
       const saved = page.waitForResponse(
         (r) => r.request().method() === 'PUT' && r.url().endsWith('/configuration'),
       );
       await page.getByRole('button', { name: 'Сохранить настройки', exact: true }).click();
+      try {
+        await expect.poll(() => Boolean(submitted)).toBeTruthy();
+        await expect(
+          page.getByRole('button', { name: 'Сохранить настройки', exact: true }),
+        ).toBeDisabled();
+        const point = await mappedSeatPoint(page, submitted.configuration.layout.map, 'r1-s1');
+        const before = await editor.locator('canvas').screenshot();
+        await page.mouse.move(point.x, point.y);
+        await page.mouse.down();
+        await page.mouse.move(point.x, point.y - 20 * point.scale, { steps: 5 });
+        await page.mouse.up();
+        assert.ok(
+          before.equals(await editor.locator('canvas').screenshot()),
+          'Saving must freeze canvas geometry',
+        );
+      } finally {
+        release();
+      }
       const response = await saved;
       assert.equal(response.status(), 200, await response.text());
       const data = await response.json(),

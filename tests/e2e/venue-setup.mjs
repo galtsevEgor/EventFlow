@@ -55,3 +55,22 @@ export const webglArgs = [
   '--use-angle=swiftshader',
   '--enable-unsafe-swiftshader',
 ];
+
+export async function mappedSeatPoint(page, map, seatId) {
+  const canvas = page.locator('canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  const host = canvas.locator('..'),
+    box = await host.boundingBox();
+  const size = await host.evaluate((el) => ({ width: el.clientWidth, height: el.clientHeight }));
+  const scale = Math.min((size.width - 40) / map.width, (size.height - 40) / map.height);
+  const seat = map.seats.find((seat) => seat.seatId === seatId);
+  assert.ok(box && seat);
+  return {
+    x: box.x + (size.width - map.width * scale) / 2 + seat.x * scale,
+    y: box.y + (size.height - map.height * scale) / 2 + seat.y * scale,
+    scale,
+  };
+}

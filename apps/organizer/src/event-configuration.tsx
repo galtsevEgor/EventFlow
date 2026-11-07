@@ -219,7 +219,12 @@ export function EventConfiguration({
             Добавить категорию
           </Button>
         </fieldset>
-        <SeatGrid layout={layout} categories={categories} onChange={setLayout} />
+        <SeatGrid
+          layout={layout}
+          categories={categories}
+          onChange={setLayout}
+          disabled={save.isPending}
+        />
         {validation && <Alert>{validation}</Alert>}
         <ErrorMessage error={save.error} />
         <Button type="submit" disabled={save.isPending}>

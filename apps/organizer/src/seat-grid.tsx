@@ -10,16 +10,20 @@ export function SeatGrid({
   layout,
   categories,
   onChange,
+  disabled = false,
 }: {
   layout: Layout;
   categories: Category[];
   onChange: (layout: Layout) => void;
+  disabled?: boolean;
 }) {
   const [mode, setMode] = useState('category');
   const [visual, setVisual] = useState(Boolean(layout.map));
   const [categoryId, setCategoryId] = useState(layout.defaultCategoryId);
   const overrides = new Map(layout.overrides.map((seat) => [`${seat.row}:${seat.number}`, seat]));
   const validSize =
+    Number.isInteger(layout.rows) &&
+    Number.isInteger(layout.columns) &&
     layout.rows > 0 &&
     layout.columns > 0 &&
     layout.rows <= 50 &&
@@ -75,6 +79,7 @@ export function SeatGrid({
           layout={layout}
           categories={categories}
           onChange={onChange}
+          disabled={disabled}
         />
       ) : (
         <>

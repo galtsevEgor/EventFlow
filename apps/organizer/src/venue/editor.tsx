@@ -17,10 +17,12 @@ export function VenueEditor({
   layout,
   categories,
   onChange,
+  disabled = false,
 }: {
   layout: Layout;
   categories: Category[];
   onChange: (layout: Layout) => void;
+  disabled?: boolean;
 }) {
   const map = layout.map!;
   const [selected, setSelected] = useState<string[]>([]),
@@ -32,6 +34,7 @@ export function VenueEditor({
   const [rows, setRows] = useState(layout.rows),
     [columns, setColumns] = useState(layout.columns);
   function commit(next: Layout) {
+    if (disabled || JSON.stringify(next) === JSON.stringify(layout)) return;
     const parsed = venueMapSchema.safeParse(next.map);
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? 'Проверьте план зала.');
@@ -43,13 +46,17 @@ export function VenueEditor({
   }
   const changeMap = (next: VenueMap) => commit({ ...layout, map: next });
   function navigate(direction: 'undo' | 'redo') {
+    if (disabled) return;
     const result = travel(history, layout, direction);
     if (!result) return;
     setHistory(result.history);
+    const ids = new Set(result.value.map?.seats.map((seat) => seat.seatId));
+    setSelected((current) => current.filter((id) => ids.has(id)));
     onChange(result.value);
     setError('');
   }
   function select(id: string, additive: boolean) {
+    if (disabled) return;
     setSelected((current) =>
       additive
         ? current.includes(id)
@@ -130,6 +137,7 @@ export function VenueEditor({
         selectedIds={selected}
         onSelect={select}
         edit
+        disabled={disabled}
         tool={tool}
         onMove={(ids, dx, dy) => changeMap(moveSeats(map, ids, dx, dy))}
         onBoxSelect={(ids, additive) =>
