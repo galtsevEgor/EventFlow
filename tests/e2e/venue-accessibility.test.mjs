@@ -6,7 +6,7 @@ import { createGridMap } from '../../packages/seat-map/dist/index.js';
 import { fullStack } from './fixture.mjs';
 import { loginBuyer, publishForBooking } from './booking-setup.mjs';
 import { venueDraft, webglArgs } from './venue-setup.mjs';
-import { measureVenueEditor, pinchVenue } from './venue-measure.mjs';
+import { dragVenueSeat, measureVenueEditor, pinchVenue } from './venue-measure.mjs';
 
 test(
   '1000-seat maps support bounded rendering, repeated unmount, touch, context loss and keyboard fallback',
@@ -54,6 +54,12 @@ test(
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`${stack.origin}/events/${id}`);
       await expect(page.locator('canvas')).toHaveCount(1);
+      await page.getByRole('button', { name: 'Список мест', exact: true }).click();
+      await expect(page.getByRole('button', { name: /^Ряд 1, место 1 ·/ })).toBeEnabled();
+      await page.getByRole('button', { name: 'План зала', exact: true }).click();
+      assert.ok(await dragVenueSeat(page, cdp, map), 'Touch drag starting on a seat must pan');
+      await expect(page.getByText(/Выбрано: 0 ·/)).toBeVisible();
+      await page.getByRole('button', { name: 'Показать весь зал', exact: true }).click();
       assert.ok(await pinchVenue(page, cdp), 'Two-finger pinch must change the map viewport');
       await expect(page.getByText(/Выбрано: 0 ·/)).toBeVisible();
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

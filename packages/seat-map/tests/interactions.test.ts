@@ -74,6 +74,14 @@ function setup(edit = false) {
 }
 
 describe('pointer interactions', () => {
+  it('pans a buyer map from a seat without selecting it when the gesture becomes a drag', () => {
+    const { host, state, onSelect, first } = setup();
+    host.pointer('pointerdown', first.x, first.y);
+    host.pointer('pointermove', first.x + 30, first.y + 20);
+    host.pointer('pointerup', first.x + 30, first.y + 20);
+    expect(state.view).toEqual({ x: 30, y: 20, scale: 1 });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
   it('selects with additive modifiers and reads current availability and callbacks', () => {
     const { host, state, onSelect, first } = setup();
     host.pointer('pointerdown', first.x, first.y, { shiftKey: true });

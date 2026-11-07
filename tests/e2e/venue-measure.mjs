@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { mappedSeatPoint } from './venue-setup.mjs';
 
 const nextFrame = (page) =>
   page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
@@ -119,6 +120,23 @@ export async function pinchVenue(page, cdp) {
   ];
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points(30) });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points(80) });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await nextFrame(page);
+  return !before.equals(await canvas.screenshot());
+}
+
+export async function dragVenueSeat(page, cdp, map) {
+  const { x, y } = await mappedSeatPoint(page, map, 'r1-s1');
+  const canvas = page.locator('canvas'),
+    before = await canvas.screenshot();
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ id: 1, x, y }],
+  });
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchMove',
+    touchPoints: [{ id: 1, x: x + 60, y: y + 10 }],
+  });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await nextFrame(page);
   return !before.equals(await canvas.screenshot());

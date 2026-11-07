@@ -89,6 +89,14 @@ describe('venue map geometry', () => {
     expect(worldToScreen(world, zoomed).y).toBeCloseTo(point.y);
     expect(screenToWorld(worldToScreen(world, view), view)).toEqual(world);
     expect(zoomViewport(view, 1e9, point).scale).toBe(6);
-    expect(zoomViewport(view, 1e-9, point).scale).toBe(0.03);
+    expect(zoomViewport(view, 1e-9, point).scale).toBe(0.01);
+  });
+  it('fits extreme map sizes without reversing the direction of subsequent zoom', () => {
+    const anchor = { x: 90, y: 140 };
+    const small = fitViewport({ width: 10000, height: 10000 }, 180, 280);
+    const large = fitViewport({ width: 200, height: 200 }, 5000, 5000);
+    expect(zoomViewport(small, 0.8, anchor).scale).toBeLessThan(small.scale);
+    expect(zoomViewport(large, 1.25, anchor).scale).toBeGreaterThanOrEqual(large.scale);
+    expect(worldToScreen({ x: 10000, y: 10000 }, small).x).toBeLessThanOrEqual(160);
   });
 });

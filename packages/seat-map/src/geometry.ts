@@ -1,6 +1,8 @@
 import { seatRadius, type VenueMap } from '@eventflow/event-contracts';
 import type { Point, Rect, Viewport } from './types.js';
 
+const boundedScale = (scale: number) => Math.min(6, Math.max(0.01, scale));
+
 export function createGridMap(rows: number, columns: number): VenueMap {
   if (
     !Number.isInteger(rows) ||
@@ -122,8 +124,7 @@ export function fitViewport(
   height: number,
   padding = 20,
 ): Viewport {
-  const scale = Math.max(
-    0.01,
+  const scale = boundedScale(
     Math.min(
       Math.max(1, width - padding * 2) / map.width,
       Math.max(1, height - padding * 2) / map.height,
@@ -140,7 +141,7 @@ export const worldToScreen = (point: Point, view: Viewport): Point => ({
   y: point.y * view.scale + view.y,
 });
 export function zoomViewport(view: Viewport, factor: number, anchor: Point): Viewport {
-  const scale = Math.min(6, Math.max(0.03, view.scale * factor));
+  const scale = boundedScale(view.scale * factor);
   const world = screenToWorld(anchor, view);
   return { scale, x: anchor.x - world.x * scale, y: anchor.y - world.y * scale };
 }

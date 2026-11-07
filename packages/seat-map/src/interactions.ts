@@ -95,6 +95,7 @@ export function bindInteractions(host: HTMLElement, control: Control): () => voi
     if (old) pointers.set(event.pointerId, point);
     if (gesture && old && !pinched) {
       gesture.moved ||= distance(point, gesture.start) > 4;
+      if (gesture.kind === 'click' && gesture.moved) gesture.kind = 'pan';
       const world = screenToWorld(point, state.view);
       if (gesture.kind === 'pan') {
         state.view = {
