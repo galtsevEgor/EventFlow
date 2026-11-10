@@ -40,15 +40,13 @@ test('cancellation releases the whole order, emits one event and never allows an
     await fixture.db.seatInventory.count({ where: { saleId: sale.id, state: 'AVAILABLE' } }),
     8,
   );
-  const events = await fixture.db.outbox.findMany();
-  assert.equal(
-    events.filter(
-      (e) => e.envelope.aggregateId === held.id && e.envelope.eventType === 'OrderCancelled.v1',
-    ).length,
-    1,
+  const cancelled = (await fixture.db.outbox.findMany()).filter(
+    (event) =>
+      event.envelope.aggregateId === held.id && event.envelope.eventType === 'OrderCancelled.v1',
   );
+  assert.equal(cancelled.length, 1);
   await eventually(
-    () => fixture.db.outbox.findFirst({ where: { id: events[0].id } }),
+    () => fixture.db.outbox.findUniqueOrThrow({ where: { id: cancelled[0].id } }),
     (event) => event.sentAt !== null,
   );
   const connection = await connect(process.env.AMQP_URL);
@@ -57,6 +55,7 @@ test('cancellation releases the whole order, emits one event and never allows an
     const delivery = await channel.get(`${namespace}.payments`, { noAck: true });
     assert.ok(delivery);
     const envelope = JSON.parse(delivery.content);
+    assert.equal(envelope.eventId, cancelled[0].envelope.eventId);
     assert.equal(envelope.eventType, 'OrderCancelled.v1');
     assert.deepEqual(orderClosedSchema.parse(envelope.data), { orderId: held.id, saleId: sale.id });
   } finally {

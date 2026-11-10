@@ -19,6 +19,9 @@ export async function cleanBroker(namespace) {
       'payment-refunds',
       'catalog-refunds',
       'search',
+      'analytics',
+      'waitlist',
+      'recommendations',
     ]) {
       const queue = `${namespace}.${consumer}`;
       for (const name of [
