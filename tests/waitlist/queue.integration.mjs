@@ -113,6 +113,79 @@ test('lost Booking acknowledgement plus cancellation reconciles and releases exa
   assert.equal(await f.booking.db.order.count({ where: { state: 'HELD' } }), 0);
   assert.equal((await f.db.query('SELECT * FROM "DeliveryJob"')).length, 0);
 });
+test('disabling while Booking is replying closes the reserved entry without offering or mailing it', async () => {
+  await reset();
+  const entry = await f.join('in-flight'),
+    waiting = await f.join('waiting');
+  let received, release;
+  const booked = new Promise((resolve) => {
+    received = resolve;
+  });
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const delayed = new Coordinator(
+    f.db,
+    {
+      sale: (id) => f.api.sale(id),
+      status: (...args) => f.api.status(...args),
+      async call(...args) {
+        const reply = await f.api.call(...args);
+        received();
+        await gate;
+        return reply;
+      },
+    },
+    f.box,
+  );
+  const working = delayed.advance(f.sale.id);
+  const deadline = setTimeout(release, 10_000);
+  try {
+    await Promise.race([
+      booked,
+      working.then(() => assert.fail('Expected a pending Booking reply')),
+    ]);
+    assert.equal((await f.queue.read('in-flight', entry.id)).state, 'RESERVING');
+    assert.deepEqual(await f.coordinator.advance(f.sale.id), {
+      stopped: false,
+      wakeAfterMs: 1_000,
+    });
+    await f.queue.settings(f.sale.id, f.sale.organizationId, f.sale.title, false);
+    assert.equal((await f.queue.read('in-flight', entry.id)).state, 'CANCELLING');
+    assert.equal((await f.queue.read('waiting', waiting.id)).state, 'CLOSED');
+    release();
+    assert.deepEqual(await working, { stopped: true, wakeAfterMs: 30_000 });
+    assert.equal((await f.queue.read('in-flight', entry.id)).state, 'CLOSED');
+    const orders = await f.booking.db.order.findMany();
+    assert.deepEqual(
+      orders.map((order) => order.state),
+      ['CANCELLED'],
+    );
+    assert.equal((await f.db.query('SELECT id FROM "DeliveryJob"')).length, 0);
+    const updates = await f.db.query(
+      `SELECT envelope FROM "Outbox" WHERE envelope->'data'->>'entryId'=$1
+       ORDER BY (envelope->>'aggregateVersion')::integer`,
+      entry.id,
+    );
+    assert.deepEqual(
+      updates.map(({ envelope }) => [
+        envelope.aggregateVersion,
+        envelope.data.state,
+        envelope.data.orderId,
+      ]),
+      [
+        [1, 'WAITING', null],
+        [3, 'CANCELLING', null],
+        [4, 'CANCELLING', orders[0].id],
+        [5, 'CLOSED', orders[0].id],
+      ],
+    );
+  } finally {
+    clearTimeout(deadline);
+    release();
+    await working.catch(() => {});
+  }
+});
 test('confirmed payment wins late cancellation; disabling closes remaining subscriptions', async () => {
   await reset();
   const first = await f.join('paid'),

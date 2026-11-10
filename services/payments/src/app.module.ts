@@ -1,7 +1,5 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { HealthModule, Readiness, TokenVerifier } from '@eventflow/service-runtime';
-import { Broker, MessageWorker, Outbox } from '@eventflow/messaging';
-import { commerceRoutes } from '@eventflow/event-contracts';
 import { Database } from './database';
 import { FakePaymentProvider } from './providers/fake';
 import type { PaymentProvider } from './providers/provider';
@@ -12,7 +10,6 @@ import { ProcessAttempt } from './attempts/process';
 import { ReadPayment } from './attempts/read';
 import { PaymentController } from './controller';
 import { PaymentInbox } from './inbox';
-import { Reconciler } from './reconciler';
 import { ProcessRefund } from './refunds/process';
 import { StripePaymentProvider } from './providers/stripe';
 import { ReceiveWebhook } from './webhooks/receive';
@@ -21,6 +18,8 @@ import { WebhookController } from './webhooks/controller';
 import { PaymentOperator } from './operator';
 import { PaymentOps } from './ops.controller';
 import { ReconcilePayment } from './ops/reconcile';
+
+import { paymentsBrokerReadiness, paymentsWorkerProviders } from './worker-providers';
 
 @Module({ imports: [HealthModule.forService('payments')] })
 export class AppModule {
@@ -38,49 +37,7 @@ export class AppModule {
           inject: [Database],
           useFactory: (db: Database) => new ReconcilePayment(db),
         },
-        ...(runWorkers
-          ? [
-              {
-                provide: 'PAYMENT_REFUNDS_WORKER',
-                inject: [PaymentInbox],
-                useFactory: (inbox: PaymentInbox) =>
-                  new MessageWorker(
-                    new Broker({
-                      url: config.AMQP_URL,
-                      namespace: config.MESSAGE_NAMESPACE,
-                      consumer: 'payment-refunds',
-                      routes: commerceRoutes,
-                    }),
-                    undefined,
-                    (event) => inbox.handle(event),
-                  ),
-              },
-              {
-                provide: Reconciler,
-                inject: [ProcessAttempt, ProcessRefund, ProcessWebhooks],
-                useFactory: (
-                  processor: ProcessAttempt,
-                  refunds: ProcessRefund,
-                  webhooks: ProcessWebhooks,
-                ) => new Reconciler(processor, refunds, webhooks),
-              },
-              {
-                provide: MessageWorker,
-                inject: [Database, PaymentInbox],
-                useFactory: (db: Database, inbox: PaymentInbox) =>
-                  new MessageWorker(
-                    new Broker({
-                      url: config.AMQP_URL,
-                      namespace: config.MESSAGE_NAMESPACE,
-                      consumer: 'payments',
-                      routes: commerceRoutes,
-                    }),
-                    new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
-                    (event) => inbox.handle(event),
-                  ),
-              },
-            ]
-          : []),
+        ...(runWorkers ? paymentsWorkerProviders(config) : []),
         {
           provide: ReceiveWebhook,
           inject: [Database, 'PAYMENT_PROVIDER'],
@@ -151,25 +108,7 @@ export class AppModule {
             return readiness;
           },
         },
-        ...(config.EVENTFLOW_WORKLOAD === 'worker'
-          ? [
-              {
-                provide: 'BROKER_READINESS',
-                inject: [Readiness, MessageWorker, 'PAYMENT_REFUNDS_WORKER'],
-                useFactory: (
-                  readiness: Readiness,
-                  worker: MessageWorker,
-                  refunds: MessageWorker,
-                ) => {
-                  readiness.register('rabbitmq', async () => {
-                    if (!worker.broker.ready || !refunds.broker.ready)
-                      throw new Error('RabbitMQ consumer unavailable');
-                  });
-                  return readiness;
-                },
-              },
-            ]
-          : []),
+        ...(config.EVENTFLOW_WORKLOAD === 'worker' ? [paymentsBrokerReadiness] : []),
       ],
     };
   }

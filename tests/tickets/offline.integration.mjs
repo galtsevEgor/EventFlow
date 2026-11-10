@@ -145,22 +145,25 @@ test('sync persists partial progress, replays lost replies after expiry, and fen
     const window = open();
     const manifest = JSON.parse((await service.prepare('staff', scope, window)).payload);
     const base = { sessionId: manifest.sessionId, deviceId: scope.deviceId };
+    const closed = { ...window, admissionStartsAt: window.admissionEndsAt };
     const operation = {
       requestId: randomUUID(),
       credential: qr.reveal(ticket),
-      capturedAt: new Date().toISOString(),
+      capturedAt: new Date(Date.parse(window.admissionEndsAt) + 60000).toISOString(),
     };
     const first = await service.sync('staff', { ...base, operations: [operation] }, window);
     assert.equal(first.results[0].result, 'ADMITTED');
     assert.equal(first.results[0].reason, null);
+    const audit = await db.checkIn.findUniqueOrThrow({ where: { requestId: operation.requestId } });
+    assert.equal(audit.capturedAt.toISOString(), operation.capturedAt);
+    assert.equal(audit.checkedAt.toISOString(), first.results[0].admittedAt);
+    assert.ok(audit.checkedAt < audit.capturedAt);
     const lateTicket = await create();
+    const lateOperation = { ...operation, credential: qr.reveal(lateTicket) };
     const absent = await service.sync(
       'staff',
-      {
-        ...base,
-        operations: [{ ...operation, requestId: randomUUID(), credential: qr.reveal(lateTicket) }],
-      },
-      window,
+      { ...base, operations: [{ ...lateOperation, requestId: randomUUID() }] },
+      closed,
     );
     assert.deepEqual(
       [absent.results[0].result, absent.results[0].reason],
@@ -176,8 +179,8 @@ test('sync persists partial progress, replays lost replies after expiry, and fen
     );
     const expired = await service.sync(
       'staff',
-      { ...base, operations: [{ ...operation, requestId: randomUUID() }] },
-      window,
+      { ...base, operations: [{ ...lateOperation, requestId: randomUUID() }] },
+      closed,
     );
     assert.deepEqual(
       [expired.results[0].result, expired.results[0].reason],

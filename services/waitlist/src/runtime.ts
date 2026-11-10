@@ -4,6 +4,17 @@ import { resolve } from 'node:path';
 import { Coordinator } from './coordinator';
 import { Database } from './database';
 import type { WaitlistConfig } from './config';
+import { active } from './queue';
+
+const DISPATCH_POLL_INTERVAL_MS = 1_000;
+const DISPATCH_RECONCILE_INTERVAL_MS = 30_000;
+const DISPATCH_BATCH_SIZE = 100;
+const WORKFLOW_SIGNAL_DEADLINE_MS = 5_000;
+const TEMPORAL_CONNECT_TIMEOUT = '3 seconds';
+const TEMPORAL_STATUS_DEADLINE_MS = 2_000;
+const MAX_CONCURRENT_ADVANCE_ACTIVITIES = 8;
+const SHUTDOWN_POLL_INTERVAL_MS = 20;
+
 export class TemporalRuntime {
   private connection: Connection | undefined;
   private native: NativeConnection | undefined;
@@ -20,7 +31,7 @@ export class TemporalRuntime {
     private readonly coordinator: Coordinator,
   ) {}
   onApplicationBootstrap() {
-    this.timer = setInterval(() => void this.tick(), 1000);
+    this.timer = setInterval(() => void this.tick(), DISPATCH_POLL_INTERVAL_MS);
     void this.tick();
   }
   async tick() {
@@ -37,7 +48,7 @@ export class TemporalRuntime {
         await connection?.close();
         this.connection = await Connection.connect({
           address: this.config.TEMPORAL_ADDRESS,
-          connectTimeout: '3 seconds',
+          connectTimeout: TEMPORAL_CONNECT_TIMEOUT,
         });
         this.native = await NativeConnection.connect({ address: this.config.TEMPORAL_ADDRESS });
         const taskQueue = 'waitlist-' + this.config.MESSAGE_NAMESPACE;
@@ -53,7 +64,7 @@ export class TemporalRuntime {
             ? { workflowsPath: resolve(__dirname, 'workflow.ts') }
             : { workflowBundle: { codePath: resolve(__dirname, 'workflow-bundle.js') } }),
           activities: { advance: (id: string) => this.coordinator.advance(id) },
-          maxConcurrentActivityTaskExecutions: 8,
+          maxConcurrentActivityTaskExecutions: MAX_CONCURRENT_ADVANCE_ACTIVITIES,
         });
         this.client = client;
         this.running = this.worker.run().catch(() => {
@@ -63,21 +74,22 @@ export class TemporalRuntime {
         await this.db.query(
           `INSERT INTO workflow_dispatch(sale_id) SELECT DISTINCT sale_id FROM waitlist_entry
           WHERE state=ANY($1::text[]) ON CONFLICT(sale_id) DO UPDATE SET revision=workflow_dispatch.revision+1`,
-          ['WAITING', 'RESERVING', 'OFFERED', 'CANCELLING'],
+          active,
         );
       }
-      if (Date.now() - this.lastReconcile > 30000) {
+      if (Date.now() - this.lastReconcile > DISPATCH_RECONCILE_INTERVAL_MS) {
         await this.db.query(
           'UPDATE workflow_dispatch SET revision=revision+1 WHERE sale_id IN (SELECT DISTINCT sale_id FROM waitlist_entry WHERE state=ANY($1::text[]))',
-          ['WAITING', 'RESERVING', 'OFFERED', 'CANCELLING'],
+          active,
         );
         this.lastReconcile = Date.now();
       }
       const rows = await this.db.query<{ sale_id: string; revision: string }>(
-        'SELECT sale_id,revision::text FROM workflow_dispatch WHERE revision>delivered LIMIT 100',
+        'SELECT sale_id,revision::text FROM workflow_dispatch WHERE revision>delivered LIMIT $1',
+        DISPATCH_BATCH_SIZE,
       );
       for (const row of rows) {
-        await this.connection!.withDeadline(Date.now() + 5000, () =>
+        await this.connection!.withDeadline(Date.now() + WORKFLOW_SIGNAL_DEADLINE_MS, () =>
           this.client!.workflow.signalWithStart('waitlistWorkflow', {
             taskQueue: 'waitlist-' + this.config.MESSAGE_NAMESPACE,
             workflowId: 'waitlist:' + this.config.MESSAGE_NAMESPACE + ':' + row.sale_id,
@@ -100,14 +112,15 @@ export class TemporalRuntime {
   }
   async status() {
     if (!this.connection || !this.client) throw new Error('Temporal unavailable');
-    await this.connection.withDeadline(Date.now() + 2000, () =>
+    await this.connection.withDeadline(Date.now() + TEMPORAL_STATUS_DEADLINE_MS, () =>
       this.connection!.workflowService.getSystemInfo({}),
     );
   }
   async onModuleDestroy() {
     this.stopped = true;
     if (this.timer) clearInterval(this.timer);
-    while (this.busy) await new Promise((resolve) => setTimeout(resolve, 20));
+    while (this.busy)
+      await new Promise((resolve) => setTimeout(resolve, SHUTDOWN_POLL_INTERVAL_MS));
     if (this.client) this.worker?.shutdown();
     await this.running;
     await this.native?.close();

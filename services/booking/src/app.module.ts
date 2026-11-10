@@ -1,10 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { HealthModule, Readiness, SecretBox, TokenVerifier } from '@eventflow/service-runtime';
-import { Broker, Outbox, MessageWorker } from '@eventflow/messaging';
-import { commerceRoutes } from '@eventflow/event-contracts';
 import { Database } from './database';
 import { ProvisionSale } from './provision';
-import { ChangeAvailability } from './availability';
 import { SaleReader } from './sale-reader';
 import { SaleController } from './sale.controller';
 import type { BookingConfig } from './config';
@@ -14,16 +11,15 @@ import { OrderReader } from './orders/reader';
 import { OrderController } from './orders/controller';
 import { DeliveryContextController } from './orders/delivery.controller';
 import { OrderLifecycle } from './orders/lifecycle';
-import { OrderSweeper } from './orders/sweeper';
 import { PaymentAuthorization } from './payments/authorization';
 import { BookingPaymentsController } from './payments/controller';
 import { ConfirmPayment } from './payments/confirm';
-import { RefundOutcome } from './payments/refund-outcome';
 import { RefundAccess } from './refunds/access';
 import { OrganizerRefunds } from './refunds/organizer';
 import { OrganizerOrdersController, OrderUpdatesAccessController } from './refunds/controller';
-import { RefundWorkflow } from './refunds/workflow';
 import { BookingOps } from './ops.controller';
+
+import { bookingBrokerReadiness, bookingWorkerProviders } from './worker-providers';
 
 @Module({ imports: [HealthModule.forService('booking')] })
 export class AppModule {
@@ -51,53 +47,7 @@ export class AppModule {
           inject: [Database, RefundAccess],
           useFactory: (db: Database, access: RefundAccess) => new OrganizerRefunds(db, access),
         },
-        ...(runWorkers
-          ? [
-              {
-                provide: 'BOOKING_REFUNDS_WORKER',
-                inject: [Database],
-                useFactory: (db: Database) =>
-                  new MessageWorker(
-                    new Broker({
-                      url: config.AMQP_URL,
-                      namespace: config.MESSAGE_NAMESPACE,
-                      consumer: 'booking-refunds',
-                      routes: commerceRoutes,
-                    }),
-                    undefined,
-                    (event) => new RefundWorkflow(db).handle(event),
-                  ),
-              },
-              {
-                provide: OrderSweeper,
-                inject: [Database, OrderLifecycle],
-                useFactory: (db: Database, lifecycle: OrderLifecycle) =>
-                  new OrderSweeper(db, lifecycle),
-              },
-              {
-                provide: MessageWorker,
-                inject: [Database, ProvisionSale],
-                useFactory: (db: Database, provision: ProvisionSale) =>
-                  new MessageWorker(
-                    new Broker({
-                      url: config.AMQP_URL,
-                      namespace: config.MESSAGE_NAMESPACE,
-                      consumer: 'booking',
-                      routes: commerceRoutes,
-                    }),
-                    new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
-                    (event) =>
-                      event.eventType.startsWith('Refund')
-                        ? new RefundOutcome(db).handle(event)
-                        : event.eventType === 'PaymentSucceeded.v1'
-                          ? new ConfirmPayment(db).handle(event)
-                          : event.eventType === 'SaleAvailabilityRequested.v1'
-                            ? new ChangeAvailability(db).handle(event)
-                            : provision.handle(event),
-                  ),
-              },
-            ]
-          : []),
+        ...(runWorkers ? bookingWorkerProviders(config) : []),
         {
           provide: PaymentAuthorization,
           inject: [Database],
@@ -152,25 +102,7 @@ export class AppModule {
             return readiness;
           },
         },
-        ...(config.EVENTFLOW_WORKLOAD === 'worker'
-          ? [
-              {
-                provide: 'BROKER_READINESS',
-                inject: [Readiness, MessageWorker, 'BOOKING_REFUNDS_WORKER'],
-                useFactory: (
-                  readiness: Readiness,
-                  worker: MessageWorker,
-                  refunds: MessageWorker,
-                ) => {
-                  readiness.register('rabbitmq', async () => {
-                    if (!worker.broker.ready || !refunds.broker.ready)
-                      throw new Error('RabbitMQ consumer unavailable');
-                  });
-                  return readiness;
-                },
-              },
-            ]
-          : []),
+        ...(config.EVENTFLOW_WORKLOAD === 'worker' ? [bookingBrokerReadiness] : []),
       ],
     };
   }

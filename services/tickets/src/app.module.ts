@@ -1,11 +1,8 @@
 import { Module, type DynamicModule } from '@nestjs/common';
-import { commerceRoutes } from '@eventflow/event-contracts';
-import { Broker, MessageWorker, Outbox } from '@eventflow/messaging';
 import {
   HealthModule,
   MailOperator,
   MailQueue,
-  MailWorker,
   Readiness,
   TokenVerifier,
 } from '@eventflow/service-runtime';
@@ -14,15 +11,15 @@ import { Database } from './database';
 import { TicketController } from './controller';
 import { IssueTickets } from './issue';
 import { QrCredentials } from './qr-credentials';
-import { DeliverTickets } from './deliver';
 import { AdmissionPolicy } from './admission-policy';
 import { CheckInController } from './check-in.controller';
 import { CheckInTicket } from './check-in';
-import { TicketRefunds } from './refunds';
 import { OfflineMetrics } from './offline-metrics';
 import { OfflineCheckIn } from './offline-check-in';
 import { OfflineCheckInController } from './offline-check-in.controller';
 import { TicketOps } from './ops.controller';
+
+import { ticketsBrokerReadiness, ticketsWorkerProviders } from './worker-providers';
 
 @Module({ imports: [HealthModule.forService('tickets')] })
 export class AppModule {
@@ -41,57 +38,7 @@ export class AppModule {
               OfflineCheckInController,
             ],
       providers: [
-        ...(runWorkers
-          ? [
-              {
-                provide: 'TICKETS_REFUNDS_WORKER',
-                inject: [Database],
-                useFactory: (db: Database) =>
-                  new MessageWorker(
-                    new Broker({
-                      url: config.AMQP_URL,
-                      namespace: config.MESSAGE_NAMESPACE,
-                      consumer: 'ticket-refunds',
-                      routes: commerceRoutes,
-                    }),
-                    undefined,
-                    (event) => new TicketRefunds(db).handle(event),
-                  ),
-              },
-              {
-                provide: MailWorker,
-                inject: [MailQueue, Database],
-                useFactory: (queue: MailQueue, db: Database) => {
-                  const delivery = new DeliverTickets(config);
-                  return new MailWorker(
-                    queue,
-                    async (id) => {
-                      const gate = await db.refundGate.findUnique({ where: { operationId: id } });
-                      return gate?.state === 'REVOKED'
-                        ? delivery.refund(id, gate.orderId)
-                        : delivery.send(id);
-                    },
-                    config.MAIL_DELIVERY_DISABLED !== 'true',
-                  );
-                },
-              },
-              {
-                provide: MessageWorker,
-                inject: [IssueTickets, Database],
-                useFactory: (issue: IssueTickets, db: Database) =>
-                  new MessageWorker(
-                    new Broker({
-                      url: config.AMQP_URL,
-                      namespace: config.MESSAGE_NAMESPACE,
-                      consumer: 'tickets',
-                      routes: commerceRoutes,
-                    }),
-                    new Outbox((sql, ...values) => db.$queryRawUnsafe(sql, ...values)),
-                    (event) => issue.handle(event),
-                  ),
-              },
-            ]
-          : []),
+        ...(runWorkers ? ticketsWorkerProviders(config) : []),
         {
           provide: Database,
           useFactory: () => new Database(config.TICKETS_DATABASE_URL, config.DATABASE_POOL_SIZE),
@@ -140,25 +87,7 @@ export class AppModule {
             return readiness;
           },
         },
-        ...(config.EVENTFLOW_WORKLOAD === 'worker'
-          ? [
-              {
-                provide: 'BROKER_READINESS',
-                inject: [Readiness, MessageWorker, 'TICKETS_REFUNDS_WORKER'],
-                useFactory: (
-                  readiness: Readiness,
-                  worker: MessageWorker,
-                  refunds: MessageWorker,
-                ) => {
-                  readiness.register('rabbitmq', async () => {
-                    if (!worker.broker.ready || !refunds.broker.ready)
-                      throw new Error('RabbitMQ consumer unavailable');
-                  });
-                  return readiness;
-                },
-              },
-            ]
-          : []),
+        ...(config.EVENTFLOW_WORKLOAD === 'worker' ? [ticketsBrokerReadiness] : []),
       ],
     };
   }
