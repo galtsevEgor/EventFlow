@@ -3,6 +3,11 @@ import { Broker } from './broker';
 import { Outbox } from './outbox';
 import { currentTelemetry } from '@eventflow/telemetry';
 
+const outboxPollIntervalMs = 200;
+const reconnectIntervalMs = 2_000;
+const consumerHealthIntervalMs = 2_000;
+const outboxBatchSize = 20;
+
 export class MessageWorker {
   private stopped = true;
   private timer: NodeJS.Timeout | undefined;
@@ -39,7 +44,7 @@ export class MessageWorker {
       }, delay);
   }
   private async tick() {
-    let delay = 200;
+    let delay = outboxPollIntervalMs;
     try {
       if (!this.broker.ready) {
         await this.broker.close();
@@ -47,10 +52,10 @@ export class MessageWorker {
         await this.broker.open(this.handle);
       }
       if (!this.outbox) {
-        delay = 2000;
+        delay = consumerHealthIntervalMs;
         return;
       }
-      for (let count = 0; count < 20 && !this.stopped; count++) {
+      for (let count = 0; count < outboxBatchSize && !this.stopped; count++) {
         const item = await this.outbox.claim();
         if (!item) break;
         try {
@@ -62,7 +67,7 @@ export class MessageWorker {
         }
       }
     } catch {
-      delay = 2000;
+      delay = reconnectIntervalMs;
       console.warn(
         JSON.stringify({ kind: 'messaging_unavailable', consumer: this.broker.config.consumer }),
       );

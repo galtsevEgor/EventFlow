@@ -17,7 +17,13 @@ import {
 import { eventEnvelopeSchema, type EventEnvelope } from '@eventflow/event-contracts';
 
 export class PermanentMessageError extends Error {}
-export const retryDelays = [5000, 30_000, 120_000, 600_000] as const;
+export const retryDelays = [5_000, 30_000, 120_000, 600_000] as const;
+const brokerConnectTimeoutMs = 5_000;
+const publishConfirmTimeoutMs = 5_000;
+const queueMessageLimit = 10_000;
+const consumerPrefetch = 4;
+const maximumMessageBytes = 1024 * 1024;
+const retryJitterRatio = 0.2;
 export type BrokerConfig = {
   url: string;
   namespace: string;
@@ -40,7 +46,7 @@ export class Broker {
     return `${this.config.namespace}.${consumer}`;
   }
   async open(handle: (event: EventEnvelope) => Promise<void>) {
-    const connection = await connect(this.config.url, { timeout: 5000 });
+    const connection = await connect(this.config.url, { timeout: brokerConnectTimeoutMs });
     this.connection = connection;
     connection.on('error', () => {
       this.ready = false;
@@ -66,7 +72,7 @@ export class Broker {
       const args = {
         'x-queue-type': 'quorum',
         'x-overflow': 'reject-publish',
-        'x-max-length': 10_000,
+        'x-max-length': queueMessageLimit,
       };
       await channel.assertQueue(queue, { durable: true, arguments: args });
       await channel.assertQueue(`${queue}.dlq`, { durable: true, arguments: args });
@@ -76,14 +82,14 @@ export class Broker {
           durable: true,
           arguments: {
             ...args,
-            'x-message-ttl': Math.ceil(delay * 1.2),
+            'x-message-ttl': Math.ceil(delay * (1 + retryJitterRatio)),
             'x-dead-letter-exchange': '',
             'x-dead-letter-routing-key': queue,
             'x-dead-letter-strategy': 'at-least-once',
           },
         });
     }
-    await channel.prefetch(4);
+    await channel.prefetch(consumerPrefetch);
     await channel.consume(
       this.queue(),
       (message) => {
@@ -139,7 +145,10 @@ export class Broker {
     this.pending.set(id, item);
     try {
       await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Publisher confirmation timed out')), 5000);
+        const timer = setTimeout(
+          () => reject(new Error('Publisher confirmation timed out')),
+          publishConfirmTimeoutMs,
+        );
         try {
           channel.publish(
             exchange,
@@ -176,7 +185,7 @@ export class Broker {
     const attempt = typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : 0;
     let retryParent = validTraceparent(message.properties.headers?.traceparent);
     try {
-      if (message.content.length > 1024 * 1024)
+      if (message.content.length > maximumMessageBytes)
         throw new PermanentMessageError('Oversized message');
       let event: EventEnvelope;
       try {
@@ -207,7 +216,7 @@ export class Broker {
           ...(typeof retryParent === 'string' ? { traceparent: retryParent } : {}),
         },
         ...(!dead && delay !== undefined
-          ? { expiration: String(delay + Math.floor(Math.random() * delay * 0.2)) }
+          ? { expiration: String(delay + Math.floor(Math.random() * delay * retryJitterRatio)) }
           : {}),
       });
       console.warn(

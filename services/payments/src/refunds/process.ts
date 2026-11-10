@@ -11,6 +11,14 @@ import {
   traceFailure,
   type Telemetry,
 } from '@eventflow/telemetry';
+import {
+  PAYMENT_PROCESSING_LEASE_SECONDS,
+  PAYMENT_REVIEW_FAILURE_THRESHOLD,
+  paymentRetryAt,
+  providerResendWindowExpired,
+} from '../processing-policy';
+
+const REFUND_RECHECK_INTERVAL_MS = 60_000;
 
 export class ProcessRefund {
   private telemetry: Telemetry | undefined;
@@ -24,7 +32,8 @@ export class ProcessRefund {
   async run(id?: string) {
     const lease = randomUUID();
     const [operation] = await this.db.$queryRaw<RefundOperation[]>`
-      UPDATE "RefundOperation" SET lease = ${lease}::uuid, "leaseUntil" = clock_timestamp() + interval '60 seconds'
+      UPDATE "RefundOperation" SET lease = ${lease}::uuid,
+        "leaseUntil" = clock_timestamp() + ${PAYMENT_PROCESSING_LEASE_SECONDS}::integer * interval '1 second'
       WHERE id = (SELECT id FROM "RefundOperation" WHERE
         (${id ?? null}::uuid IS NULL OR id = ${id ?? null}::uuid)
         AND state IN ('PENDING', 'UNKNOWN') AND "nextRunAt" <= clock_timestamp()
@@ -59,7 +68,7 @@ export class ProcessRefund {
             this.provider.findRefund(input),
           );
           if (!result) {
-            if (Date.now() - +operation.createdAt >= 23 * 3600_000) throw new ProviderMismatch();
+            if (providerResendWindowExpired(operation.createdAt)) throw new ProviderMismatch();
             result = await observeProvider('payment.provider.refund', () =>
               this.provider.refund(input),
             );
@@ -74,19 +83,16 @@ export class ProcessRefund {
           await this.settle(operation, lease, result);
         } catch (error) {
           traceFailure();
-          const review = error instanceof ProviderMismatch || operation.failures >= 7;
+          const mismatch = error instanceof ProviderMismatch;
+          const review = mismatch || operation.failures >= PAYMENT_REVIEW_FAILURE_THRESHOLD;
           await this.db.$transaction(async (tx) => {
             const changed = await tx.refundOperation.updateMany({
               where: { id: operation.id, lease },
               data: {
                 state: review ? 'REQUIRES_REVIEW' : 'UNKNOWN',
                 failures: { increment: 1 },
-                reviewCode: review
-                  ? error instanceof ProviderMismatch
-                    ? 'REFUND_BINDING_MISMATCH'
-                    : 'RETRY_LIMIT'
-                  : null,
-                nextRunAt: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** operation.failures)),
+                reviewCode: mismatch ? 'REFUND_BINDING_MISMATCH' : review ? 'RETRY_LIMIT' : null,
+                nextRunAt: paymentRetryAt(operation.failures),
                 lease: null,
                 leaseUntil: null,
               },
@@ -139,7 +145,7 @@ export class ProcessRefund {
           providerRefundId: result.id,
           reviewCode: result.status === 'failed' ? 'PROVIDER_REFUND_FAILED' : null,
           failures: 0,
-          nextRunAt: new Date(Date.now() + 60_000),
+          nextRunAt: new Date(Date.now() + REFUND_RECHECK_INTERVAL_MS),
           lease: null,
           leaseUntil: null,
         },

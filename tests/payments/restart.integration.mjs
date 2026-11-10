@@ -16,6 +16,17 @@ after(async () => {
   await fixture?.close();
 });
 
+async function databaseTime() {
+  const [clock] = await fixture.db.$queryRaw`SELECT clock_timestamp() AS now`;
+  return +clock.now;
+}
+
+async function assertLeaseDeadline(deadline, beforeClaim) {
+  assert.ok(deadline);
+  const claimedAt = deadline.getTime() - 60_000;
+  assert.ok(claimedAt >= beforeClaim - 1 && claimedAt <= (await databaseTime()) + 1);
+}
+
 test('SIGKILL after provider create is recovered by another process with the original attempt and one payment', async () => {
   const buyer = await fixture.identity.token('crash-buyer', {
     aud: ['eventflow-booking', 'eventflow-payments'],
@@ -42,9 +53,11 @@ test('SIGKILL after provider create is recovered by another process with the ori
   const id = created.body.attemptId;
   const first = await paymentReplica(fixture);
   try {
+    const beforeClaim = await databaseTime();
     await first.run('payment', id, true);
     const pending = await fixture.db.paymentAttempt.findUnique({ where: { id } });
     assert.ok(pending.lease);
+    await assertLeaseDeadline(pending.leaseUntil, beforeClaim);
     assert.equal(pending.providerPaymentId, null);
     assert.equal(await fixture.db.fakePayment.count({ where: { attemptId: id } }), 1);
     await first.close(true);
@@ -77,8 +90,11 @@ test('SIGKILL after provider refund is recovered by another process with one ful
   const { refund, attempt } = await pendingRefund(fixture);
   const first = await paymentReplica(fixture);
   try {
+    const beforeClaim = await databaseTime();
     await first.run('refund', refund.id, true);
-    assert.ok((await fixture.db.refundOperation.findUnique({ where: { id: refund.id } })).lease);
+    const pending = await fixture.db.refundOperation.findUnique({ where: { id: refund.id } });
+    assert.ok(pending.lease);
+    await assertLeaseDeadline(pending.leaseUntil, beforeClaim);
     assert.equal(await fixture.db.fakeRefund.count({ where: { operationId: refund.id } }), 1);
     await first.close(true);
     await fixture.db.refundOperation.update({

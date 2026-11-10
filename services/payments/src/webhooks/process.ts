@@ -10,6 +10,9 @@ import {
   traceFailure,
   type Telemetry,
 } from '@eventflow/telemetry';
+import { PAYMENT_REVIEW_FAILURE_THRESHOLD, paymentRetryAt } from '../processing-policy';
+
+const MAX_WEBHOOKS_PER_PASS = 20;
 
 export class ProcessWebhooks {
   private telemetry: Telemetry | undefined;
@@ -23,7 +26,7 @@ export class ProcessWebhooks {
   async run() {
     const pending = await this.db.$queryRaw<ProviderWebhook[]>`
       SELECT * FROM "ProviderWebhook" WHERE "processedAt" IS NULL AND "nextRunAt" <= clock_timestamp()
-      ORDER BY "createdAt", "eventId" LIMIT 20`;
+      ORDER BY "createdAt", "eventId" LIMIT ${MAX_WEBHOOKS_PER_PASS}`;
     for (const receipt of pending) {
       await observedJob(
         this.telemetry ?? currentTelemetry(),
@@ -66,19 +69,17 @@ export class ProcessWebhooks {
             });
           } catch (error) {
             traceFailure();
-            const review = error instanceof ProviderMismatch || receipt.failures >= 7;
+            const mismatch = error instanceof ProviderMismatch;
+            const review = mismatch || receipt.failures >= PAYMENT_REVIEW_FAILURE_THRESHOLD;
             await this.db.providerWebhook.updateMany({
               where: { eventId: receipt.eventId, processedAt: null },
               data: {
                 failures: { increment: 1 },
-                nextRunAt: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** receipt.failures)),
+                nextRunAt: paymentRetryAt(receipt.failures),
                 ...(review
                   ? {
                       processedAt: new Date(),
-                      reviewCode:
-                        error instanceof ProviderMismatch
-                          ? 'UNKNOWN_OR_MISMATCHED_PAYMENT'
-                          : 'RETRY_LIMIT',
+                      reviewCode: mismatch ? 'UNKNOWN_OR_MISMATCHED_PAYMENT' : 'RETRY_LIMIT',
                     }
                   : {}),
               },

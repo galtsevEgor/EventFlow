@@ -4,6 +4,8 @@ import type { Database } from '../database';
 import { z } from 'zod';
 
 export type Transaction = Prisma.TransactionClient;
+const maximumTransactionAttempts = 3;
+const transactionRetryBaseDelayMs = 10;
 const adapterFailure = z.object({
   driverAdapterError: z.object({ cause: z.object({ originalCode: z.string() }) }),
 });
@@ -31,8 +33,10 @@ export async function transaction<T>(
         throw busy();
       const retryable = error.code === 'P2034' || ['40001', '40P01'].includes(sqlState);
       if (!retryable) throw error;
-      if (attempt === 2) throw busy();
-      await new Promise((resolve) => setTimeout(resolve, 10 * (attempt + 1)));
+      if (attempt + 1 >= maximumTransactionAttempts) throw busy();
+      await new Promise((resolve) =>
+        setTimeout(resolve, transactionRetryBaseDelayMs * (attempt + 1)),
+      );
     }
   }
 }

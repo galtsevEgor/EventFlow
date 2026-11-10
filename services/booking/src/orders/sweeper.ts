@@ -2,6 +2,9 @@ import { Logger } from '@nestjs/common';
 import { Database } from '../database';
 import { OrderLifecycle } from './lifecycle';
 
+const expirationBatchSize = 50;
+const sweepIntervalMs = 5_000;
+
 export class OrderSweeper {
   private stopped = true;
   private timer?: NodeJS.Timeout;
@@ -14,7 +17,7 @@ export class OrderSweeper {
   async sweep() {
     const candidates = await this.db.$queryRaw<{ id: string }[]>`
       SELECT id FROM "Order" WHERE state = 'HELD' AND "expiresAt" <= clock_timestamp()
-      ORDER BY "expiresAt", id LIMIT 50
+      ORDER BY "expiresAt", id LIMIT ${expirationBatchSize}
     `;
     for (const order of candidates) await this.lifecycle.expire(order.id);
   }
@@ -30,7 +33,7 @@ export class OrderSweeper {
         .finally(() => {
           if (!this.stopped) this.schedule();
         });
-    }, 5000);
+    }, sweepIntervalMs);
     this.timer.unref();
   }
   async stop() {

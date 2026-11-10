@@ -16,6 +16,15 @@ import {
   traceFailure,
   type Telemetry,
 } from '@eventflow/telemetry';
+import {
+  PAYMENT_PROCESSING_LEASE_SECONDS,
+  PAYMENT_REVIEW_FAILURE_THRESHOLD,
+  paymentRetryAt,
+  providerResendWindowExpired,
+} from '../processing-policy';
+
+const ATTEMPT_RECHECK_INTERVAL_MS = 60_000;
+const ATTEMPT_RECHECK_JITTER_MS = 5_000;
 
 export function matches(attempt: PaymentAttempt, payment: ProviderPayment) {
   return (
@@ -39,7 +48,8 @@ export class ProcessAttempt {
   async run(id?: string) {
     const lease = randomUUID();
     const [attempt] = await this.db.$queryRaw<PaymentAttempt[]>`
-      UPDATE "PaymentAttempt" SET lease = ${lease}::uuid, "leaseUntil" = clock_timestamp() + interval '60 seconds'
+      UPDATE "PaymentAttempt" SET lease = ${lease}::uuid,
+        "leaseUntil" = clock_timestamp() + ${PAYMENT_PROCESSING_LEASE_SECONDS}::integer * interval '1 second'
       WHERE id = (SELECT id FROM "PaymentAttempt" WHERE
         (${id ?? null}::uuid IS NULL OR id = ${id ?? null}::uuid)
         AND "nextRunAt" <= clock_timestamp() AND ("leaseUntil" IS NULL OR "leaseUntil" < clock_timestamp())
@@ -82,8 +92,8 @@ export class ProcessAttempt {
             });
             if (!saved.count) return true;
           }
-          // Never reuse a possibly pruned provider key to create a new payment after 23 hours.
-          if (!attempt.providerPaymentId && Date.now() - +attempt.createdAt >= 23 * 3600_000)
+          // The provider may have pruned the key by the time the resend window expires.
+          if (!attempt.providerPaymentId && providerResendWindowExpired(attempt.createdAt))
             throw new ProviderMismatch();
           const providerPaymentId = attempt.providerPaymentId;
           let payment = providerPaymentId
@@ -116,7 +126,8 @@ export class ProcessAttempt {
           await this.accept(attempt.id, lease, payment);
         } catch (error) {
           traceFailure();
-          const review = error instanceof ProviderMismatch || attempt.failures >= 7;
+          const mismatch = error instanceof ProviderMismatch;
+          const review = mismatch || attempt.failures >= PAYMENT_REVIEW_FAILURE_THRESHOLD;
           await this.db.$transaction(async (tx) => {
             const changed = await tx.paymentAttempt.updateMany({
               where: { id: attempt.id, lease },
@@ -129,14 +140,11 @@ export class ProcessAttempt {
                       ...(attempt.successPublished && attempt.bookingState === 'PENDING'
                         ? { bookingState: 'REQUIRES_REVIEW' }
                         : {}),
-                      reviewCode:
-                        error instanceof ProviderMismatch
-                          ? 'PROVIDER_BINDING_MISMATCH'
-                          : 'RETRY_LIMIT',
+                      reviewCode: mismatch ? 'PROVIDER_BINDING_MISMATCH' : 'RETRY_LIMIT',
                     }
                   : {}),
                 failures: { increment: 1 },
-                nextRunAt: new Date(Date.now() + Math.min(60_000, 1000 * 2 ** attempt.failures)),
+                nextRunAt: paymentRetryAt(attempt.failures),
                 lease: null,
                 leaseUntil: null,
               },
@@ -193,7 +201,11 @@ export class ProcessAttempt {
           providerPaymentId: payment.id,
           successPublished: succeeded,
           failures: 0,
-          nextRunAt: new Date(Date.now() + 60_000 + Math.floor(Math.random() * 5000)),
+          nextRunAt: new Date(
+            Date.now() +
+              ATTEMPT_RECHECK_INTERVAL_MS +
+              Math.floor(Math.random() * ATTEMPT_RECHECK_JITTER_MS),
+          ),
           lease: null,
           leaseUntil: null,
         },
