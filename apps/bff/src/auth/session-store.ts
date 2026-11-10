@@ -3,6 +3,14 @@ import { createClient } from 'redis';
 import { z } from 'zod';
 import { ApiError } from '@eventflow/service-runtime';
 import type { AuthConfig } from './config';
+import {
+  LOGIN_FLOW_TTL_SECONDS,
+  SESSION_IDLE_TTL_MS,
+  SESSION_IDLE_TTL_SECONDS,
+  SESSION_REFRESH_LOCK_TTL_MS,
+} from './session-policy';
+
+const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 export const opaqueId = () => randomBytes(32).toString('base64url');
 export const identitySchema = z.object({
@@ -66,7 +74,7 @@ export class SessionStore {
     const id = opaqueId();
     await this.execute(() =>
       this.client.set(this.key('flow', id), JSON.stringify(flow), {
-        expiration: { type: 'EX', value: 300 },
+        expiration: { type: 'EX', value: LOGIN_FLOW_TTL_SECONDS },
       }),
     );
     return id;
@@ -79,7 +87,7 @@ export class SessionStore {
     const id = opaqueId();
     await this.execute(() =>
       this.client.set(this.key('session', id), JSON.stringify(session), {
-        expiration: { type: 'EX', value: 1800 },
+        expiration: { type: 'EX', value: SESSION_IDLE_TTL_SECONDS },
       }),
     );
     return id;
@@ -96,7 +104,7 @@ export class SessionStore {
     return { raw, session };
   }
   async replace(id: string, previous: string, session: Session) {
-    const ttl = Math.min(1800000, session.absoluteExpiresAt - Date.now());
+    const ttl = Math.min(SESSION_IDLE_TTL_MS, session.absoluteExpiresAt - Date.now());
     if (ttl <= 0) return false;
     const result = await this.execute(() =>
       this.client.eval(
@@ -117,7 +125,7 @@ export class SessionStore {
       (await this.execute(() =>
         this.client.set(this.key('refresh', id), owner, {
           condition: 'NX',
-          expiration: { type: 'PX', value: 10000 },
+          expiration: { type: 'PX', value: SESSION_REFRESH_LOCK_TTL_MS },
         }),
       )) === 'OK'
     );
@@ -133,8 +141,8 @@ export class SessionStore {
   async rateLimit(identity: string, limit: number) {
     const count = await this.execute(() =>
       this.client.eval(
-        "local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('EXPIRE', KEYS[1], 60) end; return n",
-        { keys: [this.key('rate', identity)], arguments: [] },
+        "local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end; return n",
+        { keys: [this.key('rate', identity)], arguments: [String(RATE_LIMIT_WINDOW_SECONDS)] },
       ),
     );
     if (Number(count) > limit)

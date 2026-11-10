@@ -5,6 +5,8 @@ import { ApiError } from '@eventflow/service-runtime';
 import { draftSnapshotSchema, type DraftSnapshot } from '@eventflow/collaboration';
 import { AuthService } from '../auth/auth.service';
 
+const COLLABORATION_WRITE_RATE_LIMIT = 120;
+
 export type DocumentTarget = { organizationId: string; eventId: string };
 
 export function socketRequest(request: IncomingMessage): Request {
@@ -42,7 +44,11 @@ export class DocumentAccess {
       name: session.user.name.trim().slice(0, 80) || 'Участник',
       color: colors[createHash('sha256').update(session.user.sub).digest()[0]! % colors.length]!,
     };
-    if (update) await this.auth.store.rateLimit('collaboration-write:' + session.user.sub, 120);
+    if (update)
+      await this.auth.store.rateLimit(
+        'collaboration-write:' + session.user.sub,
+        COLLABORATION_WRITE_RATE_LIMIT,
+      );
     const response = await fetch(
       new URL(
         '/internal/collaboration/' + this.target.organizationId + '/' + this.target.eventId,

@@ -79,3 +79,48 @@ test('real gateway rate limits return retry metadata while health stays reachabl
       }
   }
 });
+
+test('gateway lets bounded slow API operations finish and still times out regular requests', async () => {
+  const upstream = createServer((_request, response) => {
+    const timer = setTimeout(() => {
+      response.writeHead(200, { 'content-type': 'application/json' }).end('{}');
+    }, 200);
+    response.once('close', () => clearTimeout(timer));
+  });
+  let gateway;
+  try {
+    await new Promise((done) => upstream.listen(0, '127.0.0.1', done));
+    gateway = createGateway({
+      bff: `http://127.0.0.1:${upstream.address().port}`,
+      proxyTimeouts: { standardMs: 50, extendedApiMs: 3000 },
+    });
+    await new Promise((done) => gateway.listen(0, '127.0.0.1', done));
+    const origin = `http://127.0.0.1:${gateway.address().port}`;
+    const id = '9caab5f0-598d-4c5c-a39a-d3d518c1d84c';
+    const event = `/api/v1/organizations/${id}/events/${id}`;
+    const calls = [
+      ['GET', `${event}/cover`, 200],
+      ['POST', '/api/v1/offline-check-in/sync', 200],
+      ['POST', '/api/v1/orders', 200],
+      ['GET', `/api/v1/organizations/${id}/analytics`, 200],
+      ['GET', `${event}/waitlist`, 200],
+      ['GET', '/api/v1/events', 503],
+      ['GET', '/api/v1/orders', 503],
+      ['GET', '/api/v1/offline-check-in/unknown', 503],
+    ];
+    await Promise.all(
+      calls.map(async ([method, path, status]) => {
+        const response = await fetch(origin + path, { method, signal: AbortSignal.timeout(5000) });
+        assert.equal(response.status, status, `${method} ${path}`);
+        if (status === 503) assert.equal((await response.json()).code, 'UNAVAILABLE');
+        else assert.deepEqual(await response.json(), {});
+      }),
+    );
+  } finally {
+    for (const server of [gateway, upstream]) {
+      if (!server?.listening) continue;
+      server.closeAllConnections();
+      await new Promise((done) => server.close(done));
+    }
+  }
+});

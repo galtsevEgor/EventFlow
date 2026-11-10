@@ -12,6 +12,8 @@ import {
 import { z } from 'zod';
 import { AuthService } from './auth/auth.service';
 
+const OPERATOR_RATE_LIMIT = 120;
+
 @Controller('api/v1/ops')
 export class OpsController {
   constructor(
@@ -30,7 +32,7 @@ export class OpsController {
     if (actor.subject !== session.user.sub)
       throw new ApiError(401, 'UNAUTHENTICATED', 'Сессия завершилась.');
     if (request.method !== 'GET') this.auth.assertCsrf(request, session.csrf);
-    await this.auth.store.rateLimit(`ops:${actor.subject}`, 120);
+    await this.auth.store.rateLimit(`ops:${actor.subject}`, OPERATOR_RATE_LIMIT);
     return { session, actor };
   }
   private origin(service: 'payments' | 'catalog' | 'tickets') {

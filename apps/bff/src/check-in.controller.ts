@@ -3,6 +3,8 @@ import type { Request, Response } from 'express';
 import { ApiError } from '@eventflow/service-runtime';
 import { AuthService } from './auth/auth.service';
 
+const CHECK_IN_RATE_LIMIT = 120;
+
 @Controller('api/v1/check-in')
 export class CheckInProxy {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
@@ -11,7 +13,7 @@ export class CheckInProxy {
   async forward(@Req() request: Request, @Res() response: Response) {
     const { session } = await this.auth.requireSession(request);
     this.auth.assertCsrf(request, session.csrf);
-    await this.auth.store.rateLimit(`check-in:${session.user.sub}`, 120);
+    await this.auth.store.rateLimit(`check-in:${session.user.sub}`, CHECK_IN_RATE_LIMIT);
     let status: number;
     let body: unknown;
     try {

@@ -5,6 +5,11 @@ import { analyticsBatchSchema } from '@eventflow/event-contracts';
 import { AuthService } from '../auth/auth.service';
 import { upstreamUrl } from '../upstream-url';
 import { AnalyticsBridge } from './service';
+
+const ANALYTICS_EVENTS_RATE_LIMIT = 120;
+const ANALYTICS_REPORT_RATE_LIMIT = 60;
+const ANALYTICS_REPORT_TIMEOUT_MS = 18_000;
+
 @Controller()
 export class AnalyticsProxy {
   constructor(
@@ -28,7 +33,7 @@ export class AnalyticsProxy {
     const session = this.analytics.session.read(request);
     if (!session) throw new ApiError(409, 'ANALYTICS_SESSION', 'Обновите контекст аналитики.');
     const { events } = parseInput(analyticsBatchSchema, input);
-    await this.auth.store.rateLimit('analytics:' + session.id, 120);
+    await this.auth.store.rateLimit('analytics:' + session.id, ANALYTICS_EVENTS_RATE_LIMIT);
     const searchIds: Record<string, string> = {};
     for (const event of events) {
       if (event.source === 'search' || event.kind === 'search_click') {
@@ -48,12 +53,15 @@ export class AnalyticsProxy {
   async report(@Req() request: Request, @Res() response: Response) {
     if (request.method !== 'GET') throw new ApiError(404, 'NOT_FOUND', 'Маршрут не найден.');
     const { session } = await this.auth.requireSession(request);
-    await this.auth.store.rateLimit('analytics-report:' + session.user.sub, 60);
+    await this.auth.store.rateLimit(
+      'analytics-report:' + session.user.sub,
+      ANALYTICS_REPORT_RATE_LIMIT,
+    );
     try {
       const url = upstreamUrl(this.auth.config.ANALYTICS_URL, request.path, request.originalUrl);
       const result = await fetch(url, {
         redirect: 'error',
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(ANALYTICS_REPORT_TIMEOUT_MS),
         headers: { authorization: 'Bearer ' + session.accessToken },
       });
       const body = await result.json();

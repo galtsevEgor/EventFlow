@@ -1,5 +1,9 @@
 import type { Response } from 'express';
 
+const STREAM_MIN_LIFETIME_MS = 120_000;
+const STREAM_LIFETIME_JITTER_MS = 15_000;
+const STREAM_UPDATE_DEBOUNCE_MS = 200;
+
 export type StreamMetrics = {
   opened: number;
   closed: number;
@@ -36,7 +40,8 @@ export class UpdatesConnection {
     this.send('ready');
     if (this.closed) return;
     this.heartbeat = setInterval(() => void this.verify(), heartbeatMs);
-    this.lifetime = setTimeout(this.close, 120000 + Math.floor(Math.random() * 15000));
+    const lifetime = STREAM_MIN_LIFETIME_MS + Math.floor(Math.random() * STREAM_LIFETIME_JITTER_MS);
+    this.lifetime = setTimeout(this.close, lifetime);
   }
   readonly pulse = () => {
     if (this.closed) return;
@@ -46,7 +51,7 @@ export class UpdatesConnection {
       this.debounce = setTimeout(() => {
         this.debounce = undefined;
         void this.verify();
-      }, 200);
+      }, STREAM_UPDATE_DEBOUNCE_MS);
   };
   private async verify() {
     if (this.closed || this.busy) return;

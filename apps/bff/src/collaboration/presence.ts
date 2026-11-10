@@ -4,6 +4,10 @@ import { SessionStore } from '../auth/session-store';
 import type { DocumentTarget } from './access';
 import { roomId } from './bus';
 
+const PRESENCE_MEMBER_TTL_MS = 15_000;
+const PRESENCE_ROOM_TTL_MS = 30_000;
+const PRESENCE_TOUCH_TIMEOUT_MS = 2_000;
+
 // Redis time and one atomic script make the room limit apply across replicas.
 const touch = [
   "local t=redis.call('TIME'); local now=t[1]*1000+math.floor(t[2]/1000)",
@@ -15,8 +19,8 @@ const touch = [
   'if peer.clientId==incoming.clientId then return -2 end',
   'count=count+1 end end',
   'if count>=16 then return -1 end',
-  'incoming.expiresAt=now+15000',
-  "redis.call('HSET',KEYS[1],ARGV[1],cjson.encode(incoming)); redis.call('PEXPIRE',KEYS[1],30000)",
+  'incoming.expiresAt=now+tonumber(ARGV[3])',
+  "redis.call('HSET',KEYS[1],ARGV[1],cjson.encode(incoming)); redis.call('PEXPIRE',KEYS[1],ARGV[4])",
   "return redis.call('HVALS',KEYS[1])",
 ].join('\n');
 
@@ -30,9 +34,14 @@ export class DocumentPresence {
   }
   async touch(target: DocumentTarget, member: Member): Promise<Member[]> {
     const result = await this.store.execute(() =>
-      this.store.client.withCommandOptions({ timeout: 2000 }).eval(touch, {
+      this.store.client.withCommandOptions({ timeout: PRESENCE_TOUCH_TIMEOUT_MS }).eval(touch, {
         keys: [this.key(target)],
-        arguments: [member.peerId, JSON.stringify(member)],
+        arguments: [
+          member.peerId,
+          JSON.stringify(member),
+          String(PRESENCE_MEMBER_TTL_MS),
+          String(PRESENCE_ROOM_TTL_MS),
+        ],
       }),
     );
     if (result === -1 || result === -2)

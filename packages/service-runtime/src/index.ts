@@ -1,5 +1,11 @@
 export { createApplication, startApplication } from './bootstrap';
-export { readServiceConfig, type ServiceConfig } from './config';
+export {
+  DEFAULT_MESSAGE_NAMESPACE,
+  messageNamespaceSchema,
+  readServiceConfig,
+  type ServiceConfig,
+} from './config';
+export { localServiceOrigin, localServicePorts } from './local-services';
 export { HealthModule, Readiness, probeIdentity } from './health.module';
 export { ApiError, ApiExceptionFilter, parseInput, requestContext, accessLog } from './http';
 export { TokenVerifier, type UserIdentity } from './identity';

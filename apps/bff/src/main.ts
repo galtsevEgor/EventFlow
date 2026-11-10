@@ -1,9 +1,9 @@
 import 'reflect-metadata';
-import { readServiceConfig, startApplication } from '@eventflow/service-runtime';
+import { localServicePorts, readServiceConfig, startApplication } from '@eventflow/service-runtime';
 import { AppModule } from './app.module';
 import { readAuthConfig } from './auth/config';
 
-const config = readServiceConfig(process.env, { name: 'bff', port: 4000 });
+const config = readServiceConfig(process.env, { name: 'bff', port: localServicePorts.bff });
 
 startApplication(AppModule.configure(readAuthConfig(process.env)), config, { rawBody: true }).catch(
   () => {

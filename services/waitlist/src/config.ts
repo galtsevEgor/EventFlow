@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { mailConfig, workloadConfig } from '@eventflow/service-runtime';
+import { mailConfig, messageNamespaceSchema, workloadConfig } from '@eventflow/service-runtime';
 export function readWaitlistConfig(env: NodeJS.ProcessEnv) {
   return z
     .object({
@@ -9,10 +9,7 @@ export function readWaitlistConfig(env: NodeJS.ProcessEnv) {
       WAITLIST_CONTACT_KEY: z.string().regex(/^[a-f0-9]{64}$/),
       TEMPORAL_ADDRESS: z.string().min(1).default('127.0.0.1:17233'),
       TEMPORAL_NAMESPACE: z.string().min(1).default('eventflow'),
-      MESSAGE_NAMESPACE: z
-        .string()
-        .regex(/^[a-z0-9-]{1,80}$/)
-        .default('eventflow'),
+      MESSAGE_NAMESPACE: messageNamespaceSchema,
       OIDC_ISSUER: z.url(),
       WAITLIST_CLIENT_SECRET: z.string().min(32),
       POLICY_CLIENT_SECRET: z.string().min(32),

@@ -11,6 +11,12 @@ import { DocumentAccess } from './access';
 import { CollaborationBus } from './bus';
 import { DocumentPresence } from './presence';
 
+const DOCUMENT_JOIN_DEADLINE_MS = 5_000;
+const DOCUMENT_REFRESH_INTERVAL_MS = 2_000;
+const SOCKET_PING_EVERY_TICKS = 5;
+const PRESENCE_REBROADCAST_INTERVAL_MS = 10_000;
+const SOCKET_CLOSE_GRACE_MS = 1_000;
+
 export class DocumentSession {
   readonly peerId = randomUUID();
   private closed = false;
@@ -100,11 +106,11 @@ export class DocumentSession {
     });
     this.joinDeadline = setTimeout(
       () => this.fail(new ApiError(422, 'JOIN_REQUIRED', 'Время подключения к документу истекло.')),
-      5000,
+      DOCUMENT_JOIN_DEADLINE_MS,
     );
     this.timer = setInterval(() => {
       void this.refresh();
-      if (++this.ticks % 5 === 0) {
+      if (++this.ticks % SOCKET_PING_EVERY_TICKS === 0) {
         if (!this.alive) {
           this.stop();
           return;
@@ -112,7 +118,7 @@ export class DocumentSession {
         this.alive = false;
         socket.ping();
       }
-    }, 2000);
+    }, DOCUMENT_REFRESH_INTERVAL_MS);
     this.send({ type: 'snapshot', snapshot, peerId: this.peerId });
   }
 
@@ -150,7 +156,10 @@ export class DocumentSession {
     }
     const state = JSON.stringify(members);
     // Awareness expires remote cursors after 30 seconds, even if the peer stays idle.
-    if (state !== this.membersState || Date.now() - this.membersSentAt >= 10000) {
+    if (
+      state !== this.membersState ||
+      Date.now() - this.membersSentAt >= PRESENCE_REBROADCAST_INTERVAL_MS
+    ) {
       this.membersState = state;
       this.membersSentAt = Date.now();
       this.send({ type: 'members', members });
@@ -177,7 +186,7 @@ export class DocumentSession {
       .then(() => this.bus.publish(this.access.target))
       .catch(() => {});
     this.socket.close(code);
-    const deadline = setTimeout(() => this.socket.terminate(), 1000);
+    const deadline = setTimeout(() => this.socket.terminate(), SOCKET_CLOSE_GRACE_MS);
     deadline.unref();
     this.socket.once('close', () => clearTimeout(deadline));
   }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { workloadConfig } from '@eventflow/service-runtime';
+import { messageNamespaceSchema, workloadConfig } from '@eventflow/service-runtime';
 export function readAnalyticsConfig(env: NodeJS.ProcessEnv) {
   return z
     .object({
@@ -25,10 +25,7 @@ export function readAnalyticsConfig(env: NodeJS.ProcessEnv) {
       POLICY_CLIENT_SECRET: z.string().min(32),
       ANALYTICS_CLIENT_SECRET: z.string().min(32),
       AMQP_URL: z.url(),
-      MESSAGE_NAMESPACE: z
-        .string()
-        .regex(/^[a-z0-9-]{1,80}$/)
-        .default('eventflow'),
+      MESSAGE_NAMESPACE: messageNamespaceSchema,
     })
     .parse(env);
 }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
+import { ApiError } from '@eventflow/service-runtime';
 import { OrdersController } from '../dist/orders.controller.js';
 import { PublicController } from '../dist/public.controller.js';
 import { AuthService } from '../dist/auth/auth.service.js';
@@ -58,6 +59,65 @@ const request = (method, path, originalUrl = path, body) => ({
   originalUrl,
   body,
   header: () => randomUUID(),
+});
+
+test('Catalog and Orders check the route, session and CSRF in order and use separate rate buckets', async () => {
+  let forwarded = 0;
+  const upstream = await server((_req, res) => {
+    forwarded++;
+    res.end('{}');
+  });
+  try {
+    const authorization = auth(upstream.origin);
+    const activeSession = authorization.requireSession;
+    const calls = [];
+    let signedIn = false;
+    authorization.config.PUBLIC_ORIGIN = 'https://eventflow.test';
+    authorization.requireSession = async () => {
+      calls.push('session');
+      if (!signedIn) throw new ApiError(401, 'UNAUTHENTICATED', 'Sign in');
+      return activeSession();
+    };
+    authorization.assertCsrf = (req, token) => {
+      calls.push('csrf');
+      AuthService.prototype.assertCsrf.call(authorization, req, token);
+    };
+    authorization.store.rateLimit = async (key, limit) => {
+      calls.push([key, limit]);
+      if (key === 'orders:buyer') throw new ApiError(429, 'RATE_LIMITED', 'Slow down');
+    };
+    const catalog = new CatalogController(authorization);
+    const orders = new OrdersController(authorization, analyticsDisabled);
+    const path = `/api/v1/orders/${randomUUID()}`;
+    const hasStatus = (status) => (error) => error.getStatus() === status;
+
+    await assert.rejects(orders.forward(request('PUT', path), response()), hasStatus(404));
+    await assert.rejects(
+      catalog.forward(request('PUT', '/api/v1/organizations'), response()),
+      hasStatus(404),
+    );
+    assert.deepEqual(calls, []);
+    await assert.rejects(
+      orders.forward(request('POST', `${path}/cancel`), response()),
+      hasStatus(401),
+    );
+    assert.deepEqual(calls.splice(0), ['session']);
+    signedIn = true;
+    const mutation = request('POST', `${path}/cancel`);
+    mutation.header = () => undefined;
+    await assert.rejects(orders.forward(mutation, response()), hasStatus(403));
+    assert.deepEqual(calls.splice(0), ['session', 'csrf']);
+    mutation.header = (name) =>
+      ({ origin: authorization.config.PUBLIC_ORIGIN, 'x-csrf-token': 'csrf-fixture' })[name];
+    await assert.rejects(orders.forward(mutation, response()), hasStatus(429));
+    assert.deepEqual(calls.splice(0), ['session', 'csrf', ['orders:buyer', 120]]);
+    assert.equal(forwarded, 0);
+    await catalog.forward(request('GET', '/api/v1/organizations'), response());
+    assert.deepEqual(calls, ['session', ['api:buyer', 120]]);
+    assert.equal(forwarded, 1);
+  } finally {
+    await upstream.close();
+  }
 });
 test('only reservation creation forwards the signed analytics session and caller headers cannot override it', async () => {
   const received = [];
@@ -246,10 +306,12 @@ test('ticket QR proxy requires the approved route, trusted origin and PNG respon
   const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   const received = [];
   let contentType = 'image/png';
+  let status = 200;
   const upstream = await server((req, res) => {
     received.push({ path: req.url, auth: req.headers.authorization });
     res.setHeader('content-type', contentType);
-    res.end(png);
+    res.statusCode = status;
+    res.end(status === 200 ? png : '{"code":"NOT_FOUND"}');
   });
   try {
     const authService = auth('http://127.0.0.1:1');
@@ -283,6 +345,12 @@ test('ticket QR proxy requires the approved route, trusted origin and PNG respon
       controller.forward(request('GET', path), response()),
       (error) => error.getStatus() === 503 && error.getResponse().code === 'TICKETS_UNAVAILABLE',
     );
+    status = 404;
+    contentType = 'application/json';
+    const missing = response();
+    await controller.forward(request('GET', path), missing);
+    assert.equal(missing.statusCode, 404);
+    assert.deepEqual(missing.body, { code: 'NOT_FOUND' });
   } finally {
     await upstream.close();
   }

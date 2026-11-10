@@ -32,6 +32,31 @@ const metrics = () => ({
   slow: 0,
   authFailed: 0,
 });
+test('the heartbeat keeps checking an open stream until its jittered lifetime ends', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  context.mock.method(Math, 'random', () => 0.5);
+  const res = response(),
+    counts = metrics();
+  let checks = 0;
+  new UpdatesConnection(
+    res,
+    () => true,
+    async () => ++checks > 0,
+    () => {},
+    counts,
+  ).start(10_000);
+  for (let beat = 0; beat < 12; beat++) {
+    context.mock.timers.tick(10_000);
+    await setImmediate();
+  }
+  assert.equal(checks, 12);
+  assert.equal(counts.heartbeats, 12);
+  context.mock.timers.tick(7_499);
+  assert.equal(res.destroyed, false);
+  context.mock.timers.tick(1);
+  assert.equal(res.destroyed, true);
+  assert.equal(counts.closed, 1);
+});
 test('a slow consumer is disconnected once without buffering further notifications', (context) => {
   context.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
   const res = response(),

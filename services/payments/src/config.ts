@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { workloadConfig } from '@eventflow/service-runtime';
+import { messageNamespaceSchema, workloadConfig } from '@eventflow/service-runtime';
 
 export function readPaymentsConfig(env: NodeJS.ProcessEnv) {
   return z
@@ -10,10 +10,7 @@ export function readPaymentsConfig(env: NodeJS.ProcessEnv) {
       BOOKING_URL: z.url(),
       PAYMENTS_CLIENT_SECRET: z.string().min(32),
       AMQP_URL: z.url().startsWith('amqp'),
-      MESSAGE_NAMESPACE: z
-        .string()
-        .regex(/^[a-z0-9-]{1,80}$/)
-        .default('eventflow'),
+      MESSAGE_NAMESPACE: messageNamespaceSchema,
       PAYMENT_PROVIDER: z.enum(['fake', 'stripe']).default('fake'),
       STRIPE_SECRET_KEY: z.preprocess(
         (value) => (value === '' ? undefined : value),

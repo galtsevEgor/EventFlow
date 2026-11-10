@@ -23,6 +23,9 @@ import { ApiError } from '@eventflow/service-runtime';
 import { AuthService } from './auth/auth.service';
 import type { Session } from './auth/session-store';
 
+const COVER_UPLOAD_RATE_LIMIT = 8;
+const COVER_PROXY_TIMEOUT_MS = 20_000;
+
 interface CoverRequest extends Request {
   session: Session;
 }
@@ -35,7 +38,7 @@ export class CoverSessionGuard implements CanActivate {
     const { session } = await this.auth.requireSession(request);
     if (request.method === 'POST') {
       this.auth.assertCsrf(request, session.csrf);
-      await this.auth.store.rateLimit(`cover:${session.user.sub}`, 8);
+      await this.auth.store.rateLimit(`cover:${session.user.sub}`, COVER_UPLOAD_RATE_LIMIT);
     }
     request.session = session;
     return true;
@@ -82,7 +85,7 @@ export class CoverProxyController {
           traceparent: response.locals.traceparent,
         },
         ...(body ? { body } : {}),
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(COVER_PROXY_TIMEOUT_MS),
         redirect: 'error',
       });
     } catch {

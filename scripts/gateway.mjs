@@ -1,22 +1,60 @@
 import { createServer } from 'node:http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createAdmission } from './gateway-limits.mjs';
+import { localServiceOrigin } from './local-services.mjs';
 const updatesPath =
   /^\/api\/v1\/(?:(?:sales|orders|waitlist)\/[a-f0-9-]{36}\/updates|organizations\/[a-f0-9-]{36}\/events\/[a-f0-9-]{36}\/orders\/updates)$/i;
 
+const uuidSegment = '[a-f0-9-]{36}';
+const eventScope = `organizations/${uuidSegment}/events/${uuidSegment}`;
+const extendedApiRoutes = [
+  { methods: ['POST'], path: /^\/api\/v1\/orders$/ },
+  {
+    methods: ['GET', 'POST'],
+    path: new RegExp(`^/api/v1/(?:covers/${uuidSegment}|${eventScope}/cover)/?$`, 'i'),
+  },
+  { methods: ['GET', 'POST'], path: /^\/api\/v1\/offline-check-in\/(?:keys|sessions|sync)\/?$/ },
+  {
+    methods: ['GET'],
+    path: new RegExp(
+      `^/api/v1/(?:organizations/${uuidSegment}/analytics(?:/waitlist)?|analytics/search-quality)/?$`,
+      'i',
+    ),
+  },
+  {
+    methods: ['GET', 'POST', 'PUT'],
+    path: new RegExp(
+      `^/api/v1/(?:waitlist(?:/${uuidSegment}(?:/cancel)?)?|events/${uuidSegment}/waitlist|${eventScope}/waitlist)/?$`,
+      'i',
+    ),
+  },
+];
+
+function needsExtendedApiTimeout(method, path) {
+  return extendedApiRoutes.some((route) => route.methods.includes(method) && route.path.test(path));
+}
+
 export function createGateway({
-  bff = 'http://127.0.0.1:4000',
-  organizer = 'http://127.0.0.1:3001',
-  storefront = 'http://127.0.0.1:3000',
+  bff = localServiceOrigin('bff'),
+  organizer = localServiceOrigin('organizer'),
+  storefront = localServiceOrigin('storefront'),
   observe,
   limits,
+  proxyTimeouts = {},
 } = {}) {
   const admit = createAdmission(limits);
-  function proxy(target, stream = false) {
+  // The outer socket must stay open past the BFF's own deadline and response handling.
+  const { standardMs = 15_000, extendedApiMs = 25_000 } = proxyTimeouts;
+  if (
+    ![standardMs, extendedApiMs].every((value) => Number.isSafeInteger(value) && value > 0) ||
+    extendedApiMs <= standardMs
+  )
+    throw new Error('Invalid gateway proxy timeouts');
+  function proxy(target, { timeoutMs = standardMs, stream = false } = {}) {
     return createProxyMiddleware({
       target,
       changeOrigin: false,
-      proxyTimeout: stream ? 0 : 15_000,
+      proxyTimeout: stream ? 0 : timeoutMs,
       on: {
         proxyReq: (upstream, _request, response) => {
           if (stream) response.once('close', () => upstream.destroy());
@@ -46,17 +84,16 @@ export function createGateway({
     });
   }
   const api = proxy(bff),
-    updates = proxy(bff, true),
+    extendedApi = proxy(bff, { timeoutMs: extendedApiMs }),
+    updates = proxy(bff, { stream: true }),
     workspace = proxy(organizer),
     publicSite = proxy(storefront);
-  const route = (url) =>
-    updatesPath.test(url)
-      ? updates
-      : url.startsWith('/api/v1/')
-        ? api
-        : url === '/organizer' || url.startsWith('/organizer/')
-          ? workspace
-          : publicSite;
+  function route(path, method) {
+    if (updatesPath.test(path)) return updates;
+    if (path.startsWith('/api/v1/'))
+      return needsExtendedApiTimeout(method, path) ? extendedApi : api;
+    return path === '/organizer' || path.startsWith('/organizer/') ? workspace : publicSite;
+  }
   const server = createServer((request, response) => {
     const path = new URL(request.url, 'http://gateway').pathname;
     if (
@@ -91,7 +128,7 @@ export function createGateway({
             ? null
             : 'ssr';
     if (!admit(request, response, group)) return;
-    void route(path)(request, response);
+    void route(path, request.method)(request, response);
   });
   server.on('upgrade', (request, socket, head) => {
     const url = new URL(request.url, 'http://gateway');
@@ -106,7 +143,7 @@ export function createGateway({
       socket.end('HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
       return;
     }
-    route(url.pathname).upgrade(request, socket, head);
+    route(url.pathname, request.method).upgrade(request, socket, head);
   });
   return server;
 }

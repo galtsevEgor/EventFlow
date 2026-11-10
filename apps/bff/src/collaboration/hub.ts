@@ -9,6 +9,8 @@ import { CollaborationBus, roomId } from './bus';
 import { DocumentSession } from './session';
 import { DocumentPresence } from './presence';
 
+const COLLABORATION_OPEN_RATE_LIMIT = 60;
+
 const path =
   /^\/api\/v1\/organizations\/([a-f0-9-]{36})\/events\/([a-f0-9-]{36})\/collaboration\/socket$/i;
 
@@ -67,7 +69,10 @@ export class CollaborationHub {
     if (this.sessions.size >= 64) throw new ApiError(429, 'EDITOR_BUSY', 'Редактор занят.');
     const req = socketRequest(request);
     const initial = await this.auth.requireSession(req);
-    await this.auth.store.rateLimit('collaboration-open:' + initial.session.user.sub, 60);
+    await this.auth.store.rateLimit(
+      'collaboration-open:' + initial.session.user.sub,
+      COLLABORATION_OPEN_RATE_LIMIT,
+    );
     const access = new DocumentAccess(this.auth, req, {
       organizationId: match[1]!.toLowerCase(),
       eventId: match[2]!.toLowerCase(),

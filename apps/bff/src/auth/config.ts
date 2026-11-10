@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_MESSAGE_NAMESPACE, localServiceOrigin } from '@eventflow/service-runtime';
 
 export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
 const httpUrl = z.url().refine((value) => ['http:', 'https:'].includes(new URL(value).protocol));
@@ -13,18 +14,18 @@ const schema = z.object({
     .regex(/^[a-zA-Z0-9:_-]+$/)
     .default('eventflow:bff:'),
   CATALOG_URL: httpUrl,
-  SEARCH_URL: httpUrl.default('http://127.0.0.1:4005'),
+  SEARCH_URL: httpUrl.default(localServiceOrigin('search')),
   SEARCH_ENABLED: z.enum(['true', 'false']).default('false'),
   ANALYTICS_ENABLED: z.enum(['true', 'false']).default('false'),
-  ANALYTICS_URL: httpUrl.default('http://127.0.0.1:4006'),
+  ANALYTICS_URL: httpUrl.default(localServiceOrigin('analytics')),
   ANALYTICS_CLIENT_SECRET: z.string().min(32).optional(),
   ANALYTICS_SESSION_KEY: z.string().min(32).optional(),
-  BOOKING_URL: httpUrl.default('http://127.0.0.1:4002'),
-  PAYMENTS_URL: httpUrl.default('http://127.0.0.1:4003'),
-  TICKETS_URL: httpUrl.default('http://127.0.0.1:4004'),
-  WAITLIST_URL: httpUrl.default('http://127.0.0.1:4007'),
+  BOOKING_URL: httpUrl.default(localServiceOrigin('booking')),
+  PAYMENTS_URL: httpUrl.default(localServiceOrigin('payments')),
+  TICKETS_URL: httpUrl.default(localServiceOrigin('tickets')),
+  WAITLIST_URL: httpUrl.default(localServiceOrigin('waitlist')),
   WAITLIST_ENABLED: z.enum(['true', 'false']).default('false'),
-  RECOMMENDATIONS_URL: httpUrl.default('http://127.0.0.1:4008'),
+  RECOMMENDATIONS_URL: httpUrl.default(localServiceOrigin('recommendations')),
   RECOMMENDATIONS_ENABLED: z.enum(['true', 'false']).default('false'),
   OBSERVABILITY_PUBLIC_ORIGIN: httpUrl
     .refine((value) => {
@@ -41,7 +42,7 @@ const schema = z.object({
   MESSAGE_NAMESPACE: z
     .string()
     .regex(/^[a-zA-Z0-9:_-]+$/)
-    .default('eventflow'),
+    .default(DEFAULT_MESSAGE_NAMESPACE),
   REALTIME_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(256),
   REALTIME_USER_CONNECTIONS: z.coerce.number().int().min(1).max(100).default(4),
   REALTIME_IP_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(128),

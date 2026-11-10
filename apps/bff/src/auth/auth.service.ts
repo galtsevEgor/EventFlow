@@ -6,6 +6,10 @@ import { ApiError } from '@eventflow/service-runtime';
 import { opaqueId, SessionStore } from './session-store';
 import { IdentityProvider } from './oidc';
 import type { AuthConfig } from './config';
+import { SESSION_REFRESH_AHEAD_MS } from './session-policy';
+
+const SESSION_READ_ATTEMPTS = 60;
+const REFRESH_LOCK_POLL_INTERVAL_MS = 100;
 
 export class AuthService {
   constructor(
@@ -34,22 +38,22 @@ export class AuthService {
   async requireSession(request: Request) {
     const id = this.readCookie(request, 'session');
     if (!id) throw new ApiError(401, 'UNAUTHENTICATED', 'Войдите в аккаунт.');
-    for (let attempt = 0; attempt < 60; attempt++) {
+    for (let attempt = 0; attempt < SESSION_READ_ATTEMPTS; attempt++) {
       const record = await this.store.read(id);
       if (!record) throw new ApiError(401, 'UNAUTHENTICATED', 'Войдите в аккаунт.');
-      if (record.session.accessExpiresAt > Date.now() + 30000) {
+      if (record.session.accessExpiresAt > Date.now() + SESSION_REFRESH_AHEAD_MS) {
         if (!(await this.store.replace(id, record.raw, record.session))) continue;
         return { id, session: record.session };
       }
       const lockOwner = opaqueId();
       if (!(await this.store.acquireRefresh(id, lockOwner))) {
-        await delay(100);
+        await delay(REFRESH_LOCK_POLL_INTERVAL_MS);
         continue;
       }
       try {
         const latest = await this.store.read(id);
         if (!latest) throw new ApiError(401, 'UNAUTHENTICATED', 'Войдите в аккаунт.');
-        if (latest.session.accessExpiresAt > Date.now() + 30000) continue;
+        if (latest.session.accessExpiresAt > Date.now() + SESSION_REFRESH_AHEAD_MS) continue;
         const updated = await this.identity.refresh(latest.session);
         if (!(await this.store.replace(id, latest.raw, updated)))
           throw new ApiError(401, 'UNAUTHENTICATED', 'Сессия завершена.');

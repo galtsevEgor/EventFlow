@@ -10,6 +10,9 @@ import {
 import { AuthService } from './auth/auth.service';
 import { upstreamUrl } from './upstream-url';
 
+const PERSONAL_RECOMMENDATIONS_RATE_LIMIT = 120;
+const PUBLIC_RECOMMENDATIONS_RATE_LIMIT = 120;
+
 @Controller('api/v1')
 export class RecommendationsProxy {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
@@ -43,10 +46,17 @@ export class RecommendationsProxy {
       if (!session.user.emailVerified)
         throw new ApiError(403, 'EMAIL_UNVERIFIED', 'Подтвердите email.');
       if (request.method !== 'GET') this.auth.assertCsrf(request, session.csrf);
-      await this.auth.store.rateLimit('recommendations:user:' + session.user.sub, 120);
+      await this.auth.store.rateLimit(
+        'recommendations:user:' + session.user.sub,
+        PERSONAL_RECOMMENDATIONS_RATE_LIMIT,
+      );
       token = session.accessToken;
       response.setHeader('x-eventflow-actor', session.user.sub);
-    } else await this.auth.store.rateLimit('recommendations:' + request.ip, 120);
+    } else
+      await this.auth.store.rateLimit(
+        'recommendations:' + request.ip,
+        PUBLIC_RECOMMENDATIONS_RATE_LIMIT,
+      );
     try {
       const result = await fetch(
         upstreamUrl(this.auth.config.RECOMMENDATIONS_URL, path, request.originalUrl),
@@ -97,7 +107,10 @@ export class RecommendationsProxy {
     if (this.auth.config.RECOMMENDATIONS_ENABLED !== 'true')
       throw new ApiError(404, 'NOT_FOUND', 'Маршрут не найден.');
     const eventId = parseInput(z.uuid(), id);
-    await this.auth.store.rateLimit('recommendations:' + request.ip, 120);
+    await this.auth.store.rateLimit(
+      'recommendations:' + request.ip,
+      PUBLIC_RECOMMENDATIONS_RATE_LIMIT,
+    );
     try {
       const result = await fetch(
         upstreamUrl(

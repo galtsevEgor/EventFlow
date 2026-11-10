@@ -5,6 +5,18 @@ import { join } from 'node:path';
 import { parseEnv } from 'node:util';
 import test from 'node:test';
 import { initializeEnvironment } from './local-env.mjs';
+import { localServiceOrigin } from './local-services.mjs';
+
+const serviceNames = [
+  'catalog',
+  'booking',
+  'payments',
+  'tickets',
+  'search',
+  'analytics',
+  'waitlist',
+  'recommendations',
+];
 
 test('initialization generates distinct secrets and preserves them on repeated runs', () => {
   const directory = mkdtempSync(join(tmpdir(), 'eventflow-env-'));
@@ -12,6 +24,14 @@ test('initialization generates distinct secrets and preserves them on repeated r
     initializeEnvironment(directory);
     const original = readFileSync(join(directory, '.env'), 'utf8');
     const env = parseEnv(original);
+    const example = parseEnv(readFileSync(new URL('../.env.example', import.meta.url), 'utf8'));
+    for (const service of serviceNames) {
+      const variable = `${service.toUpperCase()}_URL`;
+      assert.equal(env[variable], localServiceOrigin(service));
+      if (example[variable]) assert.equal(example[variable], env[variable]);
+    }
+    assert.equal(env.PUBLIC_ORIGIN, localServiceOrigin('gateway'));
+    assert.equal(example.PUBLIC_ORIGIN, env.PUBLIC_ORIGIN);
     assert.notEqual(env.CATALOG_DB_PASSWORD, env.BOOKING_DB_PASSWORD);
     assert.equal(new URL(env.BOOKING_DATABASE_URL).password, env.BOOKING_DB_PASSWORD);
     assert.equal(new URL(env.ANALYTICS_DATABASE_URL).password, env.ANALYTICS_DB_PASSWORD);

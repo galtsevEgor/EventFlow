@@ -4,6 +4,9 @@ import { ApiError } from '@eventflow/service-runtime';
 import { AuthService } from './auth.service';
 import { opaqueId } from './session-store';
 import { safeReturnTo } from './config';
+import { LOGIN_FLOW_TTL_SECONDS, SESSION_ABSOLUTE_TTL_SECONDS } from './session-policy';
+
+const LOGIN_RATE_LIMIT = 20;
 
 @Controller('api/v1/auth')
 export class AuthController {
@@ -15,7 +18,7 @@ export class AuthController {
     @Query('returnTo') returnTo: unknown,
     @Res() response: Response,
   ) {
-    await this.auth.store.rateLimit(`login:${request.socket.remoteAddress}`, 20);
+    await this.auth.store.rateLimit(`login:${request.socket.remoteAddress}`, LOGIN_RATE_LIMIT);
     const flow = {
       verifier: opaqueId(),
       nonce: opaqueId(),
@@ -25,7 +28,7 @@ export class AuthController {
     const url = await this.auth.identity.authorize(flow);
     const id = await this.auth.store.startFlow(flow);
     response.setHeader('cache-control', 'no-store');
-    response.setHeader('set-cookie', this.auth.cookie('flow', id, 300));
+    response.setHeader('set-cookie', this.auth.cookie('flow', id, LOGIN_FLOW_TTL_SECONDS));
     response.redirect(302, url.href);
   }
 
@@ -45,7 +48,7 @@ export class AuthController {
     const sessionId = await this.auth.store.create(session);
     response.setHeader('set-cookie', [
       this.auth.cookie('flow', '', 0),
-      this.auth.cookie('session', sessionId, 28800),
+      this.auth.cookie('session', sessionId, SESSION_ABSOLUTE_TTL_SECONDS),
     ]);
     response.redirect(303, flow.returnTo);
   }

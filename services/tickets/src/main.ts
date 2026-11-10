@@ -1,9 +1,9 @@
 import 'reflect-metadata';
-import { readServiceConfig, startApplication } from '@eventflow/service-runtime';
+import { localServicePorts, readServiceConfig, startApplication } from '@eventflow/service-runtime';
 import { AppModule } from './app.module';
 import { readTicketsConfig } from './config';
 
-const config = readServiceConfig(process.env, { name: 'tickets', port: 4004 });
+const config = readServiceConfig(process.env, { name: 'tickets', port: localServicePorts.tickets });
 
 async function start() {
   await startApplication(AppModule.configure(readTicketsConfig(process.env)), config);

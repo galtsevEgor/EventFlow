@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { after, before, test } from 'node:test';
@@ -9,6 +9,8 @@ import { AppModule } from '../dist/app.module.js';
 import { readAuthConfig } from '../dist/auth/config.js';
 import { AuthService } from '../dist/auth/auth.service.js';
 import { SessionStore } from '../dist/auth/session-store.js';
+import { DocumentPresence } from '../dist/collaboration/presence.js';
+import { StreamQuota } from '../dist/realtime/quota.js';
 import { cleanBroker } from '../../../tests/helpers/broker.mjs';
 
 const config = readAuthConfig({
@@ -147,6 +149,101 @@ test('concurrent refresh uses one rotated token and logout cannot resurrect a se
   } finally {
     await context.close();
   }
+});
+
+async function assertTtl(key, expectedMs) {
+  const ttl = await store.client.pTTL(key);
+  assert.ok(ttl > expectedMs - 5_000 && ttl <= expectedMs, `${key} TTL was ${ttl} ms`);
+}
+
+test('Redis keeps login, idle, refresh lock and fixed rate window lifetimes independent', async () => {
+  const flow = { verifier: 'test', nonce: 'test', state: 'test', returnTo: '/' };
+  const flowId = await store.startFlow(flow);
+  await assertTtl(store.key('flow', flowId), 300_000);
+  assert.deepEqual(await store.takeFlow(flowId), flow);
+  assert.equal(await store.takeFlow(flowId), null);
+
+  const now = Date.now();
+  const session = {
+    user: { sub: 'ttl-test', email: 'test@eventflow.test', emailVerified: true, name: 'Test' },
+    accessToken: 'test-access',
+    refreshToken: 'test-refresh',
+    idToken: 'test-id',
+    csrf: 'x'.repeat(43),
+    accessExpiresAt: now + 60_000,
+    absoluteExpiresAt: now + 60_000,
+  };
+  const id = await store.create(session);
+  const sessionKey = store.key('session', id);
+  await assertTtl(sessionKey, 1_800_000);
+  const { raw } = await store.read(id);
+  assert.equal(await store.replace(id, raw, session), true);
+  await assertTtl(sessionKey, 60_000);
+  await store.client.pExpire(sessionKey, 0);
+  assert.equal(await store.read(id), null);
+  assert.equal(await store.replace(id, raw, session), false);
+
+  assert.equal(await store.acquireRefresh(id, 'owner-a'), true);
+  await assertTtl(store.key('refresh', id), 10_000);
+  await store.releaseRefresh(id, 'owner-b');
+  assert.equal(await store.acquireRefresh(id, 'owner-b'), false);
+  await store.releaseRefresh(id, 'owner-a');
+  assert.equal(await store.acquireRefresh(id, 'owner-b'), true);
+  await store.releaseRefresh(id, 'owner-b');
+
+  const rate = `test:${randomUUID()}`;
+  const rateKey = store.key('rate', rate);
+  await store.rateLimit(rate, 2);
+  await assertTtl(rateKey, 60_000);
+  await store.client.pExpire(rateKey, 5_000);
+  await store.rateLimit(rate, 2);
+  await assert.rejects(store.rateLimit(rate, 2), (error) => error.getStatus() === 429);
+  const remaining = await store.client.pTTL(rateKey);
+  assert.ok(remaining > 0 && remaining <= 5_000);
+});
+
+test('Redis renews active SSE leases before expiry and keeps collaboration presence on its own clock', async () => {
+  const quota = app.get(StreamQuota);
+  const principal = `user:${randomUUID()}`;
+  const lease = randomUUID();
+  const hash = createHash('sha256').update(principal).digest('hex');
+  const quotaKey = `eventflow:updates:${config.MESSAGE_NAMESPACE}:leases:${hash}`;
+  try {
+    assert.equal(await quota.acquire(principal, lease), true);
+    await assertTtl(quotaKey, 60_000);
+    const expiresAt = await store.client.zScore(quotaKey, lease);
+    const keyExpiresAt = await store.client.pExpireTime(quotaKey);
+    assert.ok(Math.abs(keyExpiresAt - expiresAt - 30_000) < 100);
+    assert.ok(30_000 > config.REALTIME_HEARTBEAT_MS);
+    await store.client.zAdd(quotaKey, {
+      score: expiresAt - config.REALTIME_HEARTBEAT_MS,
+      value: lease,
+    });
+    await store.client.pExpire(quotaKey, 15_000);
+    assert.equal(await quota.renew(principal, lease), true);
+    assert.ok((await store.client.zScore(quotaKey, lease)) >= expiresAt);
+    await assertTtl(quotaKey, 60_000);
+    await store.client.zAdd(quotaKey, { score: 0, value: lease });
+    assert.equal(await quota.renew(principal, lease), false);
+  } finally {
+    await quota.release(principal, lease);
+  }
+
+  const presence = app.get(DocumentPresence);
+  const target = { organizationId: randomUUID(), eventId: randomUUID() };
+  const peer = {
+    peerId: randomUUID(),
+    clientId: 42,
+    name: 'Member',
+    color: '#315eac',
+    cursor: null,
+  };
+  assert.deepEqual(await presence.touch(target, peer), [peer]);
+  const roomKey = presence.key(target);
+  await assertTtl(roomKey, 30_000);
+  const { expiresAt } = JSON.parse(await store.client.hGet(roomKey, peer.peerId));
+  assert.ok(Math.abs((await store.client.pExpireTime(roomKey)) - expiresAt - 15_000) < 100);
+  await presence.leave(target, peer.peerId);
 });
 
 test('real machine token carries the required Catalog audience and policy permission', async () => {

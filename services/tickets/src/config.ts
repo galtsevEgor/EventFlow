@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { mailConfig, workloadConfig } from '@eventflow/service-runtime';
+import { mailConfig, messageNamespaceSchema, workloadConfig } from '@eventflow/service-runtime';
 
 export function readTicketsConfig(env: NodeJS.ProcessEnv) {
   return z
@@ -13,10 +13,7 @@ export function readTicketsConfig(env: NodeJS.ProcessEnv) {
       TICKETS_DATABASE_URL: z.url().startsWith('postgresql:'),
       OIDC_ISSUER: z.url(),
       AMQP_URL: z.url().startsWith('amqp'),
-      MESSAGE_NAMESPACE: z
-        .string()
-        .regex(/^[a-z0-9-]{1,80}$/)
-        .default('eventflow'),
+      MESSAGE_NAMESPACE: messageNamespaceSchema,
       TICKET_QR_KEYS: z.string(),
       OFFLINE_CHECK_IN_KEY: z
         .string()

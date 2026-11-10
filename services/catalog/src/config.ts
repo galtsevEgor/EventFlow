@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { MAX_SEAT_PRICE_MINOR } from '@eventflow/event-contracts';
-import { mailConfig, workloadConfig } from '@eventflow/service-runtime';
+import { mailConfig, messageNamespaceSchema, workloadConfig } from '@eventflow/service-runtime';
 
 export const DEFAULT_CATALOG_MAXIMUM_PRICE_MINOR = 10_000_000;
 
@@ -13,10 +13,7 @@ export function readCatalogConfig(env: NodeJS.ProcessEnv) {
       CATALOG_DATABASE_URL: z.url().startsWith('postgresql:'),
       OIDC_ISSUER: z.url(),
       AMQP_URL: z.url().startsWith('amqp'),
-      MESSAGE_NAMESPACE: z
-        .string()
-        .regex(/^[a-z0-9-]{1,80}$/)
-        .default('eventflow'),
+      MESSAGE_NAMESPACE: messageNamespaceSchema,
       MAXIMUM_PRICE_MINOR: z.coerce
         .number()
         .int()

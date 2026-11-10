@@ -1,9 +1,12 @@
 import 'reflect-metadata';
-import { readServiceConfig, startApplication } from '@eventflow/service-runtime';
+import { localServicePorts, readServiceConfig, startApplication } from '@eventflow/service-runtime';
 import { AppModule } from './app.module';
 import { readPaymentsConfig } from './config';
 
-const config = readServiceConfig(process.env, { name: 'payments', port: 4003 });
+const config = readServiceConfig(process.env, {
+  name: 'payments',
+  port: localServicePorts.payments,
+});
 
 startApplication(AppModule.configure(readPaymentsConfig(process.env)), config, {
   rawBody: true,

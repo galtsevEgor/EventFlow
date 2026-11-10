@@ -2,6 +2,7 @@ import * as oidc from 'openid-client';
 import { ApiError } from '@eventflow/service-runtime';
 import type { AuthConfig } from './config';
 import { identitySchema, type LoginFlow, type Session } from './session-store';
+import { SESSION_ABSOLUTE_TTL_MS } from './session-policy';
 
 export class IdentityProvider {
   private configuration: Promise<oidc.Configuration> | undefined;
@@ -69,7 +70,7 @@ export class IdentityProvider {
       idToken: tokens.id_token,
       csrf: oidc.randomState(),
       accessExpiresAt: Date.now() + tokens.expires_in * 1000,
-      absoluteExpiresAt: Date.now() + 28800000,
+      absoluteExpiresAt: Date.now() + SESSION_ABSOLUTE_TTL_MS,
     };
   }
   async refresh(session: Session): Promise<Session> {

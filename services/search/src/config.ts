@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { workloadConfig } from '@eventflow/service-runtime';
+import { messageNamespaceSchema, workloadConfig } from '@eventflow/service-runtime';
 export function readSearchConfig(env: NodeJS.ProcessEnv) {
   return z
     .object({
@@ -9,10 +9,7 @@ export function readSearchConfig(env: NodeJS.ProcessEnv) {
       OIDC_ISSUER: z.url(),
       CATALOG_URL: z.url(),
       SEARCH_CLIENT_SECRET: z.string().min(32),
-      MESSAGE_NAMESPACE: z
-        .string()
-        .regex(/^[a-z0-9-]{1,80}$/)
-        .default('eventflow'),
+      MESSAGE_NAMESPACE: messageNamespaceSchema,
       OPENSEARCH_URL: z
         .url()
         .refine((value) => {

@@ -1,6 +1,7 @@
 import { execFile, spawn } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { createGateway } from './gateway.mjs';
+import { localServiceHost, localServiceOrigin } from './local-services.mjs';
 
 const persistentTasks = ['apps', 'services', 'packages']
   .flatMap((group) =>
@@ -13,12 +14,12 @@ const persistentTasks = ['apps', 'services', 'packages']
   )
   .filter(Boolean).length;
 const origin = new URL(process.env.PUBLIC_ORIGIN);
-if (origin.hostname !== '127.0.0.1' || origin.protocol !== 'http:')
+if (origin.hostname !== localServiceHost || origin.protocol !== 'http:')
   throw new Error('Local development requires an HTTP PUBLIC_ORIGIN on 127.0.0.1');
 const gateway = createGateway();
 await new Promise((done, reject) => {
   gateway.once('error', reject);
-  gateway.listen(Number(origin.port || 80), '127.0.0.1', done);
+  gateway.listen(Number(origin.port || 80), localServiceHost, done);
 });
 const child = spawn(
   process.execPath,
@@ -32,7 +33,7 @@ const child = spawn(
   {
     stdio: 'inherit',
     windowsHide: true,
-    env: { ...process.env, BFF_URL: process.env.BFF_URL ?? 'http://127.0.0.1:4000' },
+    env: { ...process.env, BFF_URL: process.env.BFF_URL ?? localServiceOrigin('bff') },
   },
 );
 let stopping = false;

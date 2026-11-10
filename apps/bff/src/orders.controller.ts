@@ -4,7 +4,13 @@ import { ApiError, parseInput } from '@eventflow/service-runtime';
 import { z } from 'zod';
 import { AnalyticsBridge } from './analytics/service';
 import { AuthService } from './auth/auth.service';
+import { requireProxySession } from './auth/proxy-session';
+import { orderRoute, type OrderUpstream } from './orders.routes';
 import { upstreamUrl } from './upstream-url';
+
+const ORDERS_API_RATE = { scope: 'orders', limit: 120 };
+const ORDER_PROXY_TIMEOUT_MS = 12_000;
+const ORDER_PUBLICATION_CHECK_TIMEOUT_MS = 5_000;
 
 @Controller('api/v1/orders')
 export class OrdersController {
@@ -15,50 +21,27 @@ export class OrdersController {
   @All(['', '{*path}'])
   async forward(@Req() request: Request, @Res() response: Response) {
     const path = request.path;
-    const ticketCredential =
-      request.method === 'GET' &&
-      /^\/api\/v1\/orders\/[a-f0-9-]{36}\/tickets\/[a-f0-9-]{36}\/(qr|code)$/.test(path);
-    const qr = ticketCredential && path.endsWith('/qr');
-    const tickets =
-      ticketCredential ||
-      (request.method === 'GET' && /^\/api\/v1\/orders\/[a-f0-9-]{36}\/tickets$/.test(path));
-    const payment =
-      (request.method === 'GET' &&
-        /^\/api\/v1\/orders\/[a-f0-9-]{36}\/payment-status$/.test(path)) ||
-      (request.method === 'POST' &&
-        /^\/api\/v1\/orders\/[a-f0-9-]{36}\/payment-attempt(?:\/fake-confirm)?$/.test(path));
-    const allowed =
-      tickets ||
-      payment ||
-      (request.method === 'GET'
-        ? /^\/api\/v1\/orders(?:\/[a-f0-9-]{36})?$/.test(path)
-        : request.method === 'POST' &&
-          /^\/api\/v1\/orders(?:\/[a-f0-9-]{36}\/cancel)?$/.test(path));
-    if (!allowed) throw new ApiError(404, 'NOT_FOUND', 'Маршрут не найден.');
-    const { session } = await this.auth.requireSession(request);
-    if (request.method !== 'GET') this.auth.assertCsrf(request, session.csrf);
-    await this.auth.store.rateLimit(`orders:${session.user.sub}`, 120);
-    if (request.method === 'POST' && path === '/api/v1/orders') {
+    const route = orderRoute(request.method, path);
+    if (!route) throw new ApiError(404, 'NOT_FOUND', 'Маршрут не найден.');
+    const session = await requireProxySession(this.auth, request, ORDERS_API_RATE);
+    if (route.reserve) {
       const { saleId } = parseInput(z.object({ saleId: z.uuid() }), request.body);
       await this.requirePublished(saleId, response);
     }
     let upstream: globalThis.Response;
     let body: unknown;
-    const service = tickets ? 'TICKETS' : payment ? 'PAYMENTS' : 'BOOKING';
+    const { service } = route;
     try {
       const url = upstreamUrl(this.auth.config[`${service}_URL`], path, request.originalUrl);
       const key = request.header('idempotency-key');
       const analyticsSession =
-        service === 'BOOKING' &&
-        request.method === 'POST' &&
-        path === '/api/v1/orders' &&
-        this.analytics.enabled
+        route.reserve && this.analytics.enabled
           ? this.analytics.session.read(request)?.id
           : undefined;
       upstream = await fetch(url, {
         method: request.method,
         redirect: 'error',
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(ORDER_PROXY_TIMEOUT_MS),
         headers: {
           authorization: `Bearer ${session.accessToken}`,
           'content-type': 'application/json',
@@ -73,18 +56,10 @@ export class OrdersController {
       });
       if (upstream.status >= 500) {
         await upstream.body?.cancel();
-        throw this.unavailable(service);
+        throw new Error('Order upstream unavailable');
       }
-      if (qr && upstream.ok) {
-        if (upstream.status !== 200 || upstream.headers.get('content-type') !== 'image/png') {
-          await upstream.body?.cancel();
-          throw this.unavailable(service);
-        }
-        const png = Buffer.from(await upstream.arrayBuffer());
-        response.setHeader('cache-control', 'no-store');
-        response.setHeader('content-type', 'image/png');
-        response.setHeader('cross-origin-resource-policy', 'same-origin');
-        response.status(200).end(png);
+      if (route.png && upstream.ok) {
+        await this.forwardQr(upstream, response);
         return;
       }
       body = await upstream.json();
@@ -94,7 +69,18 @@ export class OrdersController {
     response.setHeader('cache-control', 'no-store');
     response.status(upstream.status).json(body);
   }
-  private unavailable(service: 'BOOKING' | 'PAYMENTS' | 'TICKETS') {
+  private async forwardQr(upstream: globalThis.Response, response: Response) {
+    if (upstream.status !== 200 || upstream.headers.get('content-type') !== 'image/png') {
+      await upstream.body?.cancel();
+      throw new Error('Unexpected ticket QR response');
+    }
+    const png = Buffer.from(await upstream.arrayBuffer());
+    response.setHeader('cache-control', 'no-store');
+    response.setHeader('content-type', 'image/png');
+    response.setHeader('cross-origin-resource-policy', 'same-origin');
+    response.status(200).end(png);
+  }
+  private unavailable(service: OrderUpstream) {
     const messages = {
       BOOKING: 'Бронирование временно недоступно. Повторите тот же запрос.',
       PAYMENTS: 'Проверяем состояние платежа. Не оплачивайте повторно.',
@@ -107,7 +93,7 @@ export class OrdersController {
     try {
       const result = await fetch(new URL(`/api/v1/events/${id}`, this.auth.config.CATALOG_URL), {
         redirect: 'error',
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(ORDER_PUBLICATION_CHECK_TIMEOUT_MS),
         headers: {
           'x-request-id': response.locals.requestId,
           traceparent: response.locals.traceparent,

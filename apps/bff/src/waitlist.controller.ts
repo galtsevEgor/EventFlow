@@ -3,6 +3,10 @@ import type { Request, Response } from 'express';
 import { ApiError } from '@eventflow/service-runtime';
 import { AuthService } from './auth/auth.service';
 import { upstreamUrl } from './upstream-url';
+
+const WAITLIST_RATE_LIMIT = 60;
+const WAITLIST_PROXY_TIMEOUT_MS = 15_000;
+
 @Controller()
 export class WaitlistProxy {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
@@ -34,7 +38,7 @@ export class WaitlistProxy {
       if (!session.user.emailVerified)
         throw new ApiError(403, 'EMAIL_UNVERIFIED', 'Подтвердите email.');
       if (req.method !== 'GET') this.auth.assertCsrf(req, session.csrf);
-      await this.auth.store.rateLimit('waitlist:' + session.user.sub, 60);
+      await this.auth.store.rateLimit('waitlist:' + session.user.sub, WAITLIST_RATE_LIMIT);
       token = session.accessToken;
     }
     if (this.auth.config.WAITLIST_ENABLED !== 'true') {
@@ -55,7 +59,7 @@ export class WaitlistProxy {
         {
           method: req.method,
           redirect: 'error',
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(WAITLIST_PROXY_TIMEOUT_MS),
           headers: {
             'content-type': 'application/json',
             ...(token ? { authorization: 'Bearer ' + token } : {}),

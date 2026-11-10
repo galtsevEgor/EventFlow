@@ -1,0 +1,17 @@
+{
+  "host": "127.0.0.1",
+  "ports": {
+    "gateway": 18000,
+    "storefront": 3000,
+    "organizer": 3001,
+    "bff": 4000,
+    "catalog": 4001,
+    "booking": 4002,
+    "payments": 4003,
+    "tickets": 4004,
+    "search": 4005,
+    "analytics": 4006,
+    "waitlist": 4007,
+    "recommendations": 4008
+  }
+}

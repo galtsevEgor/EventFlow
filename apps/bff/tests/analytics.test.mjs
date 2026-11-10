@@ -37,7 +37,8 @@ test('search attribution accepts only an unexpired signed result containing the 
     null,
   );
 });
-test('absolute-form analytics URLs cannot receive the BFF bearer token on another origin', async () => {
+test('analytics reports allow an 18-second upstream deadline and pin the bearer to their origin', async (context) => {
+  const timeout = context.mock.method(AbortSignal, 'timeout');
   const received = [],
     leaked = [];
   const listen = async (rows) => {
@@ -81,6 +82,7 @@ test('absolute-form analytics URLs cannot receive the BFF bearer token on anothe
       response,
     );
     assert.equal(response.code, 200);
+    assert.ok(timeout.mock.calls.some(({ arguments: args }) => args[0] === 18_000));
     assert.equal(leaked.length, 0);
     assert.deepEqual(received, [
       {

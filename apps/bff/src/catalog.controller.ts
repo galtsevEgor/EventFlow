@@ -2,8 +2,12 @@ import { All, Controller, Inject, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiError } from '@eventflow/service-runtime';
 import { AuthService } from './auth/auth.service';
+import { requireProxySession } from './auth/proxy-session';
 import { isCatalogRoute, isOrganizerOrderRoute } from './catalog.routes';
 import { upstreamUrl } from './upstream-url';
+
+const CATALOG_API_RATE = { scope: 'api', limit: 120 };
+const CATALOG_PROXY_TIMEOUT_MS = 5_000;
 
 @Controller('api/v1')
 export class CatalogController {
@@ -13,9 +17,7 @@ export class CatalogController {
     const organizerOrder = isOrganizerOrderRoute(request.method, request.path);
     if (!organizerOrder && !isCatalogRoute(request.method, request.path))
       throw new ApiError(404, 'NOT_FOUND', 'Маршрут не найден.');
-    const { session } = await this.auth.requireSession(request);
-    if (request.method !== 'GET') this.auth.assertCsrf(request, session.csrf);
-    await this.auth.store.rateLimit(`api:${session.user.sub}`, 120);
+    const session = await requireProxySession(this.auth, request, CATALOG_API_RATE);
     let upstream: globalThis.Response;
     const idempotencyKey = request.header('idempotency-key');
     try {
@@ -37,7 +39,7 @@ export class CatalogController {
           ...(request.method === 'GET' || request.body === undefined
             ? {}
             : { body: JSON.stringify(request.body) }),
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(CATALOG_PROXY_TIMEOUT_MS),
           redirect: 'error',
         },
       );
