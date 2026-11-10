@@ -1,6 +1,8 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+
+const ANALYTICS_SESSION_TTL_MS = 24 * 60 * 60 * 1_000;
 const sessionSchema = z.strictObject({ id: z.uuid(), expires: z.number().int().positive() });
 export class AnalyticsSession {
   constructor(private readonly key: string) {}
@@ -33,13 +35,13 @@ export class AnalyticsSession {
   ensure(request: Request, response: Response) {
     const existing = this.read(request);
     if (existing) return existing.id;
-    const value = { id: randomUUID(), expires: Date.now() + 24 * 3600000 };
+    const value = { id: randomUUID(), expires: Date.now() + ANALYTICS_SESSION_TTL_MS };
     response.cookie('eventflow_analytics', this.sign(value), {
       httpOnly: true,
       sameSite: 'lax',
       secure: request.secure,
       path: '/',
-      maxAge: 24 * 3600000,
+      maxAge: ANALYTICS_SESSION_TTL_MS,
     });
     return value.id;
   }

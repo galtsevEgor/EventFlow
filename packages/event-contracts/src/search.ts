@@ -2,6 +2,14 @@ import { z } from 'zod';
 import { MAX_EVENT_DESCRIPTION_LENGTH, MAX_EVENT_TITLE_LENGTH } from './event-content.js';
 import { eventCurrencySchema, MAX_SEAT_PRICE_MINOR } from './purchase.js';
 
+export const MAX_SEARCH_PAGE = 200;
+export const MAX_SEARCH_PAGE_SIZE = 48;
+export const MAX_SEARCH_CITY_FACETS = 30;
+export const MAX_SEARCH_SUGGESTIONS = 6;
+
+export const MAX_SEARCH_FEED_BATCH_SIZE = 100;
+export const MAX_SEARCH_RECONCILE_BATCH_SIZE = 100;
+
 export const searchDocumentSchema = z.strictObject({
   id: z.uuid(),
   title: z.string().min(2).max(MAX_EVENT_TITLE_LENGTH),
@@ -35,8 +43,8 @@ export const searchQuerySchema = z
     minPriceMinor: z.coerce.number().int().min(0).max(MAX_SEAT_PRICE_MINOR).optional(),
     maxPriceMinor: z.coerce.number().int().min(0).max(MAX_SEAT_PRICE_MINOR).optional(),
     sort: z.enum(['relevance', 'date', 'price_asc', 'price_desc']).default('date'),
-    page: z.coerce.number().int().min(1).max(200).default(1),
-    pageSize: z.coerce.number().int().min(1).max(48).default(12),
+    page: z.coerce.number().int().min(1).max(MAX_SEARCH_PAGE).default(1),
+    pageSize: z.coerce.number().int().min(1).max(MAX_SEARCH_PAGE_SIZE).default(12),
   })
   .refine((value) => !value.from || !value.to || value.from <= value.to, {
     path: ['to'],
@@ -52,15 +60,15 @@ export const searchQuerySchema = z
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 export const searchPageSchema = z.strictObject({
   searchProof: z.string().max(20000).optional(),
-  events: z.array(searchDocumentSchema).max(48),
+  events: z.array(searchDocumentSchema).max(MAX_SEARCH_PAGE_SIZE),
   total: z.number().int().nonnegative(),
-  page: z.number().int().min(1).max(200),
-  pageSize: z.number().int().min(1).max(48),
-  pages: z.number().int().min(0).max(200),
+  page: z.number().int().min(1).max(MAX_SEARCH_PAGE),
+  pageSize: z.number().int().min(1).max(MAX_SEARCH_PAGE_SIZE),
+  pages: z.number().int().min(0).max(MAX_SEARCH_PAGE),
   facets: z.strictObject({
     cities: z
       .array(z.strictObject({ value: z.string().max(100), count: z.number().int().nonnegative() }))
-      .max(30),
+      .max(MAX_SEARCH_CITY_FACETS),
     price: z.strictObject({
       min: z.number().int().nonnegative().nullable(),
       max: z.number().int().nonnegative().nullable(),
@@ -70,17 +78,35 @@ export const searchPageSchema = z.strictObject({
   limited: z.boolean(),
 });
 export type SearchPage = z.infer<typeof searchPageSchema>;
+export const searchSuggestionsSchema = z.strictObject({
+  suggestions: z
+    .array(
+      z.strictObject({
+        id: z.uuid(),
+        title: z.string().max(MAX_EVENT_TITLE_LENGTH),
+        city: z.string().max(100),
+      }),
+    )
+    .max(MAX_SEARCH_SUGGESTIONS),
+  limited: z.boolean(),
+});
+
 export const searchFeedQuerySchema = z
   .strictObject({
     after: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0),
     through: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(100),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_SEARCH_FEED_BATCH_SIZE)
+      .default(MAX_SEARCH_FEED_BATCH_SIZE),
   })
   .refine((value) => value.through === undefined || value.after <= value.through, {
     path: ['through'],
   });
 export const searchFeedSchema = z.strictObject({
-  changes: z.array(searchChangeSchema).max(100),
+  changes: z.array(searchChangeSchema).max(MAX_SEARCH_FEED_BATCH_SIZE),
   through: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
   next: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
 });

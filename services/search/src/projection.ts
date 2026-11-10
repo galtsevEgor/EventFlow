@@ -27,6 +27,7 @@ export class SearchProjection {
     if (!this.initialized) throw new Error('Search is warming');
     await this.lease.run(async (lease) => {
       const index = await this.engine.activeIndex();
+      await lease.assert();
       await this.store.apply(index, [result.data]);
       await lease.assert();
     });
@@ -59,11 +60,14 @@ export class SearchProjection {
       const index = await this.engine.activeIndex(),
         checkpoint = await this.store.checkpoint(index);
       const page = await this.feed.read(checkpoint.position);
+      await lease.assert();
       await this.store.apply(index, page.changes);
       await lease.assert();
       const complete = checkpoint.complete || page.next === page.through;
-      if (!checkpoint.complete && complete)
+      if (!checkpoint.complete && complete) {
         await this.engine.request('/' + index + '/_refresh', 'POST');
+        await lease.assert();
+      }
       await this.store.save(index, page.next, complete, checkpoint.generation);
       await lease.assert();
       return page.next === page.through;

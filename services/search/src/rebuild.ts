@@ -71,6 +71,7 @@ export class RebuildIndex {
     while (position < through) {
       await lease.assert();
       const page = await this.feed.read(position, through);
+      await lease.assert();
       await this.store.apply(index, page.changes);
       position = page.next;
     }

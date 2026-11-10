@@ -1,4 +1,6 @@
 import {
+  ANALYTICS_ATTRIBUTION_WINDOW_HOURS,
+  ANALYTICS_UTC_DAY_MS,
   analyticsReportSchema,
   analyticsPeriodSchema,
   type AnalyticsPeriod,
@@ -25,6 +27,7 @@ const numeric = [
   'clicks',
   'searchImpressions',
 ] as const;
+const MAX_REPORT_GROUPS = 10_000;
 export class AnalyticsReport {
   constructor(
     private readonly engine: ClickHouse,
@@ -40,11 +43,12 @@ export class AnalyticsReport {
     };
     // Aggregate once per session/event; ordered arrays preserve the SAME-order conversion rule.
     const query = `WITH
+    toDateTime({to:String},'UTC')+INTERVAL 1 DAY AS periodEnd,
     sessions AS (
       SELECT eventId,sessionId,
-        minIf(occurredAt,kind='impression' AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 1 DAY) AS entered,
-        argMinIf(source,tuple(occurredAt,key),kind='impression' AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 1 DAY) AS entrySource,
-        countIf(kind='impression' AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 1 DAY) AS entryCount,
+        minIf(occurredAt,kind='impression' AND occurredAt<periodEnd) AS entered,
+        argMinIf(source,tuple(occurredAt,key),kind='impression' AND occurredAt<periodEnd) AS entrySource,
+        countIf(kind='impression' AND occurredAt<periodEnd) AS entryCount,
         groupArrayIf(occurredAt,kind='event_view') AS viewTimes,
         groupArrayIf(tuple(occurredAt,orderId),kind='held') AS heldSteps,
         groupArrayIf(tuple(occurredAt,orderId),kind='confirmed') AS paidSteps,
@@ -52,20 +56,25 @@ export class AnalyticsReport {
       FROM ${this.engine.table()} FINAL
       WHERE organizationId={org:String} AND ({event:String}='' OR eventId={event:String})
         AND sessionId!='' AND occurredAt>=toDateTime({from:String},'UTC')
-        AND occurredAt<toDateTime({to:String},'UTC')+INTERVAL 2 DAY
+        AND occurredAt<periodEnd+INTERVAL ${ANALYTICS_ATTRIBUTION_WINDOW_HOURS} HOUR
       GROUP BY eventId,sessionId HAVING entryCount>0
     ),
-    visits AS (SELECT *,arrayFilter(t->t>=entered AND t<entered+INTERVAL 24 HOUR,viewTimes) AS acceptedViews
+    windows AS (SELECT *,entered+INTERVAL ${ANALYTICS_ATTRIBUTION_WINDOW_HOURS} HOUR AS attributionEnd
       FROM sessions WHERE {source:String}='' OR entrySource={source:String}),
+    visits AS (SELECT *,arrayFilter(t->t>=entered AND t<attributionEnd,viewTimes) AS acceptedViews
+      FROM windows),
     reservations AS (SELECT *,arrayFilter(h->notEmpty(acceptedViews) AND h.2!=''
-      AND h.1>=arrayMin(acceptedViews) AND h.1<entered+INTERVAL 24 HOUR,heldSteps) AS acceptedHolds FROM visits)
+      AND h.1>=arrayMin(acceptedViews) AND h.1<attributionEnd,heldSteps) AS acceptedHolds FROM visits)
     SELECT toString(toDate(entered,'UTC')) AS date,eventId,entrySource AS source,
       count() AS impressions,countIf(notEmpty(acceptedViews)) AS views,countIf(notEmpty(acceptedHolds)) AS held,
-      countIf(arrayExists(c->c.1<entered+INTERVAL 24 HOUR AND arrayExists(h->h.2=c.2 AND c.1>=h.1,acceptedHolds),paidSteps)) AS confirmed,
-      countIf(entrySource='search' AND arrayExists(t->t>=entered AND t<entered+INTERVAL 24 HOUR,clickTimes)) AS clicks,
+      countIf(arrayExists(c->c.1<attributionEnd AND arrayExists(h->h.2=c.2 AND c.1>=h.1,acceptedHolds),paidSteps)) AS confirmed,
+      countIf(entrySource='search' AND arrayExists(t->t>=entered AND t<attributionEnd,clickTimes)) AS clicks,
       countIf(entrySource='search') AS searchImpressions
-    FROM reservations GROUP BY date,eventId,entrySource ORDER BY date,eventId,entrySource LIMIT 10001`;
-    const groups = (await this.engine.rows<Group>(query, params)).map((row) => ({
+    FROM reservations GROUP BY date,eventId,entrySource ORDER BY date,eventId,entrySource LIMIT ${MAX_REPORT_GROUPS + 1}`;
+    const rows = await this.engine.rows<Group>(query, params);
+    if (rows.length > MAX_REPORT_GROUPS)
+      throw new Error('Narrow the analytics period or event filter');
+    const groups = rows.map((row) => ({
       date: row.date,
       eventId: row.eventId,
       source: row.source,
@@ -75,8 +84,7 @@ export class AnalyticsReport {
       confirmed: Number(row.confirmed),
       clicks: Number(row.clicks),
       searchImpressions: Number(row.searchImpressions),
-    })) as (Omit<Group, (typeof numeric)[number]> & Record<(typeof numeric)[number], number>)[];
-    if (groups.length > 10000) throw new Error('Narrow the analytics period or event filter');
+    }));
     const totals = Object.fromEntries(
       numeric.map((key) => [key, groups.reduce((sum, row) => sum + row[key], 0)]),
     ) as Record<(typeof numeric)[number], number>;
@@ -90,11 +98,12 @@ export class AnalyticsReport {
   async read(organizationId: string, input: AnalyticsPeriod) {
     const query = analyticsPeriodSchema.parse(input);
     const status = await this.projection.status();
-    const days = (Date.parse(query.to) - Date.parse(query.from)) / 86400000 + 1;
+    const start = Date.parse(query.from);
+    const duration = Date.parse(query.to) - start + ANALYTICS_UTC_DAY_MS;
     const previous = {
       ...query,
-      from: new Date(Date.parse(query.from) - days * 86400000).toISOString().slice(0, 10),
-      to: new Date(Date.parse(query.from) - 86400000).toISOString().slice(0, 10),
+      from: new Date(start - duration).toISOString().slice(0, 10),
+      to: new Date(start - ANALYTICS_UTC_DAY_MS).toISOString().slice(0, 10),
     };
     const [current, comparison] = await Promise.all([
       this.period(organizationId, query),
@@ -108,7 +117,7 @@ export class AnalyticsReport {
       status,
       generatedAt: new Date().toISOString(),
       timeZone: 'UTC',
-      windowHours: 24,
+      windowHours: ANALYTICS_ATTRIBUTION_WINDOW_HOURS,
     });
   }
   async search(input: AnalyticsPeriod) {

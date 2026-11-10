@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import {
+  MAX_SEARCH_CITY_FACETS,
+  MAX_SEARCH_PAGE,
+  MAX_SEARCH_SUGGESTIONS,
   searchDocumentSchema,
   searchPageSchema,
   type SearchQuery,
@@ -74,12 +77,18 @@ export function searchRequest(query: SearchQuery, suggestions = false) {
     track_total_hits: true,
     _source: Object.keys(searchDocumentSchema.shape),
     from: suggestions ? 0 : (query.page - 1) * query.pageSize,
-    size: suggestions ? 6 : query.pageSize,
+    size: suggestions ? MAX_SEARCH_SUGGESTIONS : query.pageSize,
     query: { bool: { filter, must: text } },
     post_filter: city,
     sort: suggestions ? [{ _score: 'desc' }, { startsAt: 'asc' }, { id: 'asc' }] : sort,
     aggs: {
-      cities: { terms: { field: 'city', size: 30, order: [{ _count: 'desc' }, { _key: 'asc' }] } },
+      cities: {
+        terms: {
+          field: 'city',
+          size: MAX_SEARCH_CITY_FACETS,
+          order: [{ _count: 'desc' }, { _key: 'asc' }],
+        },
+      },
       selected: {
         filter: city,
         aggs: {
@@ -100,11 +109,8 @@ export class SearchService {
   ) {}
   async list(query: SearchQuery, suggestions = false) {
     await this.ready();
-    const raw = await this.engine.request(
-      '/' + this.engine.alias + '/_search',
-      'POST',
-      searchRequest(query, suggestions),
-    );
+    const request = searchRequest(query, suggestions);
+    const raw = await this.engine.request('/' + this.engine.alias + '/_search', 'POST', request);
     const parsed = resultSchema.safeParse(raw);
     if (!parsed.success) throw new SearchEngineError(503, 'incomplete_search_response');
     const { hits, aggregations } = parsed.data;
@@ -112,8 +118,8 @@ export class SearchService {
       events: hits.hits.map((hit) => hit._source),
       total: hits.total.value,
       page: suggestions ? 1 : query.page,
-      pageSize: suggestions ? 6 : query.pageSize,
-      pages: Math.min(200, Math.ceil(hits.total.value / (suggestions ? 6 : query.pageSize))),
+      pageSize: request.size,
+      pages: Math.min(MAX_SEARCH_PAGE, Math.ceil(hits.total.value / request.size)),
       facets: {
         cities: aggregations.cities.buckets.map((bucket) => ({
           value: bucket.key,

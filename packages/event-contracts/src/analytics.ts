@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+export const ANALYTICS_ATTRIBUTION_WINDOW_HOURS = 24;
+export const ANALYTICS_UTC_DAY_MS = 86_400_000;
+const ANALYTICS_MAX_REPORT_DAYS = 31;
+
 export const analyticsKinds = [
   'impression',
   'event_view',
@@ -51,7 +55,8 @@ export const analyticsPeriodSchema = z
   })
   .refine(
     ({ from, to }) =>
-      Date.parse(to) >= Date.parse(from) && Date.parse(to) - Date.parse(from) < 31 * 86400000,
+      Date.parse(to) >= Date.parse(from) &&
+      Date.parse(to) - Date.parse(from) < ANALYTICS_MAX_REPORT_DAYS * ANALYTICS_UTC_DAY_MS,
     { message: 'Выберите период до 31 дня.' },
   );
 export type AnalyticsPeriod = z.infer<typeof analyticsPeriodSchema>;
@@ -85,7 +90,7 @@ export const analyticsReportSchema = z.strictObject({
   status: analyticsStatusSchema,
   generatedAt: z.iso.datetime(),
   timeZone: z.literal('UTC'),
-  windowHours: z.literal(24),
+  windowHours: z.literal(ANALYTICS_ATTRIBUTION_WINDOW_HOURS),
 });
 export type AnalyticsReportData = z.infer<typeof analyticsReportSchema>;
 export const searchAnalyticsSchema = z.strictObject({

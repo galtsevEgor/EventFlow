@@ -137,6 +137,10 @@ test('filters, disjunctive city facets, exact totals and stable bounded paginati
   const empty = (await get(app.origin, query.toString())).body;
   assert.equal(empty.total, 2);
   assert.deepEqual(empty.events, []);
+  const boundary = await get(app.origin, 'page=200&pageSize=48');
+  assert.equal(boundary.status, 200);
+  assert.equal(boundary.body.page, 200);
+  assert.equal(boundary.body.pageSize, 48);
   for (const invalid of [
     'page=201',
     'pageSize=49',
@@ -194,6 +198,12 @@ test('BFF falls back to authoritative SQL with filters and recovers automaticall
     [first.eventId],
   );
   assert.deepEqual(fallback.body.facets, normal.body.facets);
+  const suggestion = await get(bff.origin, query + '&page=200&pageSize=48', 'suggest');
+  assert.equal(suggestion.status, 200);
+  assert.deepEqual(suggestion.body, {
+    suggestions: [{ id: first.eventId, title: first.title, city: 'Кишинёв' }],
+    limited: true,
+  });
   assert.equal((await get(bff.origin, 'q=' + encodeURIComponent('%_'))).body.total, 0);
   assert.equal((await get(bff.origin, 'page=201')).status, 422);
   app.engine.request = original;

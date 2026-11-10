@@ -4,6 +4,9 @@ import { analyticsFactSchema, type AnalyticsFact } from '@eventflow/event-contra
 import { ApiError } from '@eventflow/service-runtime';
 import type { JournalRow } from './clickhouse';
 
+const JOURNAL_APPEND_LOCK = 180010;
+const JOURNAL_PAGE_SIZE = 1_000;
+
 export class Journal {
   readonly pool: Pool;
   constructor(url: string) {
@@ -21,7 +24,7 @@ export class Journal {
     try {
       await client.query('BEGIN');
       // Serialize sequence allocation and commits so a checkpoint cannot skip an uncommitted row.
-      await client.query('SELECT pg_advisory_xact_lock(180010)');
+      await client.query('SELECT pg_advisory_xact_lock($1)', [JOURNAL_APPEND_LOCK]);
       const rows = facts.map((fact) => ({
         key: fact.key,
         hash: createHash('sha256').update(JSON.stringify(fact)).digest('hex'),
@@ -51,8 +54,8 @@ export class Journal {
   async rows(after: string, through?: string): Promise<JournalRow[]> {
     return (
       await this.pool.query<JournalRow>(
-        'SELECT sequence::text, fact FROM analytics_event WHERE sequence > $1 AND ($2::bigint IS NULL OR sequence <= $2) ORDER BY analytics_event.sequence LIMIT 1000',
-        [after, through ?? null],
+        'SELECT sequence::text, fact FROM analytics_event WHERE sequence > $1 AND ($2::bigint IS NULL OR sequence <= $2) ORDER BY analytics_event.sequence LIMIT $3::int',
+        [after, through ?? null, JOURNAL_PAGE_SIZE],
       )
     ).rows;
   }

@@ -1,46 +1,54 @@
 import { randomUUID } from 'node:crypto';
 import type { OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { ClickHouse } from './clickhouse';
+import { ClickHouse, type JournalRow } from './clickhouse';
 import { Journal } from './journal';
+
+const ANALYTICS_PROJECTION_LOCK = 180020;
+const ANALYTICS_SYNC_INTERVAL_MS = 1_000;
 
 export class AnalyticsProjection {
   constructor(
     readonly journal: Journal,
     readonly engine: ClickHouse,
   ) {}
+  private async replay(
+    after: string,
+    through: string,
+    apply: (rows: JournalRow[], sequence: string) => Promise<void>,
+  ) {
+    let cursor = after;
+    for (;;) {
+      const rows = await this.journal.rows(cursor, through);
+      const last = rows.at(-1);
+      if (!last) return cursor;
+      await apply(rows, last.sequence);
+      cursor = last.sequence;
+    }
+  }
   async sync() {
-    return this.journal.lock(180020, async (client) => {
+    return this.journal.lock(ANALYTICS_PROJECTION_LOCK, async (client) => {
       await this.engine.initialize();
       const generation = await this.engine.generation();
       const previous = await this.journal.checkpoint(client);
-      let after = previous?.generation === generation ? previous.sequence : '0';
+      const start = previous?.generation === generation ? previous.sequence : '0';
       const through = await this.journal.highWater();
-      for (;;) {
-        const rows = await this.journal.rows(after, through);
-        if (!rows.length) break;
+      const after = await this.replay(start, through, async (rows, sequence) => {
         await this.engine.insert(rows);
-        after = rows.at(-1)!.sequence;
         // This physical connection owns the advisory lock. A disconnected writer cannot advance it.
-        await this.journal.save(client, generation, after);
-      }
+        await this.journal.save(client, generation, sequence);
+      });
       await this.journal.save(client, generation, after);
       return { sequence: after, generation };
     });
   }
   async rebuild() {
-    return this.journal.lock(180020, async (client) => {
+    return this.journal.lock(ANALYTICS_PROJECTION_LOCK, async (client) => {
       await this.engine.initialize();
       const name = 'build_' + randomUUID().replaceAll('-', '');
       await this.engine.initialize(name);
       try {
         const through = await this.journal.highWater();
-        let after = '0';
-        for (;;) {
-          const rows = await this.journal.rows(after, through);
-          if (!rows.length) break;
-          await this.engine.insert(rows, name);
-          after = rows.at(-1)!.sequence;
-        }
+        const after = await this.replay('0', through, (rows) => this.engine.insert(rows, name));
         // Atomic swaps preserve the old queryable generation throughout replay.
         await this.engine.command(
           `EXCHANGE TABLES ${this.engine.table()} AND ${this.engine.table(name)}`,
@@ -86,7 +94,7 @@ export class AnalyticsWorker implements OnModuleInit, OnModuleDestroy {
         .then(() => {})
         .catch(() => {})
         .finally(() => {
-          if (!this.stopped) this.schedule(1000);
+          if (!this.stopped) this.schedule(ANALYTICS_SYNC_INTERVAL_MS);
         });
     }, delay);
     this.timer.unref();

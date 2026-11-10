@@ -8,6 +8,10 @@ import {
   MAX_OFFLINE_PAYLOAD_LENGTH,
   MAX_OFFLINE_SNAPSHOT_HASHES,
   MAX_OFFLINE_SYNC_OPERATIONS,
+  MAX_SEARCH_CITY_FACETS,
+  MAX_SEARCH_PAGE,
+  MAX_SEARCH_PAGE_SIZE,
+  MAX_SEARCH_SUGGESTIONS,
   MAX_SEATS_PER_ORDER,
   MAX_SEATS_PER_ROW,
   MAX_VENUE_FEATURE_DIMENSION,
@@ -21,10 +25,8 @@ import {
   venueSeatIdSchema,
 } from '@eventflow/event-contracts';
 
-const { components } = JSON.parse(
-  readFileSync(new URL('../openapi.json', import.meta.url), 'utf8'),
-);
-const schemas = components.schemas;
+const bffSpec = JSON.parse(readFileSync(new URL('../openapi.json', import.meta.url), 'utf8'));
+const schemas = bffSpec.components.schemas;
 
 test('BFF OpenAPI advertises the runtime limits for halls, drafts, and orders', () => {
   const config = schemas.EventConfiguration.properties;
@@ -73,4 +75,27 @@ test('BFF OpenAPI uses the same snapshot and batch limits as the offline gate', 
   assert.equal(schemas.OfflineBundle.properties.payload.maxLength, MAX_OFFLINE_PAYLOAD_LENGTH);
   assert.equal(schemas.OfflineSync.properties.operations.maxItems, MAX_OFFLINE_SYNC_OPERATIONS);
   assert.equal(schemas.OfflineSyncResult.properties.results.maxItems, MAX_OFFLINE_SYNC_OPERATIONS);
+});
+
+test('Search and BFF OpenAPI agree with runtime result, facet and suggestion limits', () => {
+  const searchSpec = JSON.parse(
+    readFileSync(new URL('../../../services/search/openapi.json', import.meta.url), 'utf8'),
+  );
+  for (const spec of [bffSpec, searchSpec]) {
+    const { SearchPage, SearchSuggestions } = spec.components.schemas;
+    assert.equal(SearchPage.properties.events.maxItems, MAX_SEARCH_PAGE_SIZE);
+    assert.equal(SearchPage.properties.page.maximum, MAX_SEARCH_PAGE);
+    assert.equal(SearchPage.properties.pages.maximum, MAX_SEARCH_PAGE);
+    assert.equal(SearchPage.properties.pageSize.maximum, MAX_SEARCH_PAGE_SIZE);
+    assert.equal(SearchPage.properties.facets.properties.cities.maxItems, MAX_SEARCH_CITY_FACETS);
+    assert.equal(SearchSuggestions.properties.suggestions.maxItems, MAX_SEARCH_SUGGESTIONS);
+    for (const path of ['/api/v1/search/events', '/api/v1/search/suggest']) {
+      const { parameters } = spec.paths[path].get;
+      assert.equal(parameters.find(({ name }) => name === 'page').schema.maximum, MAX_SEARCH_PAGE);
+      assert.equal(
+        parameters.find(({ name }) => name === 'pageSize').schema.maximum,
+        MAX_SEARCH_PAGE_SIZE,
+      );
+    }
+  }
 });

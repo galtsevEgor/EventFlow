@@ -1,6 +1,9 @@
 import type { AnalyticsConfig } from './config';
 import type { AnalyticsFact } from '@eventflow/event-contracts';
 export type JournalRow = { sequence: string; fact: AnalyticsFact };
+
+const CLICKHOUSE_HTTP_TIMEOUT_MS = 15_000;
+
 export class ClickHouse {
   readonly database: string;
   constructor(
@@ -25,7 +28,7 @@ export class ClickHouse {
     const response = await fetch(url, {
       method: 'POST',
       redirect: 'error',
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(CLICKHOUSE_HTTP_TIMEOUT_MS),
       headers: {
         'x-clickhouse-user': this.config.CLICKHOUSE_USER,
         'x-clickhouse-key': this.config.CLICKHOUSE_PASSWORD,

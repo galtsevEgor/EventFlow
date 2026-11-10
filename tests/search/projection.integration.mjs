@@ -104,12 +104,16 @@ test('a lost bulk response cannot advance the checkpoint and exact replay finish
   }
 });
 
-test('an expired writer cannot acknowledge work or remove the successor replica lease', async () => {
+test('a writer that loses its lease during a feed read cannot write or remove its successor lease', async () => {
   const f = await searchFixture();
-  let release;
+  let release, stale;
   try {
     const a = await f.start(),
       b = await f.start();
+    const index = await a.engine.activeIndex();
+    const checkpoint = await a.store.checkpoint(index);
+    const event = await publishSearchEvent(f.catalog);
+    const key = f.namespace + ':writer';
     let entered;
     const ready = new Promise((resolve) => {
         entered = resolve;
@@ -117,25 +121,52 @@ test('an expired writer cannot acknowledge work or remove the successor replica 
       gate = new Promise((resolve) => {
         release = resolve;
       });
-    const old = a.lease.run(async (lease) => {
+    const read = a.projection.feed.read.bind(a.projection.feed);
+    a.projection.feed.read = async (...args) => {
+      const page = await read(...args);
       entered();
       await gate;
-      await lease.assert();
-    });
-    await ready;
+      return page;
+    };
+    stale = a.projection.sync();
+    await Promise.race([
+      ready,
+      stale.then(() => assert.fail('Expected the writer to wait on the feed')),
+    ]);
+    const original = await a.lease.client.get(key);
+    assert.ok(original);
+    const ttl = await a.lease.client.pTTL(key);
+    assert.ok(ttl > 25_000 && ttl <= 30_000);
     await assert.rejects(
       b.lease.run(async () => {}),
       ProjectionBusy,
     );
-    await a.lease.client.del(f.namespace + ':writer');
+    await a.lease.client.pExpire(key, 1);
+    await eventually(
+      () => a.lease.client.get(key),
+      (value) => value === null,
+    );
     await b.lease.run(async (lease) => {
-      release();
-      await assert.rejects(old, ProjectionBusy);
-      assert.ok(await b.lease.client.get(f.namespace + ':writer'));
+      const successor = await b.lease.client.get(key);
+      assert.ok(successor && successor !== original);
+      await b.lease.client.pExpire(key, 15_000);
       await lease.assert();
+      const renewed = await b.lease.client.pTTL(key);
+      assert.ok(renewed > 25_000 && renewed <= 30_000);
+      release();
+      await assert.rejects(stale, ProjectionBusy);
+      assert.equal(await b.lease.client.get(key), successor);
+      await assert.rejects(
+        readDoc(a.engine, index, event.eventId),
+        (error) => error.status === 404,
+      );
+      assert.deepEqual(await a.store.checkpoint(index), checkpoint);
     });
+    await b.projection.sync();
+    assert.equal((await readDoc(b.engine, index, event.eventId))._source.title, event.title);
   } finally {
     release?.();
+    await stale?.catch(() => {});
     await f.close();
   }
 });

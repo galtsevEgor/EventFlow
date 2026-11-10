@@ -1,17 +1,15 @@
 import { Controller, Get, Inject, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { z } from 'zod';
 import { ApiError, parseInput } from '@eventflow/service-runtime';
-import { searchPageSchema, searchQuerySchema } from '@eventflow/event-contracts';
+import {
+  MAX_SEARCH_SUGGESTIONS,
+  searchPageSchema,
+  searchQuerySchema,
+  searchSuggestionsSchema,
+} from '@eventflow/event-contracts';
 import { AnalyticsBridge } from './analytics/service';
 import { AuthService } from './auth/auth.service';
 
-const suggestionsSchema = z.strictObject({
-  suggestions: z
-    .array(z.strictObject({ id: z.uuid(), title: z.string().max(160), city: z.string().max(100) }))
-    .max(6),
-  limited: z.boolean(),
-});
 @Controller('api/v1/search')
 export class SearchProxy {
   constructor(
@@ -45,7 +43,7 @@ export class SearchProxy {
         url.search = params.toString();
         const result = await this.fetch(url, response);
         return suggest
-          ? suggestionsSchema.parse(result)
+          ? searchSuggestionsSchema.parse(result)
           : this.analytics.search(searchPageSchema.parse(result));
       } catch {
         // Discovery can use the authoritative catalog while its projection recovers.
@@ -55,7 +53,7 @@ export class SearchProxy {
       const url = new URL('/api/v1/search/fallback', this.auth.config.CATALOG_URL);
       if (suggest) {
         params.set('page', '1');
-        params.set('pageSize', '6');
+        params.set('pageSize', String(MAX_SEARCH_SUGGESTIONS));
       }
       url.search = params.toString();
       const page = searchPageSchema.parse(await this.fetch(url, response));

@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { createClient } from 'redis';
 
+const SEARCH_LEASE_TTL_MS = 30_000;
+const SEARCH_LEASE_RENEW_INTERVAL_MS = 5_000;
+const SEARCH_LEASE_COMMAND_TIMEOUT_MS = 2_000;
+
 export class ProjectionBusy extends Error {}
 export type WriteLease = { assert(): Promise<void> };
 export class ProjectionLease {
@@ -29,17 +33,17 @@ export class ProjectionLease {
       token = randomUUID();
     if (
       !(await this.client
-        .withCommandOptions({ timeout: 2000 })
-        .set(key, token, { NX: true, expiration: { type: 'PX', value: 30000 } }))
+        .withCommandOptions({ timeout: SEARCH_LEASE_COMMAND_TIMEOUT_MS })
+        .set(key, token, { NX: true, expiration: { type: 'PX', value: SEARCH_LEASE_TTL_MS } }))
     )
       throw new ProjectionBusy('Search projection is busy');
     let lost = false;
     const renew = async () => {
       const renewed = await this.client
-        .withCommandOptions({ timeout: 2000 })
+        .withCommandOptions({ timeout: SEARCH_LEASE_COMMAND_TIMEOUT_MS })
         .eval(
-          "if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('PEXPIRE',KEYS[1],30000) else return 0 end",
-          { keys: [key], arguments: [token] },
+          "if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('PEXPIRE',KEYS[1],ARGV[2]) else return 0 end",
+          { keys: [key], arguments: [token, String(SEARCH_LEASE_TTL_MS)] },
         );
       if (renewed !== 1) lost = true;
       if (lost) throw new ProjectionBusy('Search lease expired');
@@ -48,7 +52,7 @@ export class ProjectionLease {
       void renew().catch(() => {
         lost = true;
       });
-    }, 5000);
+    }, SEARCH_LEASE_RENEW_INTERVAL_MS);
     try {
       return await operation({
         assert: async () => {
@@ -59,7 +63,7 @@ export class ProjectionLease {
     } finally {
       clearInterval(timer);
       await this.client
-        .withCommandOptions({ timeout: 2000 })
+        .withCommandOptions({ timeout: SEARCH_LEASE_COMMAND_TIMEOUT_MS })
         .eval(
           "if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) else return 0 end",
           { keys: [key], arguments: [token] },

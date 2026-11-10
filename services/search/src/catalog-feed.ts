@@ -1,6 +1,12 @@
 import { z } from 'zod';
-import { searchFeedSchema } from '@eventflow/event-contracts';
+import {
+  MAX_SEARCH_FEED_BATCH_SIZE,
+  MAX_SEARCH_RECONCILE_BATCH_SIZE,
+  searchFeedSchema,
+} from '@eventflow/event-contracts';
 import type { ClientCredentials } from '@eventflow/service-runtime';
+
+const MAX_CATALOG_RECONCILE_PAGES = 10_000;
 
 export class CatalogFeed {
   constructor(
@@ -27,7 +33,7 @@ export class CatalogFeed {
   async read(after: number, through?: number) {
     const params = new URLSearchParams({
       after: String(after),
-      limit: '100',
+      limit: String(MAX_SEARCH_FEED_BATCH_SIZE),
       ...(through === undefined ? {} : { through: String(through) }),
     });
     const page = searchFeedSchema.parse(await this.request('/internal/search/changes?' + params));
@@ -47,11 +53,11 @@ export class CatalogFeed {
   }
   async reconcile() {
     let after: string | null = null;
-    for (let page = 0; page < 10000; page++) {
+    for (let page = 0; page < MAX_CATALOG_RECONCILE_PAGES; page++) {
       const result = z.strictObject({ next: z.uuid().nullable() }).parse(
         await this.request('/internal/search/reconcile', {
           ...(after ? { after } : {}),
-          limit: 100,
+          limit: MAX_SEARCH_RECONCILE_BATCH_SIZE,
         }),
       );
       if (!result.next) return;

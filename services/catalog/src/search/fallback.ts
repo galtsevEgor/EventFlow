@@ -1,6 +1,8 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { parseInput } from '@eventflow/service-runtime';
 import {
+  MAX_SEARCH_CITY_FACETS,
+  MAX_SEARCH_PAGE,
   type SearchDocument,
   searchPageSchema,
   searchQuerySchema,
@@ -50,7 +52,8 @@ export class SearchFallback {
       ), counts AS (
         SELECT count(*) AS total, min("minPriceMinor") AS min, max("minPriceMinor") AS max FROM selected
       ), cities AS (
-        SELECT city AS value, count(*) AS count FROM eligible GROUP BY city ORDER BY count DESC, city LIMIT 30
+        SELECT city AS value, count(*) AS count FROM eligible GROUP BY city
+        ORDER BY count DESC, city LIMIT ${MAX_SEARCH_CITY_FACETS}
       ), page AS (
         SELECT p.*, row_number() OVER (ORDER BY ${order}) AS rank
         FROM selected p ORDER BY ${order} LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
@@ -78,7 +81,7 @@ export class SearchFallback {
       total,
       page,
       pageSize,
-      pages: Math.min(200, Math.ceil(total / pageSize)),
+      pages: Math.min(MAX_SEARCH_PAGE, Math.ceil(total / pageSize)),
       facets: { cities: row!.cities, price: { min: row!.min, max: row!.max } },
       source: 'catalog',
       limited: true,

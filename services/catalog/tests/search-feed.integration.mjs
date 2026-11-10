@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { PNG } from 'pngjs';
@@ -112,6 +113,36 @@ test('the feed requires a scoped machine JWT and reconciliation repairs old writ
     const count = await f.db.searchChange.count();
     await f.request('/internal/search/reconcile', token, 'POST', {});
     assert.equal(await f.db.searchChange.count(), count);
+  } finally {
+    await f.close();
+  }
+});
+
+test('the default change feed stops at 100 rows and its fixed watermark resumes at row 101', async () => {
+  const f = await catalogFixture();
+  try {
+    const token = await machine(f);
+    await f.db.searchChange.createMany({
+      data: Array.from({ length: 101 }, () => ({ eventId: randomUUID() })),
+    });
+    const first = await f.request('/internal/search/changes', token);
+    assert.equal(first.status, 200);
+    assert.equal(first.body.changes.length, 100);
+    assert.equal(first.body.next, first.body.changes.at(-1).position);
+    assert.ok(first.body.next < first.body.through);
+    const last = await f.request(
+      `/internal/search/changes?after=${first.body.next}&through=${first.body.through}`,
+      token,
+    );
+    assert.equal(last.status, 200);
+    assert.equal(last.body.changes.length, 1);
+    assert.equal(last.body.changes[0].position, first.body.through);
+    assert.equal(last.body.next, first.body.through);
+    assert.equal((await f.request('/internal/search/changes?limit=101', token)).status, 422);
+    assert.equal(
+      (await f.request('/internal/search/reconcile', token, 'POST', { limit: 101 })).status,
+      422,
+    );
   } finally {
     await f.close();
   }

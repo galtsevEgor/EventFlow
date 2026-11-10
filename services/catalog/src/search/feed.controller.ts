@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Inject, Post, Query, Req } from '@nest
 import type { Request } from 'express';
 import { z } from 'zod';
 import { ApiError, parseInput, TokenVerifier } from '@eventflow/service-runtime';
-import { searchFeedQuerySchema } from '@eventflow/event-contracts';
+import { MAX_SEARCH_RECONCILE_BATCH_SIZE, searchFeedQuerySchema } from '@eventflow/event-contracts';
 import { SearchFeed } from './feed.service';
 @Controller('internal/search')
 export class SearchFeedController {
@@ -38,7 +38,12 @@ export class SearchFeedController {
     const query = parseInput(
       z.strictObject({
         after: z.uuid().optional(),
-        limit: z.number().int().min(1).max(100).default(100),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_SEARCH_RECONCILE_BATCH_SIZE)
+          .default(MAX_SEARCH_RECONCILE_BATCH_SIZE),
       }),
       body,
     );

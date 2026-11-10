@@ -2,12 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { Request, Response } from 'express';
 import { ClientCredentials, ApiError } from '@eventflow/service-runtime';
-import type { SearchPage } from '@eventflow/event-contracts';
+import { MAX_SEARCH_PAGE_SIZE, type SearchPage } from '@eventflow/event-contracts';
 import type { AuthConfig } from '../auth/config';
 import { AnalyticsSession } from './session';
+
+const SEARCH_PROOF_TTL_MS = 24 * 60 * 60 * 1_000;
 const proofSchema = z.strictObject({
   id: z.uuid(),
-  events: z.array(z.uuid()).max(48),
+  events: z.array(z.uuid()).max(MAX_SEARCH_PAGE_SIZE),
   expires: z.number(),
 });
 export class AnalyticsBridge {
@@ -57,7 +59,7 @@ export class AnalyticsBridge {
       searchProof = this.session.sign({
         id,
         events: page.events.map((e) => e.id),
-        expires: Date.now() + 24 * 3600000,
+        expires: Date.now() + SEARCH_PROOF_TTL_MS,
       });
     // Bounded, best-effort collection cannot delay discovery or accumulate an unbounded promise queue.
     if (this.pending < 20) {
