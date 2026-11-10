@@ -64,6 +64,7 @@ jobs:
           python-version: '3.12.6'
       - run: python -m pip install uv==0.11.7
       - run: pnpm recommendations setup
+      - run: pnpm tools:setup
       - run: pnpm env:init
       - run: pnpm infra:check
       - run: pnpm infra:up
@@ -91,7 +92,6 @@ jobs:
       - run: pnpm test:realtime-load --smoke
       - run: pnpm test:telemetry
       - run: pnpm test:telemetry-load --smoke
-      - run: pnpm tools:setup
       - run: pnpm test:load --smoke
       - run: pnpm test:overload --smoke
       - run: pnpm test:smoke
