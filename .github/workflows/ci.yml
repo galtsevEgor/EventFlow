@@ -73,8 +73,8 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm recommendations model:setup
       - run: pnpm recommendations evaluate --benchmark
-      - run: pnpm test:recommendations
       - run: pnpm build
+      - run: pnpm test:recommendations
       - run: pnpm test:catalog
       - run: pnpm test:publication
       - run: pnpm test:booking
