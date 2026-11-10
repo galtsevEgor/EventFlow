@@ -27,6 +27,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import { CollaborationBus } from './collaboration/bus';
 import { CollaborationHub } from './collaboration/hub';
 import { DocumentPresence } from './collaboration/presence';
+import { SwaggerController } from './swagger.controller';
 
 @Module({ imports: [HealthModule.forService('bff')] })
 export class AppModule {
@@ -35,6 +36,7 @@ export class AppModule {
       module: AppModule,
       imports: [AuthModule.configure(config)],
       controllers: [
+        SwaggerController,
         AnalyticsProxy,
         WaitlistProxy,
         OfflineCheckInProxy,

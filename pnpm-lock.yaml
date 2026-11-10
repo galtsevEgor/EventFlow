@@ -125,6 +125,9 @@ importers:
       rxjs:
         specifier: 7.8.2
         version: 7.8.2
+      swagger-ui-dist:
+        specifier: 5.34.1
+        version: 5.34.1
       ws:
         specifier: 8.22.2
         version: 8.22.2
@@ -3130,6 +3133,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@scarf/scarf@1.4.0':
+    resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
+
   '@smithy/core@3.37.0':
     resolution: {integrity: sha512-97imTcCyiPd8k0e9+ts/Sp0W65Dn9Ti357J7M09Ov4tI8Q1JDJVFSoAJtjEVKqfHEr3Pdo2jfolqKCaaiszH0g==}
     engines: {node: '>=18.0.0'}
@@ -6036,6 +6042,9 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
+  swagger-ui-dist@5.34.1:
+    resolution: {integrity: sha512-VSr8fXfI93obYaQicLJbLUKGRxDojj/SfRJDDLCioGTUBj4BK/Nj4eE9jCeCAnJxVLi7iS+08PbiZLyrQKBkJQ==}
+
   swc-loader@0.2.7:
     resolution: {integrity: sha512-nwYWw3Fh9ame3Rtm7StS9SBLpHRRnYcK7bnpF3UKZmesAK0gw2/ADvlURFAINmPvKtDLzp+GBiP9yLoEjg6S9w==}
     peerDependencies:
@@ -8785,6 +8794,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.68.2':
     optional: true
+
+  '@scarf/scarf@1.4.0': {}
 
   '@smithy/core@3.37.0':
     dependencies:
@@ -11969,6 +11980,10 @@ snapshots:
       has-flag: 4.0.0
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  swagger-ui-dist@5.34.1:
+    dependencies:
+      '@scarf/scarf': 1.4.0
 
   swc-loader@0.2.7(@swc/core@1.16.22(@swc/helpers@0.5.23))(webpack@5.112.2(@swc/core@1.16.22(@swc/helpers@0.5.23))(esbuild@0.28.2)):
     dependencies:
