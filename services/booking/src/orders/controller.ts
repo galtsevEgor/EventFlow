@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Reserve } from './reserve';
 import { OrderReader } from './reader';
 import { OrderLifecycle } from './lifecycle';
+import { orderPageSchema } from './pagination';
 
 @Controller('api/v1/orders')
 export class OrderController {
@@ -49,7 +50,7 @@ export class OrderController {
     const buyer = await this.buyer(auth);
     const values = parseInput(
       z.strictObject({
-        page: z.coerce.number().int().min(1).max(10000).default(1),
+        page: orderPageSchema,
         saleId: z.uuid().optional(),
       }),
       query,

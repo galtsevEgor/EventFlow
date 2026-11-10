@@ -4,12 +4,14 @@ import { orderRoutes } from './orders.js';
 import { statisticsEventTypes } from './statistics.js';
 import { refundRoutes } from './refunds.js';
 import { realtimeEventTypes } from './realtime.js';
+import { MAX_EVENT_TITLE_LENGTH } from './event-content.js';
+import { eventCurrencySchema, MAX_ORDER_TOTAL_MINOR, MAX_SEATS_PER_ORDER } from './purchase.js';
 
 export const paymentOrderSchema = z.strictObject({
   orderId: z.uuid(),
   buyerSubject: z.string().min(1).max(255),
-  amountMinor: z.number().int().positive().max(600_000_000),
-  currency: z.literal('EUR'),
+  amountMinor: z.number().int().positive().max(MAX_ORDER_TOTAL_MINOR),
+  currency: eventCurrencySchema,
   expiresAt: z.iso.datetime(),
   serverNow: z.iso.datetime(),
   state: z.enum(['HELD', 'CONFIRMED', 'EXPIRED', 'CANCELLED', 'REFUNDED']),
@@ -19,7 +21,7 @@ export const paymentSucceededSchema = z.strictObject({
   attemptId: z.uuid(),
   providerPaymentId: z.string().min(1).max(255),
   buyerSubject: z.string().min(1).max(255),
-  amountMinor: z.number().int().positive().max(600_000_000),
+  amountMinor: z.number().int().positive().max(MAX_ORDER_TOTAL_MINOR),
   currency: z.string().length(3),
   verifiedAt: z.iso.datetime(),
   provider: z.enum(['fake', 'stripe']),
@@ -41,9 +43,9 @@ export const orderConfirmedSchema = z.strictObject({
   saleId: z.uuid(),
   organizationId: z.uuid(),
   buyerSubject: z.string().min(1).max(255),
-  title: z.string().min(1).max(160),
+  title: z.string().min(1).max(MAX_EVENT_TITLE_LENGTH),
   totalMinor: z.number().int().positive(),
-  currency: z.literal('EUR'),
+  currency: eventCurrencySchema,
   confirmedAt: z.iso.datetime(),
   items: z
     .array(
@@ -56,7 +58,7 @@ export const orderConfirmedSchema = z.strictObject({
       }),
     )
     .min(1)
-    .max(6),
+    .max(MAX_SEATS_PER_ORDER),
 });
 export const commerceRoutes = {
   analytics: ['OrderStatisticsChanged.v1', 'WaitlistChanged.v1'],

@@ -1,23 +1,55 @@
 import { z } from 'zod';
 
+export const MAX_VENUE_ROWS = 50;
+export const MAX_SEATS_PER_ROW = 50;
+export const MAX_VENUE_SEATS = 1_000;
+
+export const MIN_VENUE_MAP_COORDINATE = 0;
+export const MAX_VENUE_MAP_COORDINATE = 10_000;
+export const MIN_VENUE_MAP_DIMENSION = 200;
+export const MAX_VENUE_MAP_DIMENSION = 10_000;
+export const MIN_VENUE_FEATURE_DIMENSION = 20;
+export const MAX_VENUE_FEATURE_DIMENSION = 10_000;
+export const MAX_VENUE_MAP_FEATURES = 40;
+
 export const seatRadius = 14;
-const coordinate = z.number().finite().min(0).max(10000);
+
+export function parseVenueSeatId(seatId: string) {
+  const match = /^r([1-9]\d*)-s([1-9]\d*)$/.exec(seatId);
+  if (!match) return undefined;
+  const row = Number(match[1]);
+  const number = Number(match[2]);
+  if (row <= MAX_VENUE_ROWS && number <= MAX_SEATS_PER_ROW) return { row, number };
+  return undefined;
+}
+
+export const venueSeatIdSchema = z
+  .string()
+  .refine((seatId) => parseVenueSeatId(seatId) !== undefined, 'Неверный идентификатор места.');
+
+const coordinate = z.number().finite().min(MIN_VENUE_MAP_COORDINATE).max(MAX_VENUE_MAP_COORDINATE);
+const mapDimension = z.number().finite().min(MIN_VENUE_MAP_DIMENSION).max(MAX_VENUE_MAP_DIMENSION);
+const featureDimension = z
+  .number()
+  .finite()
+  .min(MIN_VENUE_FEATURE_DIMENSION)
+  .max(MAX_VENUE_FEATURE_DIMENSION);
 export const venueMapSchema = z
   .strictObject({
     version: z.literal(1),
-    width: z.number().finite().min(200).max(10000),
-    height: z.number().finite().min(200).max(10000),
+    width: mapDimension,
+    height: mapDimension,
     seats: z
       .array(
         z.strictObject({
-          seatId: z.string().regex(/^r([1-9]|[1-4]\d|50)-s([1-9]|[1-4]\d|50)$/),
+          seatId: venueSeatIdSchema,
           x: coordinate,
           y: coordinate,
           rotation: z.number().finite().min(-180).max(180),
         }),
       )
       .min(1)
-      .max(1000),
+      .max(MAX_VENUE_SEATS),
     features: z
       .array(
         z.strictObject({
@@ -26,11 +58,11 @@ export const venueMapSchema = z
           label: z.string().trim().min(1).max(60),
           x: coordinate,
           y: coordinate,
-          width: z.number().finite().min(20).max(10000),
-          height: z.number().finite().min(20).max(10000),
+          width: featureDimension,
+          height: featureDimension,
         }),
       )
-      .max(40),
+      .max(MAX_VENUE_MAP_FEATURES),
   })
   .superRefine((map, ctx) => {
     const issue = (path: (string | number)[], message: string) =>

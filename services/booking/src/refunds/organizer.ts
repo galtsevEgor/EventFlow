@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Database } from '../database';
 import { decisionTime, lockOrder, transaction } from '../orders/transaction';
 import { orderView } from '../orders/view';
+import { ORDER_PAGE_SIZE } from '../orders/pagination';
 import { RefundAccess } from './access';
 import { refundView } from './view';
 import { refundUpdate } from './updates';
@@ -40,8 +41,8 @@ export class OrganizerRefunds {
         };
         const orders = await tx.order.findMany({
           where,
-          take: 20,
-          skip: (page - 1) * 20,
+          take: ORDER_PAGE_SIZE,
+          skip: (page - 1) * ORDER_PAGE_SIZE,
           orderBy: [{ confirmedAt: 'desc' }, { id: 'desc' }],
           include: { items: { orderBy: [{ row: 'asc' }, { number: 'asc' }] }, refund: true },
         });
@@ -55,8 +56,8 @@ export class OrganizerRefunds {
           })),
           total,
           page,
-          pageSize: 20,
-          pages: Math.ceil(total / 20),
+          pageSize: ORDER_PAGE_SIZE,
+          pages: Math.ceil(total / ORDER_PAGE_SIZE),
           serverNow: now.toISOString(),
         };
       },

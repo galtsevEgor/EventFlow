@@ -1,24 +1,13 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { parseInput } from '@eventflow/service-runtime';
-import { searchPageSchema, searchQuerySchema } from '@eventflow/event-contracts';
+import {
+  type SearchDocument,
+  searchPageSchema,
+  searchQuerySchema,
+} from '@eventflow/event-contracts';
 import { Database } from '../database';
 import { Prisma } from '../generated/client';
 
-type EventRow = {
-  id: string;
-  title: string;
-  description: string;
-  city: string;
-  address: string;
-  timeZone: string;
-  startsAt: string;
-  endsAt: string;
-  localDate: string;
-  minPriceMinor: number;
-  currency: 'EUR';
-  capacity: number;
-  coverId: string | null;
-};
 function literal(value: string) {
   return value.replace(/[\\%_]/g, '\\$&');
 }
@@ -51,7 +40,7 @@ export class SearchFallback {
         min: number | null;
         max: number | null;
         cities: { value: string; count: number }[];
-        events: EventRow[];
+        events: SearchDocument[];
       }[]
     >`
       WITH eligible AS MATERIALIZED (

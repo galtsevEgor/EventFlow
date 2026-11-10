@@ -12,6 +12,7 @@ import {
 import { ApiError, parseInput, TokenVerifier } from '@eventflow/service-runtime';
 import { z } from 'zod';
 import { OrganizerRefunds } from './organizer';
+import { orderPageSchema } from '../orders/pagination';
 
 @Controller('api/v1/organizations/:organizationId/events/:eventId/orders')
 export class OrganizerOrdersController {
@@ -32,10 +33,7 @@ export class OrganizerOrdersController {
     @Query() input: unknown,
   ) {
     const actor = await this.actor(auth);
-    const { page } = parseInput(
-      z.strictObject({ page: z.coerce.number().int().min(1).max(10000).default(1) }),
-      input,
-    );
+    const { page } = parseInput(z.strictObject({ page: orderPageSchema }), input);
     return this.refunds.list(
       actor,
       parseInput(z.uuid(), org).toLowerCase(),

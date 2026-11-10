@@ -8,12 +8,16 @@ import {
 } from 'node:crypto';
 import { ApiError } from '@eventflow/service-runtime';
 import {
+  MAX_OFFLINE_SNAPSHOT_HASHES,
   offlineManifestSchema,
   type AdmissionWindow,
   type OfflineSync,
 } from '@eventflow/event-contracts';
 import type { Database } from './database';
 import { CheckInTicket } from './check-in';
+
+const preparationLeadTimeMs = 24 * 60 * 60 * 1000;
+const sessionLifetimeMs = 30 * 60 * 1000;
 
 export class OfflineCheckIn {
   private readonly key?: KeyObject;
@@ -54,7 +58,10 @@ export class OfflineCheckIn {
       const [clock] = await tx.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS now`;
       if (!clock) throw new Error('Database clock unavailable');
       const end = new Date(window.admissionEndsAt);
-      if (clock.now >= end || +new Date(window.admissionStartsAt) - +clock.now > 86400000)
+      if (
+        clock.now >= end ||
+        +new Date(window.admissionStartsAt) - +clock.now > preparationLeadTimeMs
+      )
         throw new ApiError(
           409,
           'OFFLINE_WINDOW_CLOSED',
@@ -64,8 +71,8 @@ export class OfflineCheckIn {
         SELECT t."qrHash" FROM "Ticket" t LEFT JOIN "RefundGate" r ON r."orderId" = t."orderId"
         WHERE t."organizationId" = ${input.organizationId}::uuid AND t."saleId" = ${input.eventId}::uuid
           AND t."usedAt" IS NULL AND (r.state IS NULL OR r.state NOT IN ('LOCKED','REVOKED'))
-        ORDER BY t."qrHash" LIMIT 10001`;
-      if (tickets.length > 10000)
+        ORDER BY t."qrHash" LIMIT ${MAX_OFFLINE_SNAPSHOT_HASHES + 1}`;
+      if (tickets.length > MAX_OFFLINE_SNAPSHOT_HASHES)
         throw new ApiError(
           409,
           'OFFLINE_SNAPSHOT_TOO_LARGE',
@@ -77,7 +84,7 @@ export class OfflineCheckIn {
         ...input,
         actorSubject,
         issuedAt: clock.now.toISOString(),
-        expiresAt: new Date(Math.min(+clock.now + 1800000, +end)).toISOString(),
+        expiresAt: new Date(Math.min(+clock.now + sessionLifetimeMs, +end)).toISOString(),
         ...window,
         hashes: tickets.map((t) => t.qrHash),
       });

@@ -5,6 +5,8 @@ import { bookingFixture } from '../helpers/booking.mjs';
 import { cleanBroker } from '../helpers/broker.mjs';
 import { seedSale } from '../helpers/sale.mjs';
 import { effectiveState } from '../../services/booking/dist/orders/transaction.js';
+import { ORDER_HOLD_DURATION_MS } from '../../services/booking/dist/orders/reserve.js';
+import { MAX_ORDER_TOTAL_MINOR } from '../../packages/event-contracts/dist/index.js';
 
 const namespace = `eventflow-test-${randomUUID()}`;
 let fixture;
@@ -30,10 +32,15 @@ test('database rejects invalid holds, cross-sale ownership, negative prices and 
     currency: 'EUR',
     totalMinor: 2500,
     createdAt: now,
-    expiresAt: new Date(+now + 600000),
+    expiresAt: new Date(+now + ORDER_HOLD_DURATION_MS),
   };
   await assert.rejects(db.order.create({ data: { ...data, totalMinor: -1 } }));
-  await assert.rejects(db.order.create({ data: { ...data, expiresAt: new Date(+now + 600001) } }));
+  await assert.rejects(
+    db.order.create({ data: { ...data, totalMinor: MAX_ORDER_TOTAL_MINOR + 1 } }),
+  );
+  await assert.rejects(
+    db.order.create({ data: { ...data, expiresAt: new Date(+now + ORDER_HOLD_DURATION_MS + 1) } }),
+  );
   await db.order.create({ data });
   await assert.rejects(
     db.seatInventory.update({

@@ -19,6 +19,8 @@ export const eventEnvelopeSchema = z.strictObject({
 
 export type EventEnvelope = z.infer<typeof eventEnvelopeSchema>;
 export * from './sales.js';
+export * from './event-content.js';
+export * from './purchase.js';
 export * from './orders.js';
 export * from './payments.js';
 export * from './check-in.js';
@@ -32,3 +34,4 @@ export * from './waitlist.js';
 export * from './offline.js';
 export * from './recommendations.js';
 export * from './seat-map.js';
+export * from './cover.js';

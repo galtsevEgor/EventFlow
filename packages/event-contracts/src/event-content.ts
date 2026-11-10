@@ -1,0 +1,2 @@
+export const MAX_EVENT_TITLE_LENGTH = 160;
+export const MAX_EVENT_DESCRIPTION_LENGTH = 5_000;

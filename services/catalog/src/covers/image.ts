@@ -1,15 +1,26 @@
 import sharp from 'sharp';
+import { COVER_MULTIPART_LIMITS, MAX_COVER_SIZE_MIB } from '@eventflow/event-contracts';
 import { ApiError } from '@eventflow/service-runtime';
 
+const inputMimeTypes = new Map([
+  ['jpeg', 'image/jpeg'],
+  ['png', 'image/png'],
+  ['webp', 'image/webp'],
+]);
+const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+const maxInputPixels = 16_000_000;
+const maxOutputDimension = 1600;
+const webpQuality = 85;
+const decodeTimeoutSeconds = 5;
+
 export async function approveImage(buffer: Buffer, contentType: string) {
-  if (buffer.length > 5 * 1024 * 1024)
-    throw new ApiError(413, 'IMAGE_TOO_LARGE', 'Афиша должна быть не больше 5 MiB.');
-  const allowed = new Map([
-    ['jpeg', 'image/jpeg'],
-    ['png', 'image/png'],
-    ['webp', 'image/webp'],
-  ]);
-  const detected = buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+  if (buffer.length > COVER_MULTIPART_LIMITS.fileSize)
+    throw new ApiError(
+      413,
+      'IMAGE_TOO_LARGE',
+      `Афиша должна быть не больше ${MAX_COVER_SIZE_MIB} MiB.`,
+    );
+  const detected = buffer.subarray(0, pngSignature.length).equals(pngSignature)
     ? 'image/png'
     : buffer[0] === 255 && buffer[1] === 216 && buffer[2] === 255
       ? 'image/jpeg'
@@ -25,16 +36,12 @@ export async function approveImage(buffer: Buffer, contentType: string) {
     );
   try {
     const image = sharp(buffer, {
-      limitInputPixels: 16_000_000,
+      limitInputPixels: maxInputPixels,
       failOn: 'warning',
       animated: true,
     });
     const metadata = await image.metadata();
-    if (
-      !allowed.has(metadata.format) ||
-      allowed.get(metadata.format) !== contentType ||
-      (metadata.pages ?? 1) !== 1
-    )
+    if (inputMimeTypes.get(metadata.format) !== contentType || (metadata.pages ?? 1) !== 1)
       throw new ApiError(
         415,
         'INVALID_IMAGE',
@@ -43,9 +50,14 @@ export async function approveImage(buffer: Buffer, contentType: string) {
     // Re-encoding forces pixel decoding and removes metadata and trailing untrusted content.
     const result = await image
       .rotate()
-      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 85 })
-      .timeout({ seconds: 5 })
+      .resize({
+        width: maxOutputDimension,
+        height: maxOutputDimension,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: webpQuality })
+      .timeout({ seconds: decodeTimeoutSeconds })
       .toBuffer({ resolveWithObject: true });
     return { body: result.data, width: result.info.width, height: result.info.height };
   } catch (error) {

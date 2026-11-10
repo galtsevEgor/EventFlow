@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Y, MAX_DESCRIPTION_LENGTH } from '@eventflow/collaboration';
+import { MAX_EVENT_DESCRIPTION_LENGTH, MAX_EVENT_TITLE_LENGTH } from '@eventflow/event-contracts';
 import { DraftDocumentService } from '../dist/collaboration/document.service.js';
 import { catalogFixture } from './fixture.mjs';
 
@@ -156,6 +157,50 @@ test('malformed, over-limit and foreign CRDT state rolls back without changing t
     );
     foreign.destroy();
     long.destroy();
+  } finally {
+    await f.close();
+  }
+});
+
+test('a REST draft at both field limits can open and continue editing collaboratively', async () => {
+  const f = await catalogFixture();
+  try {
+    const { token, organizationId, eventId, path } = await setup(f);
+    const resource = `/api/v1/organizations/${organizationId}/events/${eventId}`;
+    const title = 'Т'.repeat(MAX_EVENT_TITLE_LENGTH);
+    const description = 'Д'.repeat(MAX_EVENT_DESCRIPTION_LENGTH);
+    const saved = await f.request(resource, token, 'PATCH', {
+      title: ` ${title} `,
+      description: ` ${description} `,
+    });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.body.title, title);
+    assert.equal(saved.body.description, description);
+    for (const input of [
+      { title: title + 'Т', description },
+      { title, description: description + 'Д' },
+    ])
+      assert.equal((await f.request(resource, token, 'PATCH', input)).status, 422);
+
+    const snapshot = await f.request(path, token);
+    assert.equal(snapshot.status, 200);
+    assert.equal(snapshot.body.description, description);
+    const editor = new Y.Doc();
+    try {
+      Y.applyUpdate(editor, Buffer.from(snapshot.body.state, 'base64'));
+      const text = editor.getText('description');
+      text.delete(0, 1);
+      text.insert(0, 'Н');
+      const updated = await f.request(path, token, 'POST', {
+        epoch: snapshot.body.epoch,
+        state: Buffer.from(Y.encodeStateAsUpdate(editor)).toString('base64'),
+      });
+      assert.equal(updated.status, 201);
+      assert.equal(updated.body.description, 'Н' + description.slice(1));
+      assert.equal((await f.request(resource, token)).body.description, updated.body.description);
+    } finally {
+      editor.destroy();
+    }
   } finally {
     await f.close();
   }

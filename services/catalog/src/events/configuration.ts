@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { venueMapSchema } from '@eventflow/event-contracts';
+import {
+  eventCurrencySchema,
+  MAX_SEAT_PRICE_MINOR,
+  MAX_SEATS_PER_ROW,
+  MAX_VENUE_ROWS,
+  MAX_VENUE_SEATS,
+  parseVenueSeatId,
+  venueMapSchema,
+} from '@eventflow/event-contracts';
 
 const instant = z.iso.datetime();
 const categoryId = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,31}$/);
@@ -25,21 +33,21 @@ export const configurationSchema = z
     salesEndsAt: instant,
     admissionStartsAt: instant,
     admissionEndsAt: instant,
-    currency: z.literal('EUR'),
+    currency: eventCurrencySchema,
     categories: z
       .array(
         z.strictObject({
           id: categoryId,
           name: z.string().trim().min(1).max(60),
-          priceMinor: z.number().int().positive().max(100_000_000),
+          priceMinor: z.number().int().positive().max(MAX_SEAT_PRICE_MINOR),
         }),
       )
       .min(1)
       .max(20),
     layout: z.strictObject({
       map: venueMapSchema.optional(),
-      rows: z.number().int().min(1).max(50),
-      columns: z.number().int().min(1).max(50),
+      rows: z.number().int().min(1).max(MAX_VENUE_ROWS),
+      columns: z.number().int().min(1).max(MAX_SEATS_PER_ROW),
       defaultCategoryId: categoryId,
       overrides: z
         .array(
@@ -50,7 +58,7 @@ export const configurationSchema = z
             disabled: z.boolean(),
           }),
         )
-        .max(1000),
+        .max(MAX_VENUE_SEATS),
     }),
   })
   .superRefine((value, ctx) => {
@@ -86,20 +94,14 @@ export const configurationSchema = z
     if (categories.size !== value.categories.length)
       issue(['categories'], 'Идентификаторы категорий должны быть уникальны.');
     const { rows, columns, defaultCategoryId, overrides } = value.layout;
+    const gridSeatCount = rows * columns;
     if (value.layout.map) {
       const positions = value.layout.map.seats;
       if (
-        positions.length !== rows * columns ||
+        positions.length !== gridSeatCount ||
         positions.some((seat) => {
-          const match = /^r(\d+)-s(\d+)$/.exec(seat.seatId);
-          return (
-            !match ||
-            Number(match[1]) < 1 ||
-            Number(match[1]) > rows ||
-            Number(match[2]) < 1 ||
-            Number(match[2]) > columns ||
-            seat.seatId !== `r${Number(match[1])}-s${Number(match[2])}`
-          );
+          const position = parseVenueSeatId(seat.seatId);
+          return !position || position.row > rows || position.number > columns;
         })
       )
         issue(
@@ -107,7 +109,11 @@ export const configurationSchema = z
           'Схема должна содержать все места сетки с исходными идентификаторами.',
         );
     }
-    if (rows * columns > 1000) issue(['layout', 'rows'], 'Максимум 1 000 мест в схеме.');
+    if (gridSeatCount > MAX_VENUE_SEATS)
+      issue(
+        ['layout', 'rows'],
+        `Максимум ${MAX_VENUE_SEATS.toLocaleString('ru-RU').replace(/\s/g, ' ')} мест в схеме.`,
+      );
     if (!categories.has(defaultCategoryId))
       issue(['layout', 'defaultCategoryId'], 'Категория не найдена.');
     const seats = new Set<string>();
@@ -120,7 +126,7 @@ export const configurationSchema = z
       if (!categories.has(seat.categoryId))
         issue(['layout', 'overrides', index, 'categoryId'], 'Категория не найдена.');
     });
-    if (overrides.filter((seat) => seat.disabled).length >= rows * columns)
+    if (overrides.filter((seat) => seat.disabled).length >= gridSeatCount)
       issue(['layout'], 'Оставьте хотя бы одно доступное место.');
   });
 export type EventConfiguration = z.infer<typeof configurationSchema>;

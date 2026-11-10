@@ -4,11 +4,14 @@ import { publicationSelect } from '../publication/view';
 import { Database } from '../database';
 import { lockOrganization, requireMembership } from '../organizations/access';
 import { captureSearchChange } from '../search/snapshot';
+import { DEFAULT_CATALOG_MAXIMUM_PRICE_MINOR } from '../config';
+
+const DRAFT_LIST_LIMIT = 100;
 
 export class DraftService {
   constructor(
     private readonly db: Database,
-    private readonly maximumPriceMinor = 10_000_000,
+    private readonly maximumPriceMinor = DEFAULT_CATALOG_MAXIMUM_PRICE_MINOR,
   ) {}
   async configure(
     actor: UserIdentity,
@@ -74,7 +77,7 @@ export class DraftService {
             document: { select: { eventId: true } },
           },
           orderBy: { createdAt: 'desc' },
-          take: 100,
+          take: DRAFT_LIST_LIMIT,
         })
         .then((events) =>
           events.map(({ document, ...event }) => ({

@@ -1,5 +1,8 @@
 import { z } from 'zod';
+import { MAX_SEAT_PRICE_MINOR } from '@eventflow/event-contracts';
 import { mailConfig, workloadConfig } from '@eventflow/service-runtime';
+
+export const DEFAULT_CATALOG_MAXIMUM_PRICE_MINOR = 10_000_000;
 
 export function readCatalogConfig(env: NodeJS.ProcessEnv) {
   return z
@@ -14,7 +17,12 @@ export function readCatalogConfig(env: NodeJS.ProcessEnv) {
         .string()
         .regex(/^[a-z0-9-]{1,80}$/)
         .default('eventflow'),
-      MAXIMUM_PRICE_MINOR: z.coerce.number().int().positive().max(100_000_000).default(10_000_000),
+      MAXIMUM_PRICE_MINOR: z.coerce
+        .number()
+        .int()
+        .positive()
+        .max(MAX_SEAT_PRICE_MINOR)
+        .default(DEFAULT_CATALOG_MAXIMUM_PRICE_MINOR),
       S3_ENDPOINT: z.url(),
       S3_ACCESS_KEY: z.string().min(1),
       S3_SECRET_KEY: z.string().min(1),

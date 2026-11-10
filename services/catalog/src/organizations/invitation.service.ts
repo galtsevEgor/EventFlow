@@ -4,6 +4,9 @@ import { Database } from '../database';
 import { lockOrganization, requireMembership } from './access';
 import { currentTraceparent } from '@eventflow/telemetry';
 
+const INVITATION_LIST_LIMIT = 100;
+const INVITATION_LIFETIME_MS = 24 * 60 * 60 * 1_000;
+
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
 
 export class InvitationService {
@@ -17,7 +20,7 @@ export class InvitationService {
       invitations: await this.db.invitation.findMany({
         where: { organizationId },
         orderBy: { createdAt: 'desc' },
-        take: 100,
+        take: INVITATION_LIST_LIMIT,
         select: {
           id: true,
           email: true,
@@ -68,7 +71,7 @@ export class InvitationService {
           role,
           tokenHash: digest(token),
           createdBy: actor.subject,
-          expiresAt: new Date(now.getTime() + 86400000),
+          expiresAt: new Date(now.getTime() + INVITATION_LIFETIME_MS),
         },
       });
       await tx.deliveryJob.create({ data: { id, traceparent: currentTraceparent() ?? null } });

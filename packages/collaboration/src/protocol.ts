@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { MAX_EVENT_DESCRIPTION_LENGTH } from '@eventflow/event-contracts';
 
 export const MAX_DOCUMENT_BYTES = 64 * 1024;
-export const MAX_DESCRIPTION_LENGTH = 5000;
+export const MAX_DESCRIPTION_LENGTH = MAX_EVENT_DESCRIPTION_LENGTH;
 export const encodedState = z
   .string()
   .max(Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4)

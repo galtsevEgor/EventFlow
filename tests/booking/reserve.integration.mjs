@@ -5,6 +5,11 @@ import { bookingFixture } from '../helpers/booking.mjs';
 import { cleanBroker } from '../helpers/broker.mjs';
 import { seedSale } from '../helpers/sale.mjs';
 import { testIdentity, jsonRequest } from '../helpers/identity.mjs';
+import {
+  MAX_ORDER_TOTAL_MINOR,
+  MAX_SEAT_PRICE_MINOR,
+} from '../../packages/event-contracts/dist/index.js';
+import { ORDER_HOLD_DURATION_MS } from '../../services/booking/dist/orders/reserve.js';
 
 const namespace = `eventflow-test-${randomUUID()}`;
 let fixture, identity, buyer;
@@ -28,7 +33,10 @@ test('reserve snapshots authoritative prices and replays the original result aft
   const first = await reserve(buyer, sale.id, ['r1-s2', 'r1-s1'], key);
   assert.equal(first.status, 201, JSON.stringify(first.body));
   assert.equal(first.body.totalMinor, 5001);
-  assert.equal(+new Date(first.body.expiresAt) - +new Date(first.body.serverNow), 600000);
+  assert.equal(
+    +new Date(first.body.expiresAt) - +new Date(first.body.serverNow),
+    ORDER_HOLD_DURATION_MS,
+  );
   const again = await reserve(buyer, sale.id, ['r1-s1', 'r1-s2'], key);
   assert.deepEqual(again.body, first.body);
   assert.equal((await reserve(buyer, sale.id, ['r1-s3'], key)).body.code, 'IDEMPOTENCY_CONFLICT');
@@ -43,6 +51,36 @@ test('reserve snapshots authoritative prices and replays the original result aft
   const list = await request(`/api/v1/orders?saleId=${sale.id}`, buyer);
   assert.equal(list.body.total, 1);
   assert.equal(list.body.items[0].id, first.body.id);
+  assert.equal(list.body.pageSize, 20);
+  const lastPage = await request('/api/v1/orders?page=10000', buyer);
+  assert.equal(lastPage.body.page, 10_000);
+  assert.deepEqual(lastPage.body.items, []);
+  assert.equal((await request('/api/v1/orders?page=10001', buyer)).status, 422);
+});
+
+test('six seats at the maximum price reach the database ceiling and a seventh is rejected', async () => {
+  const sale = await seedSale(fixture.db, { seats: 7 });
+  await fixture.db.seatInventory.updateMany({
+    where: { saleId: sale.id },
+    data: { priceMinor: MAX_SEAT_PRICE_MINOR },
+  });
+  const seatIds = Array.from({ length: 7 }, (_, index) => `r1-s${index + 1}`);
+  const overflow = await reserve(buyer, sale.id, seatIds);
+  assert.equal(overflow.status, 422);
+  assert.equal(overflow.body.code, 'VALIDATION_FAILED');
+  assert.equal(await fixture.db.order.count({ where: { saleId: sale.id } }), 0);
+  const accepted = await reserve(buyer, sale.id, seatIds.slice(0, 6));
+  assert.equal(accepted.status, 201, JSON.stringify(accepted.body));
+  assert.equal(accepted.body.items.length, 6);
+  assert.equal(accepted.body.totalMinor, MAX_ORDER_TOTAL_MINOR);
+  assert.equal(
+    (
+      await fixture.db.seatInventory.findUniqueOrThrow({
+        where: { saleId_seatId: { saleId: sale.id, seatId: 'r1-s7' } },
+      })
+    ).state,
+    'AVAILABLE',
+  );
 });
 
 test('identity, invalid selection, forged price and wrong event never mutate inventory', async () => {
@@ -58,12 +96,7 @@ test('identity, invalid selection, forged price and wrong event never mutate inv
       .status,
     403,
   );
-  for (const seats of [
-    [],
-    ['r1-s1', 'r1-s1'],
-    Array.from({ length: 7 }, (_, i) => `r1-s${i + 1}`),
-    ['r2-s1'],
-  ])
+  for (const seats of [[], ['r1-s1', 'r1-s1'], ['r2-s1']])
     assert.equal((await reserve(buyer, sale.id, seats)).status, 422);
   assert.equal(
     (

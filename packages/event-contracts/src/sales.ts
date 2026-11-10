@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { currentTraceparent } from '@eventflow/telemetry';
 import { z } from 'zod';
-import { venueMapSchema } from './seat-map.js';
+import { MAX_SEATS_PER_ROW, MAX_VENUE_ROWS, MAX_VENUE_SEATS, venueMapSchema } from './seat-map.js';
+import { MAX_EVENT_TITLE_LENGTH } from './event-content.js';
+import { eventCurrencySchema, MAX_SEAT_PRICE_MINOR } from './purchase.js';
 import type { EventEnvelope } from './index.js';
 
 export const provisionSchema = z
   .strictObject({
     organizationId: z.uuid(),
-    title: z.string().min(2).max(160),
-    currency: z.literal('EUR'),
+    title: z.string().min(2).max(MAX_EVENT_TITLE_LENGTH),
+    currency: eventCurrencySchema,
     timeZone: z.string().max(100),
     startsAt: z.iso.datetime(),
     endsAt: z.iso.datetime(),
@@ -20,15 +22,15 @@ export const provisionSchema = z
       .array(
         z.strictObject({
           seatId: z.string().regex(/^r\d+-s\d+$/),
-          row: z.number().int().min(1).max(50),
-          number: z.number().int().min(1).max(50),
+          row: z.number().int().min(1).max(MAX_VENUE_ROWS),
+          number: z.number().int().min(1).max(MAX_SEATS_PER_ROW),
           categoryId: z.string().max(32),
           categoryName: z.string().min(1).max(60),
-          priceMinor: z.number().int().positive().max(100_000_000),
+          priceMinor: z.number().int().positive().max(MAX_SEAT_PRICE_MINOR),
         }),
       )
       .min(1)
-      .max(1000),
+      .max(MAX_VENUE_SEATS),
     seatMap: venueMapSchema.optional(),
   })
   .superRefine((snapshot, ctx) => {

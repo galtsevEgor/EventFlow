@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { APPROVED_COVER_MIME_TYPE } from '@eventflow/event-contracts';
 import { ApiError, type UserIdentity } from '@eventflow/service-runtime';
 import { Database } from '../database';
 import { lockOrganization, requireMembership } from '../organizations/access';
@@ -33,7 +34,7 @@ export class CoverService {
     try {
       await this.storage.put(privateKey, file.buffer, 'application/octet-stream');
       const approved = await approveImage(file.buffer, file.mimetype);
-      await this.storage.put(approvedKey, approved.body, 'image/webp');
+      await this.storage.put(approvedKey, approved.body, APPROVED_COVER_MIME_TYPE);
       storedApproved = true;
       const result = await this.db.$transaction(async (tx) => {
         await lockOrganization(tx, organizationId);

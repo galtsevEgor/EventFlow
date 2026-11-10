@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { MAX_SEATS_PER_ORDER } from '@eventflow/event-contracts';
 import { parseInput, type SecretBox } from '@eventflow/service-runtime';
 import type { Prisma, Sale } from '../generated/client';
 import { Database } from '../database';
@@ -16,12 +17,14 @@ import { orderView } from './view';
 import { release } from './release';
 import { recordOrderStatistics } from './statistics';
 
+export const ORDER_HOLD_DURATION_MS = 10 * 60 * 1_000;
+
 export const reserveInput = z.strictObject({
   saleId: z.uuid().transform((value) => value.toLowerCase()),
   seatIds: z
     .array(z.string().regex(/^r\d{1,2}-s\d{1,2}$/))
     .min(1)
-    .max(6)
+    .max(MAX_SEATS_PER_ORDER)
     .refine((ids) => new Set(ids).size === ids.length, 'Выберите разные места.'),
 });
 type Input = z.infer<typeof reserveInput>;
@@ -168,7 +171,7 @@ export class Reserve {
       )
     )
       return failure(409, 'SEATS_UNAVAILABLE', 'Одно из мест уже занято. Обновите выбор.');
-    const expiresAt = new Date(Math.min(+now + 600000, +sale.salesEndsAt));
+    const expiresAt = new Date(Math.min(+now + ORDER_HOLD_DURATION_MS, +sale.salesEndsAt));
     const id = randomUUID();
     const order = await tx.order.create({
       data: {

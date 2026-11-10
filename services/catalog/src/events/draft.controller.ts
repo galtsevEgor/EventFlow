@@ -11,14 +11,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
+import { MAX_EVENT_DESCRIPTION_LENGTH, MAX_EVENT_TITLE_LENGTH } from '@eventflow/event-contracts';
 import { parseInput } from '@eventflow/service-runtime';
 import { UserGuard, type UserRequest } from '../user.guard';
 import { resourceId } from '../organizations/organization.controller';
 import { DraftService } from './draft.service';
 
 const draftInput = z.strictObject({
-  title: z.string().trim().min(2).max(160),
-  description: z.string().trim().max(5000).default(''),
+  title: z.string().trim().min(2).max(MAX_EVENT_TITLE_LENGTH),
+  description: z.string().trim().max(MAX_EVENT_DESCRIPTION_LENGTH).default(''),
 });
 @Controller('api/v1/organizations/:id/events')
 @UseGuards(UserGuard)

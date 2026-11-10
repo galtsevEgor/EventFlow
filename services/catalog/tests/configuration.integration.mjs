@@ -65,11 +65,22 @@ test('configuration persists exact UTC/IANA schedule, integer prices and 1000 un
   assert.equal(seats[0].priceMinor, 2500);
   assert.equal(seats[1].seatId, 'r1-s3');
   assert.equal(seats.at(-1).seatId, 'r20-s50');
+  const second = await fixture.request(event.path + '/configuration', event.actor, 'PUT', {
+    revision: saved.body.revision,
+    configuration: {
+      ...input,
+      layout: { ...input.layout, rows: 50, columns: 20, overrides: [] },
+    },
+  });
+  assert.equal(second.status, 200);
+  const fullGrid = materializeSeats(second.body.configuration);
+  assert.equal(new Set(fullGrid.map((seat) => seat.seatId)).size, 1_000);
+  assert.equal(fullGrid.at(-1).seatId, 'r50-s20');
   assert.equal(
     await fixture.db.auditEntry.count({
       where: { targetId: event.id, action: 'draft.configured' },
     }),
-    1,
+    2,
   );
 });
 test('invalid schedules, zones, prices and seat configurations leave the saved draft unchanged', async () => {

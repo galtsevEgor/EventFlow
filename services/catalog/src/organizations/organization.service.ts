@@ -2,6 +2,9 @@ import { ApiError, type UserIdentity } from '@eventflow/service-runtime';
 import { Database } from '../database';
 import { lockOrganization, requireMembership } from './access';
 
+const MAX_ORGANIZATIONS_CREATED_PER_ACCOUNT = 5;
+const ORGANIZATION_LIST_LIMIT = 100;
+
 export class OrganizationService {
   constructor(private readonly db: Database) {}
 
@@ -14,7 +17,10 @@ export class OrganizationService {
       );
     return this.db.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${actor.subject}, 0))`;
-      if ((await tx.organization.count({ where: { createdBy: actor.subject } })) >= 5)
+      if (
+        (await tx.organization.count({ where: { createdBy: actor.subject } })) >=
+        MAX_ORGANIZATIONS_CREATED_PER_ACCOUNT
+      )
         throw new ApiError(409, 'ORGANIZATION_LIMIT', 'В демо можно создать до пяти организаций.');
       const organization = await tx.organization.create({
         data: {
@@ -42,7 +48,7 @@ export class OrganizationService {
       where: { userSubject: actor.subject },
       include: { organization: true },
       orderBy: { createdAt: 'asc' },
-      take: 100,
+      take: ORGANIZATION_LIST_LIMIT,
     });
     return {
       organizations: memberships.map(({ organization, role }) => ({

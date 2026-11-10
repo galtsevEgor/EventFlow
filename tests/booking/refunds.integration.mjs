@@ -101,6 +101,11 @@ test('concurrent organizer retries persist one fence command and recheck access 
   assert.equal(list.body.orders[0].refund.id, results[0].body.id);
   assert.equal(list.body.orders[0].canRequestRefund, false);
   assert.equal('buyerSubject' in list.body.orders[0], false);
+  assert.equal(list.body.pageSize, 20);
+  const lastPage = await request(`${path}?page=10000`, owner);
+  assert.equal(lastPage.body.page, 10_000);
+  assert.deepEqual(lastPage.body.orders, []);
+  assert.equal((await request(`${path}?page=10001`, owner)).status, 422);
   assert.equal(
     (await request(`/api/v1/orders/${order.id}`, buyer)).body.refund.id,
     results[0].body.id,

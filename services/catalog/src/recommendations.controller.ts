@@ -2,7 +2,11 @@ import { Body, Controller, HttpCode, Inject, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { z } from 'zod';
 import { parseInput, TokenVerifier } from '@eventflow/service-runtime';
-import { searchDocumentSchema, type SearchDocument } from '@eventflow/event-contracts';
+import {
+  MAX_SEAT_PRICE_MINOR,
+  searchDocumentSchema,
+  type SearchDocument,
+} from '@eventflow/event-contracts';
 import { Database } from './database';
 import { Prisma } from './generated/client';
 
@@ -11,8 +15,8 @@ const upcomingSchema = z
     city: z.string().trim().max(100).default(''),
     from: z.iso.date().optional(),
     to: z.iso.date().optional(),
-    minPriceMinor: z.number().int().min(0).max(100_000_000).optional(),
-    maxPriceMinor: z.number().int().min(0).max(100_000_000).optional(),
+    minPriceMinor: z.number().int().min(0).max(MAX_SEAT_PRICE_MINOR).optional(),
+    maxPriceMinor: z.number().int().min(0).max(MAX_SEAT_PRICE_MINOR).optional(),
     limit: z.number().int().min(1).max(12).default(6),
     exclude: z.array(z.uuid()).max(101).default([]),
   })

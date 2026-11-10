@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { EVENT_CURRENCY } from '@eventflow/event-contracts';
 import { z } from 'zod';
 import {
   InvalidWebhook,
@@ -11,6 +12,8 @@ import {
   type RefundInput,
   type WebhookPointer,
 } from './provider';
+
+const stripeCurrency = EVENT_CURRENCY.toLowerCase();
 
 export class StripePaymentProvider implements PaymentProvider {
   readonly name = 'stripe';
@@ -47,7 +50,7 @@ export class StripePaymentProvider implements PaymentProvider {
         'canceled',
       ].includes(value.status) ||
       value.livemode ||
-      value.currency !== 'eur' ||
+      value.currency !== stripeCurrency ||
       value.payment_method_types.length !== 1 ||
       value.payment_method_types[0] !== 'card' ||
       value.capture_method !== 'automatic' ||
@@ -68,7 +71,7 @@ export class StripePaymentProvider implements PaymentProvider {
       orderId: metadata.data.orderId,
       attemptId: metadata.data.attemptId,
       amountMinor: value.amount,
-      currency: 'EUR',
+      currency: EVENT_CURRENCY,
       status,
       ...(status === 'requires_action' && value.client_secret
         ? { clientSecret: value.client_secret }
@@ -129,7 +132,7 @@ export class StripePaymentProvider implements PaymentProvider {
       value.metadata?.application !== 'eventflow' ||
       paymentId !== input.paymentId ||
       value.amount !== input.amountMinor ||
-      value.currency !== 'eur'
+      value.currency !== stripeCurrency
     )
       throw new ProviderMismatch();
     return {

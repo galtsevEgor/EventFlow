@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { EVENT_CURRENCY } from '@eventflow/event-contracts';
 import { ApiError, parseInput, type UserIdentity } from '@eventflow/service-runtime';
 import { Database } from '../database';
 import { Prisma } from '../generated/client';
@@ -153,7 +154,7 @@ export class StatisticsReport {
         });
         const total = number(summary.total);
         return {
-          currency: 'EUR' as const,
+          currency: EVENT_CURRENCY,
           from,
           to,
           asOf: clock.now.toISOString(),

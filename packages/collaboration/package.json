@@ -17,6 +17,7 @@
     "test": "vitest run --fsModuleCachePath=node_modules/.vitest-cache"
   },
   "dependencies": {
+    "@eventflow/event-contracts": "workspace:*",
     "yjs": "13.6.33",
     "zod": "4.6.7"
   }

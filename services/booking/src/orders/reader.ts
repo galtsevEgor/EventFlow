@@ -2,6 +2,7 @@ import { ApiError } from '@eventflow/service-runtime';
 import { Database } from '../database';
 import { decisionTime } from './transaction';
 import { orderView } from './view';
+import { ORDER_PAGE_SIZE } from './pagination';
 
 export class OrderReader {
   constructor(private readonly db: Database) {}
@@ -21,8 +22,8 @@ export class OrderReader {
         const where = { buyerSubject: buyer, ...(saleId ? { saleId } : {}) };
         const orders = await tx.order.findMany({
           where,
-          take: 20,
-          skip: (page - 1) * 20,
+          take: ORDER_PAGE_SIZE,
+          skip: (page - 1) * ORDER_PAGE_SIZE,
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           include: { items: { orderBy: [{ row: 'asc' }, { number: 'asc' }] }, refund: true },
         });
@@ -31,7 +32,7 @@ export class OrderReader {
           items: orders.map((order) => orderView(order, now)),
           total: await tx.order.count({ where }),
           page,
-          pageSize: 20,
+          pageSize: ORDER_PAGE_SIZE,
           serverNow: now.toISOString(),
         };
       },

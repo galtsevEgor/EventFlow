@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { eventCurrencySchema, MAX_ORDER_TOTAL_MINOR, MAX_SEATS_PER_ORDER } from './purchase.js';
 
 export const orderStatisticsSchema = z
   .strictObject({
@@ -7,9 +8,9 @@ export const orderStatisticsSchema = z
     organizationId: z.uuid(),
     analyticsSessionId: z.uuid().nullable().optional(),
     state: z.enum(['HELD', 'CONFIRMED', 'EXPIRED', 'CANCELLED']),
-    seatCount: z.number().int().min(1).max(6),
-    totalMinor: z.number().int().positive().max(600_000_000),
-    currency: z.literal('EUR'),
+    seatCount: z.number().int().min(1).max(MAX_SEATS_PER_ORDER),
+    totalMinor: z.number().int().positive().max(MAX_ORDER_TOTAL_MINOR),
+    currency: eventCurrencySchema,
     createdAt: z.iso.datetime(),
     expiresAt: z.iso.datetime(),
     confirmedAt: z.iso.datetime().nullable(),

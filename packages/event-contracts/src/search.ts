@@ -1,17 +1,19 @@
 import { z } from 'zod';
+import { MAX_EVENT_DESCRIPTION_LENGTH, MAX_EVENT_TITLE_LENGTH } from './event-content.js';
+import { eventCurrencySchema, MAX_SEAT_PRICE_MINOR } from './purchase.js';
 
 export const searchDocumentSchema = z.strictObject({
   id: z.uuid(),
-  title: z.string().min(2).max(160),
-  description: z.string().max(5000),
+  title: z.string().min(2).max(MAX_EVENT_TITLE_LENGTH),
+  description: z.string().max(MAX_EVENT_DESCRIPTION_LENGTH),
   city: z.string().min(1).max(100),
   address: z.string().min(1).max(300),
   timeZone: z.string().min(1).max(100),
   startsAt: z.iso.datetime(),
   endsAt: z.iso.datetime(),
   localDate: z.iso.date(),
-  minPriceMinor: z.number().int().min(0).max(100_000_000),
-  currency: z.literal('EUR'),
+  minPriceMinor: z.number().int().min(0).max(MAX_SEAT_PRICE_MINOR),
+  currency: eventCurrencySchema,
   capacity: z.number().int().min(1).max(1_000_000),
   coverId: z.uuid().nullable(),
 });
@@ -30,8 +32,8 @@ export const searchQuerySchema = z
     city: z.string().trim().max(100).default(''),
     from: z.iso.date().optional(),
     to: z.iso.date().optional(),
-    minPriceMinor: z.coerce.number().int().min(0).max(100_000_000).optional(),
-    maxPriceMinor: z.coerce.number().int().min(0).max(100_000_000).optional(),
+    minPriceMinor: z.coerce.number().int().min(0).max(MAX_SEAT_PRICE_MINOR).optional(),
+    maxPriceMinor: z.coerce.number().int().min(0).max(MAX_SEAT_PRICE_MINOR).optional(),
     sort: z.enum(['relevance', 'date', 'price_asc', 'price_desc']).default('date'),
     page: z.coerce.number().int().min(1).max(200).default(1),
     pageSize: z.coerce.number().int().min(1).max(48).default(12),

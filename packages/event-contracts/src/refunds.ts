@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { eventCurrencySchema, MAX_ORDER_TOTAL_MINOR, MAX_SEATS_PER_ORDER } from './purchase.js';
 
 const id = z.uuid();
 export const ticketRefundLockSchema = z.strictObject({
@@ -9,7 +10,7 @@ export const ticketRefundLockSchema = z.strictObject({
   seatIds: z
     .array(z.string().regex(/^r\d{1,2}-s\d{1,2}$/))
     .min(1)
-    .max(6)
+    .max(MAX_SEATS_PER_ORDER)
     .refine((ids) => new Set(ids).size === ids.length),
   deadline: z.iso.datetime(),
 });
@@ -26,8 +27,8 @@ export const confirmedRefundCommandSchema = z.strictObject({
   attemptId: id,
   providerPaymentId: z.string().min(1).max(255),
   buyerSubject: z.string().min(1).max(255),
-  amountMinor: z.number().int().positive().max(600_000_000),
-  currency: z.literal('EUR'),
+  amountMinor: z.number().int().positive().max(MAX_ORDER_TOTAL_MINOR),
+  currency: eventCurrencySchema,
   provider: z.enum(['fake', 'stripe']),
   reason: z.literal('ORGANIZER_REQUESTED'),
 });
@@ -39,9 +40,9 @@ export const orderRefundedSchema = z.strictObject({
   attemptId: id,
   providerPaymentId: z.string().min(1).max(255),
   state: z.literal('REFUNDED'),
-  seatCount: z.number().int().min(1).max(6),
-  totalMinor: z.number().int().positive().max(600_000_000),
-  currency: z.literal('EUR'),
+  seatCount: z.number().int().min(1).max(MAX_SEATS_PER_ORDER),
+  totalMinor: z.number().int().positive().max(MAX_ORDER_TOTAL_MINOR),
+  currency: eventCurrencySchema,
   createdAt: z.iso.datetime(),
   expiresAt: z.iso.datetime(),
   confirmedAt: z.iso.datetime(),
