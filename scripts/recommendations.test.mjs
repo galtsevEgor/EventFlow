@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { pythonPaths, pythonTask, runGroup } from './recommendations.mjs';
+import { pythonPaths, pythonTask, recommendationsModelPath, runGroup } from './recommendations.mjs';
 test('Python runtime and model assets stay outside tracked service sources', () => {
   const paths = pythonPaths(process.cwd(), {}, 'win32');
   assert.match(paths.environment, /work[\\/]e21[\\/]python$/);
@@ -10,19 +13,35 @@ test('Python runtime and model assets stay outside tracked service sources', () 
     paths.variables.PYTHONPATH.endsWith('recommendations\\src') ||
       paths.variables.PYTHONPATH.endsWith('recommendations/src'),
   );
-  assert.deepEqual(
-    pythonTask('model:verify', [], { RECOMMENDATIONS_MODEL_PATH: 'C:/private model' }),
-    [
-      [
-        '-m',
-        'eventflow_recommendations.embeddings',
-        'verify-model',
-        '--model-path',
-        'C:/private model',
-      ],
-    ],
-  );
+  const override = resolve(tmpdir(), 'private model');
+  assert.deepEqual(pythonTask('model:verify', [], { RECOMMENDATIONS_MODEL_PATH: override }), [
+    ['-m', 'eventflow_recommendations.embeddings', 'verify-model', '--model-path', override],
+  ]);
   assert.throws(() => pythonTask('arbitrary-executable'), /Unknown/);
+});
+
+test('model commands and runtime resolve the same path from any working directory', () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const expected = recommendationsModelPath(root);
+  const original = process.cwd();
+  try {
+    process.chdir(tmpdir());
+    const { variables } = pythonPaths(root, {});
+    assert.equal(variables.RECOMMENDATIONS_MODEL_PATH, expected);
+    assert.equal(
+      pythonPaths(root, { RECOMMENDATIONS_MODEL_PATH: '' }).variables.RECOMMENDATIONS_MODEL_PATH,
+      expected,
+    );
+    assert.equal(pythonTask('model:setup', [], {})[0].at(-1), expected);
+    assert.equal(pythonTask('evaluate', [], variables)[0].at(-1), expected);
+    assert.equal(
+      pythonPaths(root, { RECOMMENDATIONS_MODEL_PATH: 'work/custom model' }).variables
+        .RECOMMENDATIONS_MODEL_PATH,
+      resolve(root, 'work/custom model'),
+    );
+  } finally {
+    process.chdir(original);
+  }
 });
 
 test(

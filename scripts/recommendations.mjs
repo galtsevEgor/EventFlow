@@ -1,7 +1,16 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve, delimiter } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const projectRoot = fileURLToPath(new URL('../', import.meta.url));
+const model = JSON.parse(
+  readFileSync(new URL('../services/recommendations/model.json', import.meta.url), 'utf8'),
+);
+
+export function recommendationsModelPath(root, override) {
+  return resolve(root, override || model.localPath);
+}
 
 export function pythonPaths(root, env = process.env, platform = process.platform) {
   const environment = resolve(root, 'work/e21/python');
@@ -12,6 +21,7 @@ export function pythonPaths(root, env = process.env, platform = process.platform
     python: resolve(environment, platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'),
     variables: {
       ...env,
+      RECOMMENDATIONS_MODEL_PATH: recommendationsModelPath(root, env.RECOMMENDATIONS_MODEL_PATH),
       UV_PROJECT_ENVIRONMENT: environment,
       PYTHONPATH: [resolve(root, 'services/recommendations/src'), env.PYTHONPATH]
         .filter(Boolean)
@@ -25,9 +35,7 @@ export function pythonPaths(root, env = process.env, platform = process.platform
 }
 
 export function pythonTask(task, extra = [], env = process.env) {
-  const model =
-    env.RECOMMENDATIONS_MODEL_PATH ??
-    resolve('work/e21/models/paraphrase-multilingual-MiniLM-L12-v2');
+  const modelPath = recommendationsModelPath(projectRoot, env.RECOMMENDATIONS_MODEL_PATH);
   const commands = {
     check: [
       ['-m', 'ruff', 'check', 'src', 'tests'],
@@ -45,12 +53,12 @@ export function pythonTask(task, extra = [], env = process.env) {
     api: [['-m', 'eventflow_recommendations.main', ...extra]],
     schema: [['-m', 'eventflow_recommendations.openapi', ...extra]],
     'schema:check': [['-m', 'eventflow_recommendations.openapi', '--check']],
-    evaluate: [['-m', 'eventflow_recommendations.evaluation', '--model-path', model, ...extra]],
+    evaluate: [['-m', 'eventflow_recommendations.evaluation', '--model-path', modelPath, ...extra]],
     'model:setup': [
-      ['-m', 'eventflow_recommendations.embeddings', 'setup-model', '--model-path', model],
+      ['-m', 'eventflow_recommendations.embeddings', 'setup-model', '--model-path', modelPath],
     ],
     'model:verify': [
-      ['-m', 'eventflow_recommendations.embeddings', 'verify-model', '--model-path', model],
+      ['-m', 'eventflow_recommendations.embeddings', 'verify-model', '--model-path', modelPath],
     ],
   };
   if (!Object.hasOwn(commands, task)) throw new Error('Unknown recommendations command');
@@ -110,24 +118,23 @@ export async function runGroup(commands, options = {}) {
 }
 
 async function main() {
-  const root = fileURLToPath(new URL('../', import.meta.url)),
-    paths = pythonPaths(root);
+  const paths = pythonPaths(projectRoot);
   const [task, ...extra] = process.argv.slice(2);
   if (task === 'dev') {
     if (process.env.RECOMMENDATIONS_ENABLED !== 'true') return;
     if (!existsSync(paths.python)) throw new Error('Run pnpm recommendations setup first.');
     process.exitCode = await runGroup(
-      ['api', 'worker'].map((name) => [paths.python, pythonTask(name)[0]]),
+      ['api', 'worker'].map((name) => [paths.python, pythonTask(name, [], paths.variables)[0]]),
       { cwd: paths.service, env: paths.variables },
     );
     return;
   }
   if (task === 'setup') {
-    mkdirSync(resolve(root, 'work/e21'), { recursive: true });
+    mkdirSync(resolve(projectRoot, 'work/e21'), { recursive: true });
     const code = await execute(
       process.env.PYTHON ?? 'python',
       ['-m', 'uv', 'sync', '--locked', '--project', paths.service],
-      { cwd: root, env: paths.variables },
+      { cwd: projectRoot, env: paths.variables },
     );
     if (code !== 0)
       throw new Error('Isolated Python setup failed. Python3.12 and uv0.11.7 are required.');

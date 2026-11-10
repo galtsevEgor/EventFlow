@@ -21,7 +21,8 @@ from .contracts import (
 from .database import Pool
 from .errors import ApiError
 from .interests import INTEREST_IDS
-from .ranking import Catalog, matches, nearest_candidates, prepared_vector
+from .policies import MAX_RECOMMENDATION_FAVORITES
+from .ranking import Catalog, matches, nearest_candidates, prepared_vector, upcoming_documents
 
 
 def centroid(values: list[object]) -> Vector | None:
@@ -127,8 +128,12 @@ class Profiles:
                         )
                     ).fetchone()
                     assert count is not None
-                    if count["count"] >= 100:
-                        raise ApiError(409, "FAVORITES_LIMIT", "At most 100 favorites are allowed")
+                    if count["count"] >= MAX_RECOMMENDATION_FAVORITES:
+                        raise ApiError(
+                            409,
+                            "FAVORITES_LIMIT",
+                            f"At most {MAX_RECOMMENDATION_FAVORITES} favorites are allowed",
+                        )
                     await conn.execute(
                         "INSERT INTO recommendation_favorites(actor,event_id) VALUES (%s,%s)",
                         (actor, event_id),
@@ -205,14 +210,7 @@ class Profiles:
         if candidates is None:
             documents = await self.catalog.upcoming(filters, excluded)
             now = datetime.now(UTC)
-            unique = {
-                document.id: document
-                for document in documents
-                if document.id not in excluded and matches(document, filters, now)
-            }
-            ordered = sorted(
-                unique.values(), key=lambda document: (document.starts_at, document.id)
-            )
+            ordered = upcoming_documents(documents, filters, excluded, now)
             return RecommendationPage(
                 items=[
                     RecommendationItem(event=document, reason="UPCOMING")

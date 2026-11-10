@@ -13,6 +13,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .config import Config
 from .contracts import RecommendationFilters, SourceDocument, SourcePage
+from .policies import (
+    CATALOG_CHANGE_PAGE_SIZE,
+    CATALOG_HYDRATE_MAX_IDS,
+    CATALOG_RECONCILE_MAX_PAGES,
+    CATALOG_RECONCILE_PAGE_SIZE,
+    CATALOG_RESPONSE_MAX_DOCUMENTS,
+    IDENTITY_TOKEN_MAX_LENGTH,
+)
 
 
 class SourceChanged(Exception):
@@ -29,20 +37,22 @@ class ReconcilePage(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    access_token: str = Field(min_length=1, max_length=32768)
+    access_token: str = Field(min_length=1, max_length=IDENTITY_TOKEN_MAX_LENGTH)
     expires_in: int = Field(strict=True, ge=1, le=86400)
     token_type: str
 
 
 class DocumentPage(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    events: list[SourceDocument] = Field(max_length=100)
+    events: list[SourceDocument] = Field(max_length=CATALOG_RESPONSE_MAX_DOCUMENTS)
 
 
 class CatalogClient:
     def __init__(self, config: Config, client: httpx.AsyncClient | None = None) -> None:
         self.config = config
-        self.client = client or httpx.AsyncClient(timeout=5, follow_redirects=False)
+        self.client = client or httpx.AsyncClient(
+            timeout=config.catalog_timeout, follow_redirects=False
+        )
         self._owns_client = client is None
         self._token = ""
         self._expires = 0.0
@@ -63,7 +73,7 @@ class CatalogClient:
                     "client_id": "eventflow-recommendations",
                     "client_secret": self.config.client_secret,
                 },
-                timeout=5,
+                timeout=self.config.catalog_timeout,
                 follow_redirects=False,
             )
             if response.status_code != 200:
@@ -85,7 +95,7 @@ class CatalogClient:
             method,
             self.config.catalog_url + path,
             headers=headers,
-            timeout=5,
+            timeout=self.config.catalog_timeout,
             follow_redirects=False,
             **kwargs,
         )
@@ -98,7 +108,7 @@ class CatalogClient:
         return response.json()
 
     async def read(self, after: int, through: int | None = None) -> SourcePage:
-        params = {"after": str(after), "limit": "100"}
+        params = {"after": str(after), "limit": str(CATALOG_CHANGE_PAGE_SIZE)}
         if through is not None:
             params["through"] = str(through)
         page = SourcePage.model_validate(
@@ -109,8 +119,8 @@ class CatalogClient:
 
     async def reconcile(self) -> None:
         after: UUID | None = None
-        for _ in range(10000):
-            body: dict[str, Any] = {"limit": 100}
+        for _ in range(CATALOG_RECONCILE_MAX_PAGES):
+            body: dict[str, Any] = {"limit": CATALOG_RECONCILE_PAGE_SIZE}
             if after:
                 body["after"] = str(after)
             page = ReconcilePage.model_validate(
@@ -124,7 +134,7 @@ class CatalogClient:
         raise InvalidSource("Catalog reconciliation limit reached")
 
     async def hydrate(self, ids: list[UUID]) -> list[SourceDocument]:
-        if len(ids) > 100 or len(set(ids)) != len(ids):
+        if len(ids) > CATALOG_HYDRATE_MAX_IDS or len(set(ids)) != len(ids):
             raise ValueError("Hydration accepts up to100 unique IDs")
         if not ids:
             return []

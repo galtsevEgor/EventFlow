@@ -3,7 +3,11 @@ import type { Request } from 'express';
 import { z } from 'zod';
 import { parseInput, TokenVerifier } from '@eventflow/service-runtime';
 import {
+  MAX_RECOMMENDATION_FAVORITES,
+  MAX_RECOMMENDATION_HYDRATION_IDS,
+  MAX_RECOMMENDATIONS_PAGE_SIZE,
   MAX_SEAT_PRICE_MINOR,
+  RECOMMENDATIONS_DEFAULT_PAGE_SIZE,
   searchDocumentSchema,
   type SearchDocument,
 } from '@eventflow/event-contracts';
@@ -17,8 +21,16 @@ const upcomingSchema = z
     to: z.iso.date().optional(),
     minPriceMinor: z.number().int().min(0).max(MAX_SEAT_PRICE_MINOR).optional(),
     maxPriceMinor: z.number().int().min(0).max(MAX_SEAT_PRICE_MINOR).optional(),
-    limit: z.number().int().min(1).max(12).default(6),
-    exclude: z.array(z.uuid()).max(101).default([]),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_RECOMMENDATIONS_PAGE_SIZE)
+      .default(RECOMMENDATIONS_DEFAULT_PAGE_SIZE),
+    exclude: z
+      .array(z.uuid())
+      .max(MAX_RECOMMENDATION_FAVORITES + 1)
+      .default([]),
   })
   .refine((v) => !v.from || !v.to || v.from <= v.to)
   .refine(
@@ -46,13 +58,13 @@ export class RecommendationCatalog {
       z.strictObject({
         ids: z
           .array(z.uuid())
-          .max(100)
+          .max(MAX_RECOMMENDATION_HYDRATION_IDS)
           .refine((value) => new Set(value).size === value.length),
       }),
       body,
     );
     if (!ids.length) return { events: [] };
-    return this.read(Prisma.sql`p."eventId"=ANY(${ids}::uuid[])`, 100);
+    return this.read(Prisma.sql`p."eventId"=ANY(${ids}::uuid[])`, ids.length);
   }
   @Post('upcoming')
   @HttpCode(200)

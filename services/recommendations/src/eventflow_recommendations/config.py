@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
+CATALOG_TIMEOUT_SECONDS = 5.0
+IDENTITY_TIMEOUT_SECONDS = 2.0
+
 
 @dataclass(frozen=True)
 class Config:
@@ -16,10 +19,14 @@ class Config:
     model_path: Path
     port: int = 4008
     threads: int = 1
+    catalog_timeout: float = CATALOG_TIMEOUT_SECONDS
+    identity_timeout: float = IDENTITY_TIMEOUT_SECONDS
 
     @classmethod
     def read(cls, env: Mapping[str, str] | None = None) -> "Config":
         import re
+
+        from .model_contract import default_model_path, resolve_model_path
 
         values = os.environ if env is None else env
         database = values.get("RECOMMENDATIONS_DATABASE_URL", "")
@@ -58,12 +65,9 @@ class Config:
             secret,
             amqp,
             namespace,
-            Path(
-                values.get(
-                    "RECOMMENDATIONS_MODEL_PATH",
-                    "../../work/e21/models/paraphrase-multilingual-MiniLM-L12-v2",
-                )
-            ).resolve(),
+            resolve_model_path(values["RECOMMENDATIONS_MODEL_PATH"])
+            if values.get("RECOMMENDATIONS_MODEL_PATH")
+            else default_model_path(),
             port,
             threads,
         )

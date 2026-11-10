@@ -12,8 +12,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-MANIFEST_PATH = Path(__file__).resolve().parents[2] / "model.json"
-DIMENSIONS = 384
+from .model_contract import DIMENSIONS, MANIFEST_PATH
+
 MAX_BATCH = 16
 MAX_TEXTS = 128
 MAX_TEXT_LENGTH = 8000

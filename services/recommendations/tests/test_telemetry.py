@@ -125,57 +125,51 @@ async def test_otlp_preserves_parent_and_excludes_user_paths_queries_and_excepti
 @pytest.mark.integration
 async def test_projection_metrics_reflect_db_checkpoint_and_failure(projection_pool, collector):
     signals, received = collector
-    await signals.projection(projection_pool, False, time.perf_counter())
-    data = exported(signals, received)
-    metrics = [
-        metric
-        for export in data
-        for resource in export.get("resourceMetrics", [])
-        for scope in resource["scopeMetrics"]
-        for metric in scope["metrics"]
-    ]
-    ready = next(
-        metric for metric in metrics if metric["name"] == "eventflow_recommendations_ready"
+    transport = httpx.ASGITransport(
+        app=create_app(
+            config(), service_pool=projection_pool, catalog=FakeCatalog(), telemetry=signals
+        )
     )
-    assert ready["gauge"]["dataPoints"][0]["asInt"] == "0"
-    generation = uuid4()
-    async with projection_pool.connection() as connection:
-        await connection.execute(
-            "INSERT INTO recommendation_projection(id,building_generation,building_model,"
-            "active_generation,active_model,cursor,through) VALUES (1,%s,'test',%s,'test',2,9)",
-            (generation, generation),
-        )
-    await signals.projection(projection_pool, True, time.perf_counter())
-    data = exported(signals, received)
-    metrics = [
-        metric
-        for export in data
-        for resource in export.get("resourceMetrics", [])
-        for scope in resource["scopeMetrics"]
-        for metric in scope["metrics"]
-    ]
-    assert [metric for metric in metrics if metric["name"] == "eventflow_recommendations_ready"][
-        -1
-    ]["gauge"]["dataPoints"][0]["asInt"] == "0"
-    async with projection_pool.connection() as connection:
-        await connection.execute(
-            "UPDATE recommendation_projection SET heartbeat=clock_timestamp() WHERE id=1"
-        )
-    await signals.projection(projection_pool, True, time.perf_counter())
-    data = exported(signals, received)
-    metrics = [
-        metric
-        for export in data
-        for resource in export.get("resourceMetrics", [])
-        for scope in resource["scopeMetrics"]
-        for metric in scope["metrics"]
-    ]
-    assert [metric for metric in metrics if metric["name"] == "eventflow_recommendations_ready"][
-        -1
-    ]["gauge"]["dataPoints"][0]["asInt"] == "1"
-    assert [
-        metric for metric in metrics if metric["name"] == "eventflow_recommendations_cursor_gap"
-    ][-1]["gauge"]["dataPoints"][0]["asInt"] == "7"
+
+    def gauge(name):
+        values = [
+            metric["gauge"]["dataPoints"][0]["asInt"]
+            for export in exported(signals, received)
+            for resource in export.get("resourceMetrics", [])
+            for scope in resource["scopeMetrics"]
+            for metric in scope["metrics"]
+            if metric["name"] == "eventflow_recommendations_" + name
+        ]
+        return int(values[-1])
+
+    async def assert_readiness(http, ready, projected=True):
+        response = await http.get("/health/ready")
+        assert response.status_code == (200 if ready else 503)
+        await signals.projection(projection_pool, projected, time.perf_counter())
+        assert gauge("ready") == int(ready)
+
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+        await assert_readiness(http, False, projected=False)
+        generation = uuid4()
+        async with projection_pool.connection() as connection:
+            await connection.execute(
+                "INSERT INTO recommendation_projection(id,building_generation,building_model,"
+                "active_generation,active_model,cursor,through) VALUES (1,%s,'test',%s,'test',2,9)",
+                (generation, generation),
+            )
+        await assert_readiness(http, False)
+        async with projection_pool.connection() as connection:
+            await connection.execute(
+                "UPDATE recommendation_projection SET heartbeat=clock_timestamp() WHERE id=1"
+            )
+        await assert_readiness(http, True)
+        assert gauge("cursor_gap") == 7
+        async with projection_pool.connection() as connection:
+            await connection.execute(
+                "UPDATE recommendation_projection "
+                "SET heartbeat=clock_timestamp()-interval '46 seconds' WHERE id=1"
+            )
+        await assert_readiness(http, False)
 
 
 @pytest.mark.parametrize(

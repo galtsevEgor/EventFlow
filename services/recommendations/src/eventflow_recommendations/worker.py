@@ -18,6 +18,17 @@ from .config import Config
 from .contracts import SourceChange
 from .database import pool
 from .embeddings import LocalEmbedder, model_manifest
+from .policies import (
+    WORKER_AMQP_CONNECT_TIMEOUT_SECONDS,
+    WORKER_AMQP_PREFETCH_COUNT,
+    WORKER_COMPLETE_POLL_DELAY_SECONDS,
+    WORKER_FAILURE_BACKOFF_BASE_SECONDS,
+    WORKER_FAILURE_BACKOFF_MAX_EXPONENT,
+    WORKER_FAILURE_BACKOFF_MAX_SECONDS,
+    WORKER_INCOMPLETE_POLL_DELAY_SECONDS,
+    WORKER_QUEUE_MAX_LENGTH,
+    WORKER_RECONNECT_DELAY_SECONDS,
+)
 from .projection import Projection
 from .runtime import run
 from .telemetry import Telemetry
@@ -69,9 +80,11 @@ async def consume_notifications(config: Config, wake: asyncio.Event, stop: async
     while not stop.is_set():
         connection = None
         try:
-            connection = await aio_pika.connect_robust(config.amqp_url, timeout=5)
+            connection = await aio_pika.connect_robust(
+                config.amqp_url, timeout=WORKER_AMQP_CONNECT_TIMEOUT_SECONDS
+            )
             channel = await connection.channel()
-            await channel.set_qos(prefetch_count=10)
+            await channel.set_qos(prefetch_count=WORKER_AMQP_PREFETCH_COUNT)
             exchange = await channel.declare_exchange(
                 config.namespace + ".events", aio_pika.ExchangeType.TOPIC, durable=True
             )
@@ -80,7 +93,7 @@ async def consume_notifications(config: Config, wake: asyncio.Event, stop: async
                 durable=True,
                 arguments={
                     "x-queue-type": "quorum",
-                    "x-max-length": 10000,
+                    "x-max-length": WORKER_QUEUE_MAX_LENGTH,
                     "x-overflow": "reject-publish",
                 },
             )
@@ -104,7 +117,7 @@ async def consume_notifications(config: Config, wake: asyncio.Event, stop: async
             # Only stable codes: transport exceptions may contain credential-bearing URLs.
             logger.warning("recommendations_notification_unavailable")
             try:
-                await asyncio.wait_for(stop.wait(), timeout=2)
+                await asyncio.wait_for(stop.wait(), timeout=WORKER_RECONNECT_DELAY_SECONDS)
             except TimeoutError:
                 pass
         finally:
@@ -131,7 +144,11 @@ async def poll(
             if failures:
                 logger.info("recommendations_projection_recovered")
             failures = 0
-            delay = 2.0 if complete else 0.1
+            delay = (
+                WORKER_COMPLETE_POLL_DELAY_SECONDS
+                if complete
+                else WORKER_INCOMPLETE_POLL_DELAY_SECONDS
+            )
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -139,7 +156,11 @@ async def poll(
                 await telemetry.projection(projection.pool, False, started)
             failures += 1
             logger.warning("recommendations_projection_unavailable")
-            delay = min(30.0, 2.0 ** min(failures, 5))
+            delay = min(
+                WORKER_FAILURE_BACKOFF_MAX_SECONDS,
+                WORKER_FAILURE_BACKOFF_BASE_SECONDS
+                ** min(failures, WORKER_FAILURE_BACKOFF_MAX_EXPONENT),
+            )
         waiting = [asyncio.create_task(wake.wait()), asyncio.create_task(stop.wait())]
         try:
             await asyncio.wait(waiting, timeout=delay, return_when=asyncio.FIRST_COMPLETED)

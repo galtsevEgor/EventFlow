@@ -14,6 +14,7 @@ from .catalog import SourceChanged, validate_page
 from .contracts import SourcePage
 from .database import Pool
 from .interests import INTERESTS
+from .model_contract import DIMENSIONS
 
 LOCK = 21002100
 
@@ -32,7 +33,7 @@ def checked_vectors(vectors: list[list[float]], count: int) -> list[Vector]:
         raise ValueError("Invalid embedding count")
     result = []
     for vector in vectors:
-        if len(vector) != 384 or not all(math.isfinite(value) for value in vector):
+        if len(vector) != DIMENSIONS or not all(math.isfinite(value) for value in vector):
             raise ValueError("Invalid embedding vector")
         norm = sum(value * value for value in vector)
         if abs(norm - 1) > 1e-5:

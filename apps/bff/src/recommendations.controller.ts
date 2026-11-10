@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { ApiError, parseInput } from '@eventflow/service-runtime';
 import {
+  MAX_RECOMMENDATION_FAVORITES,
   recommendationPageSchema,
   recommendationProfileSchema,
   recommendationInterestsSchema,
@@ -82,7 +83,10 @@ export class RecommendationsProxy {
           404: ['NOT_FOUND', 'Мероприятие недоступно.'],
           409: profile
             ? ['PROFILE_CHANGED', 'Настройки изменились. Загрузите их заново.']
-            : ['FAVORITES_LIMIT', 'Можно сохранить до 100 мероприятий.'],
+            : [
+                'FAVORITES_LIMIT',
+                `Можно сохранить до ${MAX_RECOMMENDATION_FAVORITES} мероприятий.`,
+              ],
           422: ['VALIDATION_FAILED', 'Проверьте параметры подборки.'],
         };
         const problem = messages[status];

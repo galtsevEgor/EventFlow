@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { localServiceOrigin } from './local-services.mjs';
+import { recommendationsModelPath } from './recommendations.mjs';
 
 const secretKeys = [
   'POSTGRES_ADMIN_PASSWORD',
@@ -71,10 +72,7 @@ export function initializeEnvironment(directory) {
     RECOMMENDATIONS_CLIENT_SECRET: randomBytes(32).toString('hex'),
     RECOMMENDATIONS_URL: localServiceOrigin('recommendations'),
     RECOMMENDATIONS_ENABLED: 'true',
-    RECOMMENDATIONS_MODEL_PATH: resolve(
-      directory,
-      'work/e21/models/paraphrase-multilingual-MiniLM-L12-v2',
-    ).replaceAll('\\', '/'),
+    RECOMMENDATIONS_MODEL_PATH: recommendationsModelPath(directory).replaceAll('\\', '/'),
     WAITLIST_DB_PASSWORD: values.WAITLIST_DB_PASSWORD || randomBytes(24).toString('hex'),
     WAITLIST_URL: localServiceOrigin('waitlist'),
     WAITLIST_ENABLED: 'true',

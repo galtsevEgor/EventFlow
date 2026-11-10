@@ -4,6 +4,15 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
+from .policies import (
+    CATALOG_CHANGE_PAGE_SIZE,
+    DEFAULT_RECOMMENDATION_PAGE_SIZE,
+    MAX_AVAILABLE_INTERESTS,
+    MAX_RECOMMENDATION_FAVORITES,
+    MAX_RECOMMENDATION_INTERESTS,
+    MAX_RECOMMENDATION_PAGE_SIZE,
+)
+
 Position = Annotated[int, Field(strict=True, ge=0, le=9_007_199_254_740_991)]
 
 
@@ -40,7 +49,7 @@ class SourceChange(Contract):
 
 
 class SourcePage(Contract):
-    changes: Annotated[list[SourceChange], Field(max_length=100)]
+    changes: Annotated[list[SourceChange], Field(max_length=CATALOG_CHANGE_PAGE_SIZE)]
     through: Position
     next: Position
 
@@ -55,7 +64,9 @@ class RecommendationFilters(Contract):
     max_price_minor: Annotated[int | None, Field(alias="maxPriceMinor", ge=0, le=100_000_000)] = (
         None
     )
-    limit: Annotated[int, Field(ge=1, le=12)] = 6
+    limit: Annotated[int, Field(ge=1, le=MAX_RECOMMENDATION_PAGE_SIZE)] = (
+        DEFAULT_RECOMMENDATION_PAGE_SIZE
+    )
 
     @model_validator(mode="after")
     def ranges(self) -> Self:
@@ -77,7 +88,7 @@ class RecommendationItem(Contract):
 
 
 class RecommendationPage(Contract):
-    items: Annotated[list[RecommendationItem], Field(max_length=12)]
+    items: Annotated[list[RecommendationItem], Field(max_length=MAX_RECOMMENDATION_PAGE_SIZE)]
     mode: Literal["similar", "personal", "upcoming"]
     degraded: bool
 
@@ -91,7 +102,7 @@ class RecommendationError(Contract):
 
 class PreferenceInput(Contract):
     revision: Annotated[int, Field(strict=True, ge=0, le=2_147_483_647)]
-    interests: Annotated[list[str], Field(max_length=8)]
+    interests: Annotated[list[str], Field(max_length=MAX_RECOMMENDATION_INTERESTS)]
 
     @model_validator(mode="after")
     def unique(self) -> Self:
@@ -107,8 +118,8 @@ class Favorite(Contract):
 
 class ProfileState(Contract):
     revision: Annotated[int, Field(ge=0)]
-    interests: Annotated[list[str], Field(max_length=8)]
-    favorites: Annotated[list[Favorite], Field(max_length=100)]
+    interests: Annotated[list[str], Field(max_length=MAX_RECOMMENDATION_INTERESTS)]
+    favorites: Annotated[list[Favorite], Field(max_length=MAX_RECOMMENDATION_FAVORITES)]
 
 
 class InterestOption(Contract):
@@ -117,4 +128,4 @@ class InterestOption(Contract):
 
 
 class InterestOptions(Contract):
-    interests: Annotated[list[InterestOption], Field(max_length=12)]
+    interests: Annotated[list[InterestOption], Field(max_length=MAX_AVAILABLE_INTERESTS)]

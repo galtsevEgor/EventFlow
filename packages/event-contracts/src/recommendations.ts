@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import { searchDocumentSchema } from './search.js';
+
+export const RECOMMENDATIONS_DEFAULT_PAGE_SIZE = 6;
+export const MAX_RECOMMENDATIONS_PAGE_SIZE = 12;
+export const MAX_RECOMMENDATION_FAVORITES = 100;
+export const MAX_RECOMMENDATION_HYDRATION_IDS = 100;
+
 export const recommendationPageSchema = z
   .strictObject({
     items: z
@@ -9,7 +15,7 @@ export const recommendationPageSchema = z
           reason: z.enum(['SIMILAR', 'INTERESTS', 'FAVORITES', 'UPCOMING']),
         }),
       )
-      .max(12),
+      .max(MAX_RECOMMENDATIONS_PAGE_SIZE),
     mode: z.enum(['similar', 'personal', 'upcoming']),
     degraded: z.boolean(),
   })
@@ -29,7 +35,7 @@ export const recommendationProfileSchema = z.strictObject({
   interests: z.array(z.string().min(1).max(40)).max(8),
   favorites: z
     .array(z.strictObject({ eventId: z.uuid(), event: searchDocumentSchema.nullable() }))
-    .max(100),
+    .max(MAX_RECOMMENDATION_FAVORITES),
 });
 export type RecommendationProfile = z.infer<typeof recommendationProfileSchema>;
 export const recommendationInterestsSchema = z.strictObject({

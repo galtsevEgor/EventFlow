@@ -20,6 +20,7 @@ from unittest.mock import patch
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .interests import INTEREST_IDS
+from .model_contract import DIMENSIONS
 
 FIXTURE = Path(__file__).resolve().parents[2] / "tests/fixtures/recommendations.json"
 LANGUAGES = ("ru", "ro", "en")
@@ -81,7 +82,7 @@ def evaluate(
     if len(event_vectors) != len(corpus.events) or len(query_vectors) != len(corpus.queries):
         raise ValueError("Vector count differs from labeled corpus")
     for vector in [*event_vectors, *query_vectors]:
-        if len(vector) != 384 or not all(math.isfinite(v) for v in vector):
+        if len(vector) != DIMENSIONS or not all(math.isfinite(v) for v in vector):
             raise ValueError("Invalid evaluation vector")
         if abs(sum(v * v for v in vector) - 1) > 1e-5:
             raise ValueError("Evaluation vectors must be unit normalized")

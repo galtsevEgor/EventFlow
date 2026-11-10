@@ -18,6 +18,7 @@ from .contracts import (
 )
 from .database import Pool, Row
 from .errors import ApiError
+from .model_contract import DIMENSIONS
 
 CANDIDATE_LIMIT = 60
 
@@ -40,6 +41,21 @@ def matches(document: SourceDocument, filters: RecommendationFilters, now: datet
     )
 
 
+def upcoming_documents(
+    documents: list[SourceDocument],
+    filters: RecommendationFilters,
+    exclude: list[UUID],
+    now: datetime,
+) -> list[SourceDocument]:
+    excluded = set(exclude)
+    unique = {
+        document.id: document
+        for document in documents
+        if document.id not in excluded and matches(document, filters, now)
+    }
+    return sorted(unique.values(), key=lambda document: (document.starts_at, document.id))
+
+
 def prepared_vector(values: object) -> Vector | None:
     """Use only valid prepared vectors; missing/corrupt state never triggers inference."""
     if values is None:
@@ -52,7 +68,7 @@ def prepared_vector(values: object) -> Vector | None:
         else:
             return None
         numbers = vector.to_list()
-        if len(numbers) != 384 or not all(math.isfinite(value) for value in numbers):
+        if len(numbers) != DIMENSIONS or not all(math.isfinite(value) for value in numbers):
             return None
         if abs(sum(value * value for value in numbers) - 1) > 1e-4:
             return None
@@ -74,34 +90,40 @@ async def nearest_candidates(
     Callers own a repeatable-read generation snapshot. Approximate retrieval remains
     an isolated benchmark until its worst-query recall justifies enabling it.
     """
-    where = (
-        "generation=%s AND embedding IS NOT NULL AND document IS NOT NULL "
-        "AND NOT (event_id=ANY(%s::uuid[])) "
-        "AND (document->>'startsAt')::timestamptz>%s "
-        "AND (%s::text='' OR lower(document->>'city')=lower(%s)) "
-        "AND (%s::date IS NULL OR (document->>'localDate')::date>=%s::date) "
-        "AND (%s::date IS NULL OR (document->>'localDate')::date<=%s::date) "
-        "AND (%s::integer IS NULL OR (document->>'minPriceMinor')::integer>=%s::integer) "
-        "AND (%s::integer IS NULL OR (document->>'minPriceMinor')::integer<=%s::integer)"
+    predicates = []
+    parameters: list[object] = []
+
+    def add_predicate(expression: str, *values: object) -> None:
+        predicates.append(expression)
+        parameters.extend(values)
+
+    add_predicate("generation=%s AND embedding IS NOT NULL AND document IS NOT NULL", generation)
+    add_predicate("NOT (event_id=ANY(%s::uuid[]))", exclude)
+    add_predicate("(document->>'startsAt')::timestamptz>%s", now)
+    add_predicate("(%s::text='' OR lower(document->>'city')=lower(%s))", filters.city, filters.city)
+    add_predicate(
+        "(%s::date IS NULL OR (document->>'localDate')::date>=%s::date)",
+        filters.from_date,
+        filters.from_date,
     )
-    parameters = (
-        generation,
-        exclude,
-        now,
-        filters.city,
-        filters.city,
-        filters.from_date,
-        filters.from_date,
+    add_predicate(
+        "(%s::date IS NULL OR (document->>'localDate')::date<=%s::date)",
         filters.to_date,
         filters.to_date,
+    )
+    add_predicate(
+        "(%s::integer IS NULL OR (document->>'minPriceMinor')::integer>=%s::integer)",
         filters.min_price_minor,
         filters.min_price_minor,
+    )
+    add_predicate(
+        "(%s::integer IS NULL OR (document->>'minPriceMinor')::integer<=%s::integer)",
         filters.max_price_minor,
         filters.max_price_minor,
     )
     cursor = await connection.execute(
         "WITH eligible AS MATERIALIZED (SELECT event_id,embedding "
-        "FROM recommendation_documents WHERE " + where + ") "
+        "FROM recommendation_documents WHERE " + " AND ".join(predicates) + ") "
         "SELECT event_id FROM eligible ORDER BY embedding<=>%s,event_id LIMIT %s",
         (*parameters, vector, CANDIDATE_LIMIT),
     )
@@ -166,12 +188,7 @@ class Recommendations:
     ) -> RecommendationPage:
         documents = await self.catalog.upcoming(filters, exclude)
         now = datetime.now(UTC)
-        unique = {
-            document.id: document
-            for document in documents
-            if document.id not in exclude and matches(document, filters, now)
-        }
-        ordered = sorted(unique.values(), key=lambda document: (document.starts_at, document.id))
+        ordered = upcoming_documents(documents, filters, exclude, now)
         return RecommendationPage(
             items=[
                 RecommendationItem(event=document, reason="UPCOMING")

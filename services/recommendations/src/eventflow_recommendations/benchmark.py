@@ -23,7 +23,8 @@ from psycopg.types.json import Jsonb
 
 from .contracts import RecommendationFilters, SourceDocument
 from .database import Row, migrate
-from .ranking import nearest_candidates
+from .model_contract import DIMENSIONS
+from .ranking import CANDIDATE_LIMIT, nearest_candidates
 
 ROWS = 5000
 SEED = 210214
@@ -96,11 +97,11 @@ QUERY = (
     "AND lower(document->>'city')=lower(%s) "
     "AND (document->>'localDate')::date BETWEEN '2030-01-01' AND '2039-12-31' "
     "AND (document->>'minPriceMinor')::integer BETWEEN 1000 AND 2000 "
-    "ORDER BY embedding<=>%s LIMIT 60"
+    f"ORDER BY embedding<=>%s LIMIT {CANDIDATE_LIMIT}"
 )
 
 
-EXACT_QUERY = QUERY.replace(" LIMIT 60", ",event_id LIMIT 60")
+EXACT_QUERY = QUERY.replace(f" LIMIT {CANDIDATE_LIMIT}", f",event_id LIMIT {CANDIDATE_LIMIT}")
 
 
 def parameters(vector: list[float], generation: UUID) -> tuple[Any, ...]:
@@ -139,6 +140,21 @@ def worst_query(index: int, repeat: int, recall: float, ann: list[Row], exact: l
     }
 
 
+async def verify_vector_dimensions(conn: AsyncConnection[Row]) -> None:
+    cursor = await conn.execute(
+        "SELECT c.relname,format_type(a.atttypid,a.atttypmod) AS type "
+        "FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid "
+        "WHERE c.relname IN ('recommendation_documents','recommendation_interest_vectors') "
+        "AND a.attname='embedding' ORDER BY c.relname"
+    )
+    columns = await cursor.fetchall()
+    expected = f"vector({DIMENSIONS})"
+    if [column["type"] for column in columns] != [expected, expected]:
+        raise BenchmarkError(
+            "Recommendation vector columns do not match the pinned model dimension"
+        )
+
+
 async def serving_measurements(
     conn: AsyncConnection[Row], vectors: list[list[float]], generation: UUID
 ) -> Row:
@@ -159,7 +175,7 @@ async def serving_measurements(
             await conn.execute(EXACT_QUERY, parameters(vector, generation), prepare=False)
         ).fetchall()
         relevant = {row["id"] for row in exact}
-        recall = len(set(found) & relevant) / 60
+        recall = len(set(found) & relevant) / CANDIDATE_LIMIT
         recalls.append(recall)
         if not worst or recall < worst["recallAt60"]:
             worst = {
@@ -231,11 +247,11 @@ async def search_measurements(
                 ).fetchall()
                 timings[mode].append((time.perf_counter() - started) * 1000)
             relevant = {row["id"] for row in results["exact"]}
-            if len(relevant) != 60:
+            if len(relevant) != CANDIDATE_LIMIT:
                 raise BenchmarkError("Synthetic exact benchmark did not find 60 candidates")
             for mode in recalls:
                 found = {row["id"] for row in results[mode]}
-                recall = len(found & relevant) / 60
+                recall = len(found & relevant) / CANDIDATE_LIMIT
                 recalls[mode].append(recall)
                 per_query[mode].append(
                     {
@@ -348,6 +364,7 @@ async def benchmark(event_vectors: list[list[float]], query_vectors: list[list[f
                 with_database(application_url), autocommit=True, row_factory=dict_row
             ) as conn:
                 await register_vector_async(conn)
+                await verify_vector_dimensions(conn)
                 await conn.execute("SET max_parallel_workers_per_gather=0")
                 await conn.execute("SET max_parallel_maintenance_workers=0")
                 settings = await (
@@ -415,8 +432,8 @@ async def benchmark(event_vectors: list[list[float]], query_vectors: list[list[f
                     "description": "Seeded genuine embedding perturbations; not user quality",
                     "rows": len(vectors),
                     "seed": SEED,
-                    "dimensions": 384,
-                    "topK": 60,
+                    "dimensions": DIMENSIONS,
+                    "topK": CANDIDATE_LIMIT,
                     "queries": len(query_vectors),
                     "parallelWorkersPerGather": settings["gather"],
                     "parallelMaintenanceWorkers": settings["maintenance"],

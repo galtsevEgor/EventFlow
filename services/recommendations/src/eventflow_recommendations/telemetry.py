@@ -23,6 +23,9 @@ from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from .database import Pool
+from .health import projection_is_ready
+
+MISSING_HEARTBEAT_AGE_SECONDS = 1e9
 
 
 def endpoint(value: str) -> str:
@@ -187,12 +190,16 @@ class Telemetry:
                     )
                 ).fetchone()
             self.ready.set(
-                int(bool(row and row["active"] and row["age"] is not None and row["age"] < 45)),
+                int(projection_is_ready(bool(row and row["active"]), row["age"] if row else None)),
                 self.labels,
             )
             if row:
                 self.gap.set(max(0, row["gap"]), self.labels)
-                self.age.set(float(row["age"] if row["age"] is not None else 1e9), self.labels)
+                age = row["age"]
+                self.age.set(
+                    float(age) if age is not None else MISSING_HEARTBEAT_AGE_SECONDS,
+                    self.labels,
+                )
         except Exception:
             self.ready.set(0, self.labels)
 

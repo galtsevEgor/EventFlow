@@ -8,6 +8,8 @@ import {
   MAX_OFFLINE_PAYLOAD_LENGTH,
   MAX_OFFLINE_SNAPSHOT_HASHES,
   MAX_OFFLINE_SYNC_OPERATIONS,
+  MAX_RECOMMENDATION_FAVORITES,
+  MAX_RECOMMENDATIONS_PAGE_SIZE,
   MAX_SEARCH_CITY_FACETS,
   MAX_SEARCH_PAGE,
   MAX_SEARCH_PAGE_SIZE,
@@ -22,6 +24,7 @@ import {
   MAX_VENUE_SEATS,
   MIN_VENUE_FEATURE_DIMENSION,
   MIN_VENUE_MAP_DIMENSION,
+  RECOMMENDATIONS_DEFAULT_PAGE_SIZE,
   venueSeatIdSchema,
 } from '@eventflow/event-contracts';
 
@@ -96,6 +99,25 @@ test('Search and BFF OpenAPI agree with runtime result, facet and suggestion lim
         parameters.find(({ name }) => name === 'pageSize').schema.maximum,
         MAX_SEARCH_PAGE_SIZE,
       );
+    }
+  }
+});
+
+test('Recommendations OpenAPI agrees with runtime page and favorites limits', () => {
+  const recommendationsSpec = JSON.parse(
+    readFileSync(
+      new URL('../../../services/recommendations/openapi.json', import.meta.url),
+      'utf8',
+    ),
+  );
+  for (const spec of [bffSpec, recommendationsSpec]) {
+    const { ProfileState, RecommendationPage } = spec.components.schemas;
+    assert.equal(ProfileState.properties.favorites.maxItems, MAX_RECOMMENDATION_FAVORITES);
+    assert.equal(RecommendationPage.properties.items.maxItems, MAX_RECOMMENDATIONS_PAGE_SIZE);
+    for (const path of ['/api/v1/events/{id}/similar', '/api/v1/recommendations/me']) {
+      const { schema } = spec.paths[path].get.parameters.find(({ name }) => name === 'limit');
+      assert.equal(schema.maximum, MAX_RECOMMENDATIONS_PAGE_SIZE);
+      assert.equal(schema.default, RECOMMENDATIONS_DEFAULT_PAGE_SIZE);
     }
   }
 });

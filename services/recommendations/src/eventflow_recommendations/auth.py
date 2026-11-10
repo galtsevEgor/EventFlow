@@ -8,12 +8,21 @@ import jwt
 
 from .config import Config
 from .errors import ApiError
+from .policies import (
+    IDENTITY_JWKS_CACHE_SECONDS,
+    IDENTITY_JWKS_MAX_KEYS,
+    IDENTITY_KEY_ID_MAX_LENGTH,
+    IDENTITY_REFRESH_FAILURE_COOLDOWN_SECONDS,
+    IDENTITY_TOKEN_MAX_LENGTH,
+)
 
 
 class JwtIdentity:
     def __init__(self, config: Config, client: httpx.AsyncClient | None = None):
         self.issuer = config.issuer
-        self.client = client or httpx.AsyncClient(timeout=2, follow_redirects=False)
+        self.client = client or httpx.AsyncClient(
+            timeout=config.identity_timeout, follow_redirects=False
+        )
         self.owns_client = client is None
         self.keys: dict[str, jwt.PyJWK] = {}
         self.refreshed = float("-inf")
@@ -27,7 +36,9 @@ class JwtIdentity:
     async def key(self, kid: str) -> jwt.PyJWK:
         async with self.lock:
             age = time.monotonic() - self.refreshed
-            if (kid in self.keys and age < 300) or age < 5:
+            if (
+                kid in self.keys and age < IDENTITY_JWKS_CACHE_SECONDS
+            ) or age < IDENTITY_REFRESH_FAILURE_COOLDOWN_SECONDS:
                 if self.unavailable:
                     raise ApiError(
                         503, "IDENTITY_UNAVAILABLE", "Проверка входа временно недоступна."
@@ -41,14 +52,18 @@ class JwtIdentity:
                 response = await self.client.get(self.issuer + "/protocol/openid-connect/certs")
                 response.raise_for_status()
                 entries = response.json()["keys"]
-                if not isinstance(entries, list) or not 1 <= len(entries) <= 16:
+                if not isinstance(entries, list) or not 1 <= len(entries) <= IDENTITY_JWKS_MAX_KEYS:
                     raise ValueError("Invalid signing key set")
                 keys = {}
                 for entry in entries:
                     if entry.get("kty") != "RSA" or entry.get("use", "sig") != "sig":
                         continue
                     name = entry["kid"]
-                    if not isinstance(name, str) or not 1 <= len(name) <= 128 or name in keys:
+                    if (
+                        not isinstance(name, str)
+                        or not 1 <= len(name) <= IDENTITY_KEY_ID_MAX_LENGTH
+                        or name in keys
+                    ):
                         raise ValueError("Invalid signing key identity")
                     if entry.get("alg", "RS256") != "RS256":
                         continue
@@ -70,7 +85,7 @@ class JwtIdentity:
     async def actor(self, authorization: str | None) -> UUID:
         if (
             not authorization
-            or len(authorization) > 32768
+            or len(authorization) > IDENTITY_TOKEN_MAX_LENGTH
             or not re.fullmatch(
                 r"Bearer [A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", authorization
             )
@@ -80,7 +95,11 @@ class JwtIdentity:
         try:
             header = jwt.get_unverified_header(token)
             kid = header.get("kid")
-            if header.get("alg") != "RS256" or not isinstance(kid, str) or not 1 <= len(kid) <= 128:
+            if (
+                header.get("alg") != "RS256"
+                or not isinstance(kid, str)
+                or not 1 <= len(kid) <= IDENTITY_KEY_ID_MAX_LENGTH
+            ):
                 raise unauthenticated()
             key = await self.key(kid)
             claims = jwt.decode(

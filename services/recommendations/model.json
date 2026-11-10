@@ -2,6 +2,7 @@
   "modelId": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
   "revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
   "dimensions": 384,
+  "localPath": "work/e21/models/paraphrase-multilingual-MiniLM-L12-v2",
   "languages": ["ru", "ro", "en"],
   "license": "Apache-2.0",
   "maxSequenceLength": 128,

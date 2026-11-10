@@ -28,6 +28,7 @@ from .contracts import (
 )
 from .database import Pool, pool
 from .errors import ApiError
+from .health import PROJECTION_MAX_AGE_SECONDS
 from .interests import INTERESTS
 from .profiles import Profiles
 from .ranking import Recommendations
@@ -131,8 +132,9 @@ def create_app(
             async with database.connection() as connection:
                 cursor = await connection.execute(
                     "SELECT active_generation IS NOT NULL AND heartbeat>"
-                    "clock_timestamp()-interval '45 seconds' AS ready "
-                    "FROM recommendation_projection WHERE id=1"
+                    "clock_timestamp()-(%s * interval '1 second') AS ready "
+                    "FROM recommendation_projection WHERE id=1",
+                    (PROJECTION_MAX_AGE_SECONDS,),
                 )
                 state = await cursor.fetchone()
             available = bool(state and state["ready"])

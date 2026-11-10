@@ -6,6 +6,7 @@ import { parseEnv } from 'node:util';
 import test from 'node:test';
 import { initializeEnvironment } from './local-env.mjs';
 import { localServiceOrigin } from './local-services.mjs';
+import { recommendationsModelPath } from './recommendations.mjs';
 
 const serviceNames = [
   'catalog',
@@ -43,6 +44,10 @@ test('initialization generates distinct secrets and preserves them on repeated r
     );
     assert.equal(new URL(env.RECOMMENDATIONS_DATABASE_URL).port, '26432');
     assert.equal(new URL(env.RECOMMENDATIONS_ADMIN_DATABASE_URL).username, 'recommendations_admin');
+    assert.equal(
+      env.RECOMMENDATIONS_MODEL_PATH,
+      recommendationsModelPath(directory).replaceAll('\\', '/'),
+    );
     assert.notEqual(env.RECOMMENDATIONS_DB_PASSWORD, env.RECOMMENDATIONS_ADMIN_PASSWORD);
     assert.notEqual(env.WAITLIST_CONTACT_KEY, env.BOOKING_CONTACT_KEY);
     assert.notEqual(env.ANALYTICS_SESSION_KEY, env.OIDC_CLIENT_SECRET);
