@@ -118,6 +118,22 @@ test(
         )
         .toBe(3);
       await visitor.goto(stack.origin + '/');
+      const headline = visitor.getByRole('heading', { name: 'Афиша мероприятий', level: 1 });
+      await expect(headline).toBeVisible();
+      await visitor.evaluate(() => document.fonts.ready);
+      assert.equal(
+        await headline.evaluate((heading) => {
+          const text = heading.firstChild;
+          const word = 'мероприятий';
+          const start = text.textContent.indexOf(word);
+          const range = document.createRange();
+          range.setStart(text, start);
+          range.setEnd(text, start + word.length);
+          return range.getClientRects().length;
+        }),
+        1,
+        'The catalog headline fits without splitting a word',
+      );
       await expect(
         visitor.locator('#catalog').getByRole('link', { name: /Концерт в саду/ }),
       ).toBeVisible();

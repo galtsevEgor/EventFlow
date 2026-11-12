@@ -10,13 +10,17 @@
   background: radial-gradient(ellipse at 85% 5%, #624475, transparent 68%), var(--site-dark);
 }
 
+.catalog-hero-copy {
+  container-type: inline-size;
+}
+
 .catalog-hero-copy:only-child {
   grid-column: 1 / -1;
 }
 
 .catalog-hero h1 {
   margin: 0;
-  font-size: clamp(36px, 6.4vw, 88px);
+  font-size: clamp(30px, 13cqi, 72px);
   line-height: 0.99;
   letter-spacing: -0.065em;
   overflow-wrap: anywhere;
@@ -191,10 +195,6 @@
 @media (max-width: 790px) {
   .catalog-hero {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .catalog-hero h1 {
-    font-size: clamp(36px, 8vw, 60px);
-    text-wrap: initial;
   }
   .featured-controls {
     margin-top: 8px;
