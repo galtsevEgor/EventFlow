@@ -115,10 +115,11 @@ test(
       ).map(({ name }) => name);
       assert.ok(columns.length > 2000);
       assert.ok(columns.every((column) => /^[A-Za-z_][A-Za-z_0-9]*$/.test(column)));
+      // Each column varies by row, while the projection can reuse one series in memory.
+      const projection = columns.map((column) => `number AS ${column}`).join(',');
       for (let i = 0; i < 2; i++) {
         query(
-          `INSERT INTO default.merge_probe (${columns.join(',')}) SELECT ` +
-            columns.map((_, index) => `number+${index}`).join(',') +
+          `INSERT INTO default.merge_probe (${columns.join(',')}) SELECT ${projection}` +
             ` FROM numbers(${i * 10000},10000) SETTINGS max_block_size=10000,min_insert_block_size_rows=10000`,
         );
       }
