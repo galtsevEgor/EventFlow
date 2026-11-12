@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { expect } from '@playwright/test';
+import { gotoLocalPage } from '../helpers/browser-navigation.mjs';
 
 export async function loginBuyer(
   page,
@@ -11,7 +12,7 @@ export async function loginBuyer(
   const user = JSON.parse(readFileSync(usersPath, 'utf8')).find(
     (user) => user.username === username,
   );
-  await page.goto(origin + '/api/v1/auth/login?returnTo=%2Forders');
+  await gotoLocalPage(page, origin + '/api/v1/auth/login?returnTo=%2Forders');
   await page.locator('input[name=username]').fill(user.email);
   await page.locator('input[name=password]').fill(user.password);
   await page.locator('#kc-login').click();

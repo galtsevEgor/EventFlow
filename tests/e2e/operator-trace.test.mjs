@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chromium, expect } from '@playwright/test';
 import { Telemetry, telemetryConfig } from '../../packages/telemetry/dist/index.js';
+import { gotoLocalPage } from '../helpers/browser-navigation.mjs';
 import { readTrace } from '../helpers/traces.mjs';
 
 test(
@@ -24,15 +25,17 @@ test(
       await readTrace(traceId);
       browser = await chromium.launch();
       const page = await browser.newPage();
-      const query = page.waitForResponse(
-        (response) =>
-          response.url().includes('/api/') &&
-          (response.url().includes(traceId) ||
-            (response.request().postData() ?? '').includes(traceId)),
-        { timeout: 20000 },
-      );
-      await page.goto(`http://127.0.0.1:13000/d/eventflow-trace?var-traceId=${traceId}`);
-      assert.equal((await query).status(), 200);
+      const [response] = await Promise.all([
+        page.waitForResponse(
+          (response) =>
+            response.url().includes('/api/') &&
+            (response.url().includes(traceId) ||
+              (response.request().postData() ?? '').includes(traceId)),
+          { timeout: 20000 },
+        ),
+        gotoLocalPage(page, `http://127.0.0.1:13000/d/eventflow-trace?var-traceId=${traceId}`),
+      ]);
+      assert.equal(response.status(), 200);
       await expect(page.getByText('operator.investigation', { exact: false }).first()).toBeVisible({
         timeout: 15000,
       });
