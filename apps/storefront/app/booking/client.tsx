@@ -38,14 +38,20 @@ export function useBuyer() {
   }
   return { api, session };
 }
-export function SignIn({ returnTo }: { returnTo: string }) {
+export function SignIn({
+  returnTo,
+  label = 'Войдите, чтобы забронировать места',
+}: {
+  returnTo: string;
+  label?: string;
+}) {
   return (
     <p className="booking-sign-in">
       <a
         className="site-action"
         href={`/api/v1/auth/login?returnTo=${encodeURIComponent(returnTo)}`}
       >
-        Войдите, чтобы забронировать места
+        {label}
       </a>
     </p>
   );

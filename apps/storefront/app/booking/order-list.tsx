@@ -30,7 +30,7 @@ function List() {
         <Button onClick={() => void session.refetch()}>Повторить</Button>
       </Alert>
     );
-  if (!session.data.user) return <SignIn returnTo="/orders" />;
+  if (!session.data.user) return <SignIn returnTo="/orders" label="Войти, чтобы увидеть заказы" />;
   if (orders.isPending) return <p role="status">Загружаем заказы…</p>;
   if (orders.isError)
     return (
@@ -42,34 +42,44 @@ function List() {
   return (
     <>
       {!orders.data.items.length && (
-        <p>
+        <p className="empty">
           У вас пока нет заказов. <a href="/">Найти мероприятие</a>
         </p>
       )}
       <div className="order-list">
         {orders.data.items.map((order) => (
           <a className="order-summary" href={`/orders/${order.id}`} key={order.id}>
-            <strong>{order.title}</strong>
-            <span>{orderLabels[order.state]}</span>
-            <span>
-              {order.items.length} мест · {formatPrice(order.totalMinor)}
+            <span className="order-summary-main">
+              <strong>{order.title}</strong>
+              <span className="order-state" data-state={order.state}>
+                {orderLabels[order.state]}
+              </span>
+            </span>
+            <span className="order-summary-total">
+              <strong>{formatPrice(order.totalMinor)}</strong>
+              <small>Мест: {order.items.length}</small>
+            </span>
+            <span aria-hidden="true" className="order-summary-arrow">
+              ↗
             </span>
           </a>
         ))}
       </div>
-      <nav className="pagination" aria-label="Страницы заказов">
-        <Button variant="secondary" disabled={page === 1} onClick={() => setPage(page - 1)}>
-          Назад
-        </Button>
-        <span>Страница {page}</span>
-        <Button
-          variant="secondary"
-          disabled={page * orders.data.pageSize >= orders.data.total}
-          onClick={() => setPage(page + 1)}
-        >
-          Далее
-        </Button>
-      </nav>
+      {(page > 1 || orders.data.total > orders.data.pageSize) && (
+        <nav className="pagination" aria-label="Страницы заказов">
+          <Button variant="secondary" disabled={page === 1} onClick={() => setPage(page - 1)}>
+            Назад
+          </Button>
+          <span>Страница {page}</span>
+          <Button
+            variant="secondary"
+            disabled={page * orders.data.pageSize >= orders.data.total}
+            onClick={() => setPage(page + 1)}
+          >
+            Далее
+          </Button>
+        </nav>
+      )}
     </>
   );
 }

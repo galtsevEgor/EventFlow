@@ -99,7 +99,7 @@ export function BuyerWaitlist() {
   });
   if (!session.data?.user?.emailVerified) return null;
   return (
-    <section aria-label="Мой лист ожидания">
+    <section className="buyer-waitlist-panel" aria-label="Мой лист ожидания">
       <h2>Лист ожидания</h2>
       {query.error && <Alert>{query.error.message}</Alert>}
       {query.data?.entries.length === 0 && (

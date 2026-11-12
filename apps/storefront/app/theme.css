@@ -139,6 +139,29 @@
   transform: translateY(1px);
 }
 
+.site-message {
+  max-width: 760px;
+  margin: clamp(20px, 6vw, 72px) auto;
+  padding: clamp(20px, 6vw, 48px);
+  border: 1px solid var(--site-line);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  box-shadow: var(--site-shadow);
+}
+
+.site-message h1 {
+  margin: 0 0 20px;
+  font-size: clamp(26px, 6vw, 54px);
+  line-height: 1.05;
+}
+
+.site-message-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
 @media (max-width: 940px) {
   .site-header .account-email {
     display: none;

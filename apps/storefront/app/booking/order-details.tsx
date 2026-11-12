@@ -108,7 +108,8 @@ function Details({ id }: { id: string }) {
         <Button onClick={() => void session.refetch()}>Повторить</Button>
       </Alert>
     );
-  if (!session.data.user) return <SignIn returnTo={`/orders/${id}`} />;
+  if (!session.data.user)
+    return <SignIn returnTo={`/orders/${id}`} label="Войти, чтобы открыть заказ" />;
   if (order.isPending) return <p role="status">Восстанавливаем заказ…</p>;
   if (order.isError)
     return (
@@ -121,21 +122,22 @@ function Details({ id }: { id: string }) {
     );
   const data = order.data.data;
   return (
-    <article className="order-card" data-live={live ? 'true' : 'false'}>
-      <p className="eyebrow">ВАШ ЗАКАЗ</p>
-      <h1>{data.title}</h1>
-      <p className="sale-status" role="status">
-        {orderLabels[data.state]}
-      </p>
+    <article className="order-card order-details" data-live={live ? 'true' : 'false'}>
+      <header className="order-heading">
+        <h1>{data.title}</h1>
+        <p className="order-state" data-state={data.state} role="status">
+          {orderLabels[data.state]}
+        </p>
+      </header>
       {data.state === 'HELD' && (
-        <>
+        <div className="order-hold">
           <Countdown
             expiresAt={data.expiresAt}
             serverNow={data.serverNow}
             startedAt={order.data.startedAt}
           />
           <p>Места удерживаются до истечения срока брони.</p>
-        </>
+        </div>
       )}
       <ul className="price-list">
         {data.items.map((item) => (
@@ -184,11 +186,10 @@ function Details({ id }: { id: string }) {
       {cancel.error && (
         <Alert>Не удалось получить результат отмены. Повторите отмену или обновите статус.</Alert>
       )}
-      <p>
+      <p className="order-links">
         <a className="back-link" href={`/events/${data.saleId}`}>
           Вернуться к мероприятию
-        </a>{' '}
-        ·{' '}
+        </a>
         <a className="back-link" href="/orders">
           Все заказы
         </a>

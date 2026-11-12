@@ -1,0 +1,214 @@
+.account-page-content {
+  margin-top: clamp(18px, 4vw, 38px);
+}
+
+.account-page-heading {
+  margin-bottom: clamp(18px, 3vw, 28px);
+  padding: clamp(20px, 5vw, 50px);
+  border-radius: var(--site-radius);
+  color: white;
+  background: radial-gradient(ellipse at 95% 0, #604372, transparent 68%), var(--site-dark);
+}
+
+.account-page-heading h1,
+.order-heading h1 {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 58px);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.order-list {
+  display: grid;
+  gap: 12px;
+}
+
+.order-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: clamp(9px, 3vw, 22px);
+  padding: clamp(14px, 3vw, 24px);
+  border: 1px solid var(--site-line);
+  border-radius: 18px;
+  color: var(--site-ink);
+  background: var(--site-panel);
+  box-shadow: var(--site-shadow);
+  text-decoration: none;
+  transition:
+    border-color var(--site-motion),
+    transform var(--site-motion);
+}
+
+.order-summary:hover {
+  border-color: #bd9acb;
+  transform: translateY(-2px);
+}
+
+.order-summary-main,
+.order-summary-total {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+.order-summary-main > strong {
+  font-size: clamp(16px, 3vw, 22px);
+  letter-spacing: -0.035em;
+}
+
+.order-summary-total {
+  justify-items: end;
+}
+
+.order-summary-total small {
+  color: var(--site-muted);
+}
+
+.order-summary-arrow {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--site-accent);
+}
+
+.order-state {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #554270;
+  background: #efe7f8;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.order-state[data-state='CONFIRMED'] {
+  color: #195d40;
+  background: #e7f4ec;
+}
+
+.order-state:is([data-state='EXPIRED'], [data-state='CANCELLED']) {
+  color: #804914;
+  background: #fff0de;
+}
+
+.order-details {
+  max-width: 850px;
+  margin-inline: auto;
+}
+
+.order-heading {
+  display: grid;
+  gap: 12px;
+}
+
+.order-hold {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  color: var(--site-dark);
+  background: #f1eaf8;
+}
+
+.order-hold p {
+  margin: 0;
+}
+
+.order-hold .countdown {
+  font-size: clamp(25px, 6vw, 40px);
+}
+
+.order-total {
+  display: block;
+  padding: 14px 16px;
+  border-radius: 12px;
+  color: white;
+  background: var(--site-dark);
+  font-size: clamp(18px, 4vw, 23px);
+}
+
+.order-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-block: 24px 10px;
+}
+
+.order-details > small {
+  overflow-wrap: anywhere;
+}
+
+.buyer-waitlist-panel {
+  margin-top: clamp(24px, 5vw, 45px);
+}
+
+.buyer-waitlist-panel > .order-card + .order-card {
+  margin-top: 12px;
+}
+
+.preference-panel {
+  padding: clamp(16px, 3vw, 28px);
+  border-radius: var(--site-radius);
+  box-shadow: var(--site-shadow);
+}
+
+.preference-panel h2 {
+  margin-top: 0;
+}
+
+.preference-panel fieldset {
+  min-width: 0;
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+}
+
+.preference-panel legend {
+  font-weight: 650;
+}
+
+.interest-options {
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.interest-options label {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--site-line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color var(--site-motion);
+}
+
+.interest-options label:has(:checked) {
+  border-color: #caa4d8;
+  background: #f1eaf8;
+}
+
+.interest-options input {
+  accent-color: var(--site-link);
+}
+
+.interest-options label:has(:disabled) {
+  cursor: default;
+}
+
+.account-page .recommendations-section .catalog-filters {
+  margin: 0 0 18px;
+  padding: clamp(12px, 3vw, 20px);
+  border: 1px solid var(--site-line);
+  border-radius: 16px;
+  background: var(--site-panel);
+}
+
+@media (max-width: 430px) {
+  .order-summary-arrow {
+    display: none;
+  }
+}
