@@ -118,8 +118,19 @@ test(
         )
         .toBe(3);
       await visitor.goto(stack.origin + '/');
-      await expect(visitor.getByRole('link', { name: /Концерт в саду/ })).toBeVisible();
+      await expect(
+        visitor.locator('#catalog').getByRole('link', { name: /Концерт в саду/ }),
+      ).toBeVisible();
       await expect(visitor.getByRole('link', { name: 'Войти', exact: true })).toBeVisible();
+      const featured = visitor.getByRole('region', { name: 'Ближайшие события' });
+      const featuredNext = featured.getByRole('button', { name: 'Следующее событие' });
+      const featuredPrevious = featured.getByRole('button', { name: 'Предыдущее событие' });
+      await expect(featuredPrevious).toBeDisabled();
+      await featuredNext.focus();
+      await visitor.keyboard.press('Enter');
+      await expect(featured.getByText('2 из 3', { exact: true })).toBeVisible();
+      await featuredPrevious.click();
+      await expect(featured.getByText('1 из 3', { exact: true })).toBeVisible();
       const html = await (await visitor.request.get(stack.origin + '/')).text();
       assert.match(html, /Концерт в саду/);
       assert.doesNotMatch(html, /owner@eventflow.test/);
@@ -156,6 +167,7 @@ test(
       await visitor.getByLabel('По дату').fill('2035-06-01');
       await visitor.getByRole('button', { name: 'Найти события' }).click();
       await expect(visitor.locator('.public-event-card')).toHaveCount(1);
+      await expect(featured).toHaveCount(0);
       assert.equal(new URL(visitor.url()).searchParams.get('city'), 'Кишинёв');
       await visitor.reload();
       await expect(visitor.getByLabel('Город', { exact: true })).toHaveValue('Кишинёв');

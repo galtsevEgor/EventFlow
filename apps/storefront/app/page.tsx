@@ -1,10 +1,14 @@
-import { Account } from './account';
 import type { Metadata } from 'next';
 import { ApiRequestError, type Schemas } from '@eventflow/api-client';
 import { listEvents, type Search } from './catalog-api';
 import { EventList } from './event-list';
 import { searchEvents, SearchInputError } from './search-api';
 import { SearchBox } from './search-box';
+import { SiteHeader } from './site-header';
+import { FeaturedEvents } from './featured-events';
+import './catalog.css';
+
+const FEATURED_EVENT_LIMIT = 4;
 
 export const dynamic = 'force-dynamic';
 export async function generateMetadata({
@@ -46,20 +50,27 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
         : 'Каталог временно недоступен. Попробуйте обновить страницу.';
   }
   const value = (key: string) => (typeof search[key] === 'string' ? search[key] : '');
+  const featured = Object.values(search).some(Boolean)
+    ? []
+    : (result?.events.slice(0, FEATURED_EVENT_LIMIT) ?? []);
   return (
-    <main>
-      <a className="brand" href="/">
-        EventFlow<span aria-hidden="true">↗</span>
-      </a>
-      <Account />
-      <section aria-labelledby="headline">
-        <p className="eyebrow">Место для новых впечатлений</p>
-        <h1 id="headline">
-          Хорошие события
-          <br />
-          начинаются здесь.
-        </h1>
-        <p className="intro">Концерты, встречи и открытия. Выбирайте то, что близко вам.</p>
+    <main className="storefront-page catalog-page">
+      <SiteHeader />
+      <section className="catalog-hero" aria-labelledby="headline">
+        <div className="catalog-hero-copy">
+          <h1 id="headline">Афиша мероприятий</h1>
+          {featured.length > 0 && (
+            <a className="site-action" href="#catalog-filters">
+              К поиску <span aria-hidden="true">↓</span>
+            </a>
+          )}
+        </div>
+        {featured.length > 0 && <FeaturedEvents events={featured} searchProof={searchProof} />}
+      </section>
+      <section className="catalog-filter-panel" aria-labelledby="catalog-filters">
+        <h2 id="catalog-filters" tabIndex={-1}>
+          Поиск мероприятий
+        </h2>
         <form
           action="/"
           method="get"
@@ -147,9 +158,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
               </label>
             </>
           )}
-          <button type="submit">Найти события</button>
+          <button type="submit" className="site-action">
+            Найти события
+          </button>
         </form>
         <p className="filter-hint">Даты указаны по местному времени мероприятия.</p>
+      </section>
+      <div className="catalog-results">
         {limited && (
           <p role="status" className="search-notice">
             Сейчас доступен упрощённый поиск по названию и описанию. Фильтры продолжают работать.
@@ -161,8 +176,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
           </div>
         )}
         {result && <EventList result={result} search={search} searchProof={searchProof} />}
-      </section>
-      <footer>EventFlow · События, которые объединяют</footer>
+      </div>
+      <footer className="site-footer">EventFlow</footer>
     </main>
   );
 }

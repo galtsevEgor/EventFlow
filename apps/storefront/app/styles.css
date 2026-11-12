@@ -136,12 +136,13 @@ a:focus-visible {
 .catalog-filters select {
   width: 100%;
   min-width: 0;
-  border: 1px solid #bacabe;
-  border-radius: 8px;
+  min-height: 48px;
+  border: 1px solid var(--site-line);
+  border-radius: 10px;
   padding: 12px;
   font: inherit;
-  color: #172b29;
-  background: white;
+  color: var(--site-ink);
+  background: var(--site-paper);
 }
 .search-suggestions {
   position: absolute;
@@ -152,10 +153,10 @@ a:focus-visible {
   list-style: none;
   margin: 6px 0 0;
   padding: 4px;
-  border: 1px solid #bacabe;
+  border: 1px solid var(--site-line);
   border-radius: 8px;
-  background: white;
-  box-shadow: 0 8px 24px #172b2926;
+  background: var(--site-panel);
+  box-shadow: var(--site-shadow);
 }
 .search-suggestions li {
   padding: 10px;
@@ -165,7 +166,7 @@ a:focus-visible {
 }
 .search-suggestions li[aria-selected='true'],
 .search-suggestions li:hover {
-  background: #e6f0e9;
+  background: #f1eaf8;
 }
 .search-suggestions small {
   display: block;
@@ -193,11 +194,12 @@ button {
 .catalog-filters input {
   width: 100%;
   min-width: 0;
-  border: 1px solid #bacabe;
-  border-radius: 8px;
+  min-height: 48px;
+  border: 1px solid var(--site-line);
+  border-radius: 10px;
   padding: 12px;
-  color: #172b29;
-  background: white;
+  color: var(--site-ink);
+  background: var(--site-paper);
 }
 button {
   border: 0;
@@ -225,14 +227,16 @@ summary:focus-visible {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin: 40px 0 14px;
+  margin: 0 0 14px;
 }
 .results-heading h2 {
-  font-size: 25px;
-  letter-spacing: -0.03em;
+  margin: 0;
+  font-size: clamp(23px, 4vw, 34px);
+  letter-spacing: -0.04em;
 }
 .results-heading p {
-  color: #4d605b;
+  margin: 0;
+  color: var(--site-muted);
   font-size: 14px;
 }
 .public-event-grid {
@@ -241,10 +245,19 @@ summary:focus-visible {
   gap: 24px;
 }
 .public-event-card {
-  background: white;
-  border: 1px solid #d6ddd5;
-  border-radius: 16px;
+  min-width: 0;
+  background: var(--site-panel);
+  border: 1px solid var(--site-line);
+  border-radius: 19px;
   overflow: hidden;
+  box-shadow: var(--site-shadow);
+  transition:
+    transform var(--site-motion),
+    border-color var(--site-motion);
+}
+.public-event-card:hover {
+  border-color: #bd9acb;
+  transform: translateY(-3px);
 }
 .event-link {
   display: block;
@@ -256,34 +269,47 @@ summary:focus-visible {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
+.event-link:focus-visible {
+  outline-offset: -4px;
+}
+.event-card-art {
+  aspect-ratio: 8 / 5;
+  overflow: hidden;
+  background: linear-gradient(140deg, #6d4b7a, var(--site-dark) 70%);
+}
 .event-link img {
   display: block;
   width: 100%;
-  height: 220px;
+  height: 100%;
   object-fit: cover;
-  background: #e5eddd;
+  transition: transform 280ms ease;
+}
+.event-link:hover img {
+  transform: scale(1.04);
 }
 .card-content {
-  padding: 22px;
+  padding: clamp(15px, 2vw, 22px);
 }
 .event-city {
   font-size: 13px;
-  color: #4f6b5c;
+  color: var(--site-link);
   margin: 0;
 }
 .card-content h3 {
-  margin: 12px 0;
-  font-size: 23px;
+  margin: 7px 0;
+  font-size: clamp(19px, 2.4vw, 25px);
+  letter-spacing: -0.045em;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 .card-content time {
-  color: #4d605b;
+  color: var(--site-muted);
   font-size: 14px;
   line-height: 1.6;
 }
 .event-price {
-  font-weight: 700;
+  color: var(--site-dark);
+  font-weight: 750;
   margin-bottom: 0;
 }
 .pagination {

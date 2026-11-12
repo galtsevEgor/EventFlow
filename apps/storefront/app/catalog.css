@@ -1,0 +1,208 @@
+.catalog-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(18px, 5vw, 62px);
+  margin-top: clamp(18px, 4vw, 38px);
+  padding: clamp(22px, 4.5vw, 54px);
+  border-radius: var(--site-radius);
+  color: white;
+  background: radial-gradient(ellipse at 85% 5%, #624475, transparent 68%), var(--site-dark);
+}
+
+.catalog-hero-copy:only-child {
+  grid-column: 1 / -1;
+}
+
+.catalog-hero h1 {
+  margin: 0;
+  font-size: clamp(36px, 6.4vw, 88px);
+  line-height: 0.99;
+  letter-spacing: -0.065em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.catalog-hero-copy:only-child h1 {
+  font-size: clamp(34px, 5vw, 60px);
+}
+
+.catalog-hero-copy .site-action {
+  margin-top: clamp(16px, 3vw, 28px);
+}
+
+.featured-events {
+  min-width: 0;
+  padding: 0;
+}
+
+.featured-track {
+  display: flex;
+  overflow-x: auto;
+  border: 1px solid #ffffff33;
+  border-radius: 18px;
+  background: #ffffff13;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.featured-slide {
+  min-width: 0;
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+}
+
+.featured-link {
+  display: block;
+  height: 100%;
+  position: relative;
+  color: white;
+  text-decoration: none;
+}
+
+.featured-link:focus-visible {
+  outline-offset: -4px;
+}
+
+.featured-art {
+  aspect-ratio: 2.35 / 1;
+  overflow: hidden;
+  background: radial-gradient(ellipse at bottom left, #b87b85, #3a284f 75%);
+}
+
+.featured-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 280ms ease;
+}
+
+.featured-link:hover img {
+  transform: scale(1.035);
+}
+
+.featured-caption {
+  padding: clamp(12px, 2vw, 20px);
+  padding-inline-end: 60px;
+}
+
+.featured-caption p {
+  margin: 0;
+  color: var(--site-dark-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.featured-caption h2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 7px 0;
+  font-size: clamp(18px, 2.35vw, 27px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+
+.featured-caption strong {
+  font-size: 13px;
+}
+
+.featured-link-arrow {
+  position: absolute;
+  inset-inline-end: 14px;
+  bottom: 14px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--site-ink);
+  background: var(--site-accent);
+  font-size: 17px;
+}
+
+.featured-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--site-dark-muted);
+  font-size: 13px;
+}
+
+.featured-controls > span {
+  margin-inline-end: 6px;
+}
+
+.featured-controls button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #ffffff40;
+  border-radius: 50%;
+  color: white;
+  background: #ffffff15;
+  font-size: 18px;
+  transition: background-color var(--site-motion);
+}
+
+.featured-controls button:hover:not([aria-disabled='true']) {
+  background: #ffffff30;
+}
+
+.featured-controls button[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.catalog-filter-panel {
+  margin-top: clamp(16px, 3vw, 26px);
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid var(--site-line);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  box-shadow: var(--site-shadow);
+}
+
+.catalog-filter-panel h2 {
+  margin: 0;
+  font-size: clamp(20px, 3vw, 29px);
+  letter-spacing: -0.04em;
+  scroll-margin-top: 20px;
+}
+
+.catalog-filter-panel .catalog-filters {
+  margin-top: 16px;
+}
+
+.catalog-filter-panel .filter-hint {
+  margin-bottom: 0;
+}
+
+.catalog-results {
+  margin-top: clamp(24px, 4vw, 40px);
+}
+
+@media (max-width: 790px) {
+  .catalog-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .catalog-hero h1 {
+    font-size: clamp(36px, 8vw, 60px);
+    text-wrap: initial;
+  }
+  .featured-controls {
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 370px) {
+  .catalog-filter-panel .catalog-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
