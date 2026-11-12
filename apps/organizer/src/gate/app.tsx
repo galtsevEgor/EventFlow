@@ -1,56 +1,19 @@
-import { Component, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Component, useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { z } from 'zod';
-import { Alert, Button, Field } from '@eventflow/ui';
-import { formatLocalDateTime, formatLocalTime } from '@eventflow/ui/format';
-import { gateDatabase as db, type Scan } from './database';
+import { Alert, Button } from '@eventflow/ui';
+import { gateDatabase as db } from './database';
 import { useGateIdentity } from './identity';
 import { useGate } from './use-gate';
-import { GateCamera } from './camera';
+import { GatePreparation } from './preparation';
+import { GateScanInput } from './scan-input';
+import { GateScanQueue } from './scan-queue';
 import { registerGateWorker } from './pwa';
 import './gate.css';
-const labels = {
-  ADMITTED: 'Допуск подтверждён сервером',
-  ALREADY_USED: 'Конфликт: билет уже использован',
-  WRONG_EVENT: 'Билет другого мероприятия',
-  INVALID_TICKET: 'Билет не найден',
-  WINDOW_CLOSED: 'Окно допуска закрыто',
-  REFUND_PENDING: 'Возврат проверяется',
-  REFUNDED: 'Билет аннулирован',
-};
-function ScanResult({ scan }: { scan: Scan }) {
-  return (
-    <li
-      className={
-        'gate-result ' +
-        (scan.state === 'PENDING'
-          ? 'pending'
-          : scan.result?.result === 'ADMITTED'
-            ? 'confirmed'
-            : 'conflict')
-      }
-    >
-      <strong>
-        {scan.state === 'PENDING'
-          ? 'Сохранено на устройстве — ожидает синхронизации'
-          : scan.result?.reason === 'SNAPSHOT_EXPIRED'
-            ? 'Снимок истёк до синхронизации'
-            : scan.result?.reason === 'NOT_IN_SNAPSHOT'
-              ? 'Билет отсутствует в снимке'
-              : scan.result
-                ? labels[scan.result.result]
-                : 'Нет результата'}
-      </strong>
-      <small>
-        {formatLocalDateTime(scan.capturedAt)} · операция {scan.requestId.slice(0, 8)}
-      </small>
-    </li>
-  );
-}
+const SNAPSHOT_CLOCK_TICK_MS = 1_000;
+
 function Gate({ organizationId, eventId }: { organizationId: string; eventId: string }) {
-  const gate = useGate(organizationId, eventId),
-    [credential, setCredential] = useState(''),
-    [camera, setCamera] = useState(false);
+  const gate = useGate(organizationId, eventId);
   const [now, setNow] = useState(() => Date.now()),
     [update, setUpdate] = useState<ServiceWorkerRegistration | null>(null),
     [reloading, setReloading] = useState(false);
@@ -60,19 +23,12 @@ function Gate({ organizationId, eventId }: { organizationId: string; eventId: st
     0,
   );
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const timer = setInterval(() => setNow(Date.now()), SNAPSHOT_CLOCK_TICK_MS);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
     void registerGateWorker(setUpdate).catch(() => {});
   }, []);
-  const submit = useCallback(
-    (code: string) => {
-      setCamera(false);
-      gate.capture.mutate(code, { onSuccess: () => setCredential('') });
-    },
-    [gate.capture.mutate],
-  );
   const expired = gate.snapshot ? now >= Date.parse(gate.snapshot.manifest.expiresAt) : true;
   const canCapture =
     !!gate.worker &&
@@ -82,17 +38,6 @@ function Gate({ organizationId, eventId }: { organizationId: string; eventId: st
     !expired &&
     !gate.snapshot?.blocked;
   const returnTo = location.pathname + location.search;
-  const pendingRows = gate.rows.filter((scan) => scan.state === 'PENDING');
-  const confirmed = gate.rows.filter((scan) => scan.result?.result === 'ADMITTED').length;
-  const attention = gate.rows.length - pendingRows.length - confirmed;
-  const oldestMinutes = pendingRows.length
-    ? Math.max(
-        0,
-        Math.floor(
-          (now - Math.min(...pendingRows.map((scan) => Date.parse(scan.capturedAt)))) / 60000,
-        ),
-      )
-    : 0;
   async function applyUpdate() {
     if (await db.scans.filter((scan) => scan.state === 'PENDING').count()) return;
     setReloading(true);
@@ -128,100 +73,29 @@ function Gate({ organizationId, eventId }: { organizationId: string; eventId: st
       {gate.session.data?.user && !gate.session.data.user.emailVerified && (
         <Alert>Подтвердите email.</Alert>
       )}
-      <section aria-label="Подготовка сканера">
-        <h2>Подготовка</h2>
-        <Button
-          disabled={!gate.online || !gate.verifiedUser || gate.prepare.isPending || !gate.worker}
-          onClick={() => gate.prepare.mutate()}
-        >
-          Подготовить мероприятие
-        </Button>
-        {gate.snapshot && (
-          <p>
-            В снимке: {gate.snapshot.manifest.hashes.length} билетов. Действует до{' '}
-            <time dateTime={gate.snapshot.manifest.expiresAt}>
-              {formatLocalTime(gate.snapshot.manifest.expiresAt)}
-            </time>
-            .
-          </p>
+      <GatePreparation
+        snapshot={gate.snapshot}
+        expired={expired}
+        canPrepare={Boolean(
+          gate.online && gate.verifiedUser && !gate.prepare.isPending && gate.worker,
         )}
-        {expired && gate.snapshot && (
-          <Alert>
-            Снимок устарел. Обновите подготовку онлайн. Сохранённые проверки остаются в очереди.
-          </Alert>
+        onPrepare={() => gate.prepare.mutate()}
+      />
+      <GateScanInput
+        worker={gate.worker}
+        canCapture={canCapture}
+        capturing={gate.capture.isPending}
+        capture={gate.capture.mutate}
+      />
+      <GateScanQueue
+        rows={gate.rows}
+        now={now}
+        canSync={Boolean(
+          gate.online && gate.verifiedUser && gate.pending > 0 && !gate.sync.isPending,
         )}
-        {gate.snapshot?.blocked && (
-          <Alert>
-            Права на мероприятие изменились. Подготовьте снимок заново после восстановления доступа.
-          </Alert>
-        )}
-      </section>
-      <section aria-label="Сканирование">
-        <h2>Сканировать билет</h2>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit(credential.trim());
-          }}
-        >
-          <Field
-            label="Код билета"
-            value={credential}
-            onChange={(event) => setCredential(event.target.value)}
-            autoComplete="off"
-            spellCheck={false}
-            disabled={!canCapture || gate.capture.isPending}
-          />
-          <div className="gate-actions">
-            <Button
-              type="submit"
-              disabled={
-                !canCapture ||
-                gate.capture.isPending ||
-                !/^[A-Za-z0-9_-]{32}$/.test(credential.trim())
-              }
-            >
-              Сохранить проверку
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={!canCapture || gate.capture.isPending}
-              onClick={() => setCamera(!camera)}
-            >
-              {camera ? 'Закрыть камеру' : 'Открыть камеру'}
-            </Button>
-          </div>
-        </form>
-        {camera && gate.worker && <GateCamera worker={gate.worker} onCode={submit} />}
-        {gate.capture.isPending && <p role="status">Сохраняем проверку…</p>}
-      </section>
-      <section aria-label="Очередь синхронизации">
-        <h2>Очередь: {gate.pending}</h2>
-        <p className="muted">
-          Подтверждено: {confirmed} · Требует внимания: {attention}
-          {gate.pending > 0 && <> · Старейшая проверка ожидает {oldestMinutes} мин.</>}
-        </p>
-        <Button
-          disabled={!gate.online || !gate.verifiedUser || gate.pending === 0 || gate.sync.isPending}
-          onClick={() => gate.sync.mutate()}
-        >
-          {gate.sync.isPending ? 'Синхронизируем…' : 'Синхронизировать'}
-        </Button>
-        <p className="muted">
-          Отправляем при открытом приложении. При потере ответа повторяем сохранённую операцию.
-        </p>
-        <ol className="gate-results">
-          {gate.rows
-            .slice()
-            .reverse()
-            .slice(0, 50)
-            .map((scan) => (
-              <ScanResult key={scan.requestId} scan={scan} />
-            ))}
-        </ol>
-        {gate.rows.length === 0 && <p>На этом устройстве пока нет проверок.</p>}
-      </section>
+        syncing={gate.sync.isPending}
+        onSync={() => gate.sync.mutate()}
+      />
       {gate.error && <Alert>{gate.error.message}</Alert>}
       {update && (
         <aside className="gate-notice">

@@ -76,6 +76,7 @@ test(
       await expect(owner.getByRole('heading', { name: 'Очередь: 1', exact: true })).toBeVisible();
       await expect(second.getByRole('heading', { name: 'Очередь: 1', exact: true })).toBeVisible();
       assert.equal(await stack.tickets.db.checkIn.count({ where: { result: 'ADMITTED' } }), 0);
+      const [{ requestId }] = await localRows(owner);
       await owner.reload();
       try {
         await expect(owner.getByLabel('Код билета', { exact: true })).toBeEnabled();
@@ -91,14 +92,26 @@ test(
       ).toBeVisible();
       const stored = await localRows(owner);
       assert.equal(stored.length, 1);
+      assert.equal(stored[0].requestId, requestId);
+      assert.equal(stored[0].state, 'PENDING');
       assert.ok(!JSON.stringify(stored).includes(credentials[0]));
       const vaults = await localRows(owner, 'vaults');
       assert.equal(vaults[0].extractable, false);
       let lost = false,
         hold = true;
+      const submitted = [];
       await owner.route('**/api/v1/offline-check-in/sync', async (route) => {
-        if (hold) await route.abort('failed');
-        else if (!lost) {
+        if (hold) {
+          await route.abort('failed');
+          return;
+        }
+        submitted.push(
+          route
+            .request()
+            .postDataJSON()
+            .operations.map((entry) => entry.requestId),
+        );
+        if (!lost) {
           const result = await route.fetch();
           assert.equal(result.status(), 200);
           lost = true;
@@ -128,7 +141,16 @@ test(
         timeout: 20000,
       });
       await expect(owner.getByRole('heading', { name: 'Очередь: 0', exact: true })).toBeVisible();
-      assert.equal((await localRows(owner))[0].sealed, null);
+      assert.ok(submitted.length >= 2);
+      for (const ids of submitted) assert.deepEqual(ids, [requestId]);
+      const finalScans = await localRows(owner);
+      assert.equal(finalScans.length, 1);
+      assert.equal(finalScans[0].requestId, requestId);
+      assert.equal(finalScans[0].state, 'FINAL');
+      assert.equal(finalScans[0].sealed, null);
+      const decision = await stack.tickets.db.checkIn.findUniqueOrThrow({ where: { requestId } });
+      assert.equal(decision.result, 'ADMITTED');
+      assert.equal(decision.ticketId, tickets[0].id);
       await second.context().setOffline(false);
       await expect(
         second.getByText('Конфликт: билет уже использован', { exact: true }),
