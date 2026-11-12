@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import '@fontsource-variable/inter';
+import '@eventflow/ui/brand.css';
 import './styles.css';
 import './theme.css';
 import { AnalyticsCollector } from './analytics';

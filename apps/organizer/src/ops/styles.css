@@ -3,6 +3,13 @@
   gap: 18px;
   min-width: 0;
 }
+.ops-console > .ops-heading {
+  margin: 20px 0 0;
+  padding: clamp(16px, 3vw, 30px);
+  border: 1px solid var(--site-line);
+  border-radius: var(--site-radius);
+  background: var(--site-tint);
+}
 .ops-heading {
   display: flex;
   justify-content: space-between;
@@ -26,22 +33,21 @@
   text-align: left;
   font: inherit;
   color: inherit;
-  background: #fff;
-  border: 1px solid #c8d6cb;
-  border-radius: 12px;
+  background: var(--site-panel);
+  border: 1px solid var(--site-line);
+  border-radius: 16px;
   cursor: pointer;
 }
 .ops-source--selected {
-  border-color: #22654c;
-  box-shadow: inset 0 0 0 1px #22654c;
-  background: #eef4e9;
+  border-color: var(--site-link);
+  background: var(--site-tint);
 }
 .ops-source span {
   font-size: 14px;
-  color: #52685b;
+  color: var(--site-muted);
 }
 .ops-source:focus-visible {
-  outline: 3px solid #22654c;
+  outline: 3px solid var(--site-focus);
   outline-offset: 3px;
 }
 .ops-filters {
@@ -58,9 +64,9 @@
 }
 .ops-table-scroll {
   overflow-x: auto;
-  border: 1px solid #d6e0d7;
-  border-radius: 12px;
-  background: #fff;
+  border: 1px solid var(--site-line);
+  border-radius: 16px;
+  background: var(--site-panel);
 }
 .ops-table {
   width: 100%;
@@ -75,10 +81,10 @@
 .ops-table td {
   padding: 16px;
   vertical-align: top;
-  border-top: 1px solid #e5ebe5;
+  border-top: 1px solid var(--site-line);
 }
 .ops-table th {
-  background: #eef4e9;
+  background: var(--site-tint);
   font-size: 13px;
 }
 .ops-id {
@@ -100,7 +106,7 @@
   margin: 28px 0;
 }
 .ops-facts dt {
-  color: #52685b;
+  color: var(--site-muted);
   font-size: 13px;
 }
 .ops-facts dd {

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Badge, Button, Loading } from '@eventflow/ui';
+import { Button, Loading } from '@eventflow/ui';
 import { api, loadSession, queryClient, unwrap } from './api';
 import { ErrorMessage } from './feedback';
 import { Organizations } from './organizations';
@@ -8,6 +8,7 @@ import { useOperatorAccess } from './ops/access';
 import { clearOperatorRequests } from './ops/pending';
 import { clearDraftCopies } from './collaboration/cache';
 import { AUTH_SESSION_POLL_INTERVAL_MS } from '@eventflow/api-client';
+import { Brand } from './brand';
 const OperatorPage = lazy(() => import('./ops/page'));
 
 export function App() {
@@ -50,9 +51,7 @@ export function App() {
   return (
     <main>
       <header className="topbar">
-        <a className="brand" href="/">
-          EventFlow<span>Кабинет организатора</span>
-        </a>
+        <Brand caption={isOperatorPage ? 'Кабинет оператора' : 'Кабинет организатора'} />
         <nav aria-label="Аккаунт">
           {user && (
             <>
@@ -75,16 +74,7 @@ export function App() {
         <Loading />
       ) : !user ? (
         <section className="welcome">
-          <Badge>Ваше пространство для событий</Badge>
-          {isOperatorPage ? (
-            <h1>Кабинет оператора</h1>
-          ) : (
-            <h1>
-              Соберите команду.
-              <br />
-              Создайте событие.
-            </h1>
-          )}
+          {isOperatorPage ? <h1>Кабинет оператора</h1> : <h1>Кабинет организатора</h1>}
           <p>
             {isOperatorPage
               ? 'Войдите с учётной записью поддержки.'
@@ -134,7 +124,7 @@ export function App() {
           <Organizations selected={selected} onSelect={select} />
         </>
       )}
-      <footer>EventFlow · Пространство для хороших событий</footer>
+      <footer>EventFlow</footer>
     </main>
   );
 }

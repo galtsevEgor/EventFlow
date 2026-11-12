@@ -5,7 +5,7 @@ export function SiteHeader({ returnTo = '/' }: { returnTo?: string }) {
   return (
     <header className="site-header">
       <Link href="/" className="site-brand">
-        <span className="site-brand-mark" aria-hidden="true" />
+        <span className="ef-brand-mark" aria-hidden="true" />
         EventFlow
       </Link>
       <Account returnTo={returnTo} />

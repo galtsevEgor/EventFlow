@@ -10,13 +10,29 @@
   gap: 1rem;
   flex-wrap: wrap;
   align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--site-line);
 }
 .gate-shell section {
-  background: #fff;
-  border: 1px solid #d6dfd7;
-  border-radius: 1rem;
+  background: var(--site-panel);
+  border: 1px solid var(--site-line);
+  border-radius: 18px;
+  box-shadow: var(--site-shadow);
   padding: 1.25rem;
   margin: 1.25rem 0;
+}
+.gate-event-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+}
+.gate-event-list a {
+  display: block;
+  padding: 12px;
+  border: 1px solid var(--site-line);
+  border-radius: 10px;
+  background: var(--site-paper);
 }
 .gate-notice {
   padding: 1rem;

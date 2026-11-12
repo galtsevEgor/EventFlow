@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { App } from './app';
 import { queryClient } from './api';
+import '@eventflow/ui/brand.css';
 import './styles.css';
 
 const root = document.getElementById('root');

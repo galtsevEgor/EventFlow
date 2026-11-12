@@ -9,6 +9,7 @@ import { GatePreparation } from './preparation';
 import { GateScanInput } from './scan-input';
 import { GateScanQueue } from './scan-queue';
 import { registerGateWorker } from './pwa';
+import { Brand } from '../brand';
 import './gate.css';
 const SNAPSHOT_CLOCK_TICK_MS = 1_000;
 
@@ -49,9 +50,7 @@ function Gate({ organizationId, eventId }: { organizationId: string; eventId: st
   return (
     <main className="gate-shell">
       <header className="gate-header">
-        <a href="/organizer/" className="brand">
-          EventFlow <span>Сканер билетов</span>
-        </a>
+        <Brand href="/organizer/" caption="Сканер билетов" />
         <a href="/organizer/gate/">Подготовленные события</a>
       </header>
       <h1>Проверка билетов</h1>
@@ -141,25 +140,36 @@ function GateIndex() {
   const unique = [...new Map((snapshots ?? []).map((s) => [s.eventId, s])).values()];
   return (
     <main className="gate-shell">
-      <a className="brand" href="/organizer/">
-        EventFlow
-      </a>
-      <h1>Сканер билетов</h1>
-      {identityError && <Alert>{identityError.message}</Alert>}
-      <p>Подготовьте мероприятие из кабинета, пока есть сеть. Затем открывайте его здесь.</p>
-      {session.data?.user === null && (
-        <a href="/api/v1/auth/login?returnTo=%2Forganizer%2Fgate%2F">Войти в аккаунт</a>
-      )}
-      <ul>
-        {unique.map((s) => (
-          <li key={s.eventId}>
-            <a href={'/organizer/gate/?org=' + s.organizationId + '&event=' + s.eventId}>
-              Мероприятие {s.eventId.slice(0, 8)}
-            </a>
-          </li>
-        ))}
-      </ul>
-      <a href="/organizer/">Открыть кабинет организатора</a>
+      <header className="gate-header">
+        <Brand href="/organizer/" />
+      </header>
+      <section aria-labelledby="gate-index-title">
+        <h1 id="gate-index-title">Сканер билетов</h1>
+        {identityError && <Alert>{identityError.message}</Alert>}
+        <p>Подготовьте мероприятие из кабинета, пока есть сеть. Затем открывайте его здесь.</p>
+        {session.data?.user === null && (
+          <a
+            className="ef-button login-link"
+            href="/api/v1/auth/login?returnTo=%2Forganizer%2Fgate%2F"
+          >
+            Войти в аккаунт
+          </a>
+        )}
+        {unique.length > 0 && (
+          <ul className="gate-event-list">
+            {unique.map((s) => (
+              <li key={s.eventId}>
+                <a href={'/organizer/gate/?org=' + s.organizationId + '&event=' + s.eventId}>
+                  Мероприятие {s.eventId.slice(0, 8)}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p>
+          <a href="/organizer/">Открыть кабинет организатора</a>
+        </p>
+      </section>
     </main>
   );
 }

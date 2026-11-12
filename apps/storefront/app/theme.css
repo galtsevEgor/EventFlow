@@ -1,18 +1,5 @@
 :root {
-  --site-ink: #21192d;
-  --site-muted: #61596c;
-  --site-paper: #f7f4f2;
-  --site-panel: #fffdfc;
-  --site-line: #e7dfe5;
-  --site-dark: #251a37;
-  --site-dark-muted: #ddd1e9;
-  --site-accent: #ff9f82;
-  --site-accent-hover: #ffb59f;
-  --site-link: #674186;
-  --site-radius: 24px;
-  --site-shadow: 0 12px 36px #291a3410;
-  --site-motion: 180ms ease;
-  font-family: 'Inter Variable', 'Segoe UI', sans-serif;
+  font-family: var(--site-font);
   color: var(--site-ink);
   background: var(--site-paper);
 }
@@ -20,14 +7,10 @@
 .storefront-page {
   max-width: 1312px;
   padding: 0 clamp(16px, 4vw, 56px) 32px;
-  --ef-ink: var(--site-ink);
-  --ef-green: var(--site-dark);
-  --ef-muted: var(--site-muted);
-  --ef-border: var(--site-line);
 }
 
 .storefront-page :is(a, button, input, select, summary, [tabindex]):focus-visible {
-  outline: 3px solid #a35cbd;
+  outline: 3px solid var(--site-focus);
   outline-offset: 3px;
 }
 
@@ -50,26 +33,6 @@
   letter-spacing: -0.06em;
   text-decoration: none;
   width: max-content;
-}
-
-.site-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 31px;
-  height: 24px;
-  color: var(--site-dark);
-  background: var(--site-accent);
-  border-radius: 7px;
-  mask-image:
-    radial-gradient(circle at 0 50%, transparent 3px, #000 3.5px),
-    radial-gradient(circle at 100% 50%, transparent 3px, #000 3.5px);
-  mask-composite: intersect;
-}
-
-.site-brand-mark::after {
-  content: '↗';
-  font-size: 16px;
-  line-height: 1;
 }
 
 .site-header .account {

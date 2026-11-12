@@ -1,8 +1,8 @@
 :root {
-  --ef-ink: #173b32;
-  --ef-green: #22654c;
-  --ef-border: #d6e0d7;
-  --ef-muted: #52685b;
+  --ef-ink: var(--site-ink, #173b32);
+  --ef-green: var(--site-dark, #22654c);
+  --ef-border: var(--site-line, #d6e0d7);
+  --ef-muted: var(--site-muted, #52685b);
 }
 .ef-button {
   font: inherit;
@@ -86,7 +86,7 @@
   display: inline-flex;
   padding: 6px 10px;
   border-radius: 30px;
-  background: #e9f0e4;
+  background: var(--site-tint, #e9f0e4);
   color: var(--ef-ink);
   font-size: 12px;
   font-weight: 600;
@@ -95,7 +95,7 @@
 .ef-skeleton {
   padding: 24px;
   border-radius: 10px;
-  background: #e8eee7;
+  background: var(--site-tint, #e8eee7);
   color: var(--ef-muted);
 }
 .ef-overlay {
@@ -129,6 +129,6 @@
   line-height: 1.5;
 }
 :is(button, input, select, textarea, a):focus-visible {
-  outline: 3px solid #44876b;
+  outline: 3px solid var(--site-focus, #44876b);
   outline-offset: 3px;
 }

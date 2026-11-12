@@ -27,8 +27,8 @@ export default defineConfig({
         start_url: '/organizer/gate/',
         scope: '/organizer/gate/',
         display: 'standalone',
-        theme_color: '#245942',
-        background_color: '#f7f6f0',
+        theme_color: '#251a37',
+        background_color: '#f7f4f2',
         icons: [
           { src: '/organizer/gate-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
         ],
