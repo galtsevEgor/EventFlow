@@ -10,6 +10,9 @@ import { RealtimeHub } from '../../apps/bff/dist/realtime/hub.js';
 import { eventually } from './eventually.mjs';
 import { cleanBroker } from './broker.mjs';
 
+// A fresh namespace declares the full RabbitMQ quorum queue topology before consumption.
+const REALTIME_STARTUP_TIMEOUT_MS = 45_000;
+
 export async function realtimeFixture(overrides = {}, { snapshotSeats = 0, ...options } = {}) {
   const namespace = `eventflow-test-${randomUUID()}`,
     prefix = `realtime-test:${randomUUID()}:`;
@@ -73,7 +76,7 @@ export async function realtimeFixture(overrides = {}, { snapshotSeats = 0, ...op
       store: app.get(SessionStore),
     };
     replicas.push(replica);
-    await eventually(() => replica.bus.ready, Boolean);
+    await eventually(() => replica.bus.ready, Boolean, REALTIME_STARTUP_TIMEOUT_MS);
     return replica;
   }
   async function close() {
