@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Loading } from '@eventflow/ui';
+import { formatPercent, formatUtcDateTime } from '@eventflow/ui/format';
 import {
   analyticsReportSchema,
   analyticsPeriodSchema,
@@ -11,10 +12,6 @@ import { eventListOptions } from './event-queries';
 import { ErrorMessage } from './feedback';
 import './product-analytics.css';
 
-const percent = (value: number | null) =>
-  value === null
-    ? '—'
-    : new Intl.NumberFormat('ru', { style: 'percent', maximumFractionDigits: 1 }).format(value);
 const day = (date: Date) => date.toISOString().slice(0, 10);
 const labels = {
   impressions: 'Показы',
@@ -207,8 +204,7 @@ export function ProductAnalytics({ id }: { id: string }) {
               : data.status.stale
                 ? 'Обрабатываем новые события. Ожидает: ' + data.status.pending
                 : 'Данные обновлены.'}{' '}
-            Обновлено: {new Date(data.status.updatedAt).toLocaleString('ru', { timeZone: 'UTC' })}{' '}
-            UTC.
+            Обновлено: {formatUtcDateTime(data.status.updatedAt)} UTC.
           </p>
           {data.current.impressions === 0 && (
             <p>
@@ -231,14 +227,14 @@ export function ProductAnalytics({ id }: { id: string }) {
             <div>
               <dt>Конверсия в покупку</dt>
               <dd>
-                {percent(data.current.conversion)}{' '}
-                <small>ранее {percent(data.previous.conversion)}</small>
+                {formatPercent(data.current.conversion)}{' '}
+                <small>ранее {formatPercent(data.previous.conversion)}</small>
               </dd>
             </div>
             <div>
               <dt>CTR поиска</dt>
               <dd>
-                {percent(data.current.ctr)} <small>клики / сессии с показом из поиска</small>
+                {formatPercent(data.current.ctr)} <small>клики / сессии с показом из поиска</small>
               </dd>
             </div>
           </dl>

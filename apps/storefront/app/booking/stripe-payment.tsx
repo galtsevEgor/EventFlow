@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js/pure';
 import { Alert, Button } from '@eventflow/ui';
-import { money } from './client';
+import { formatPrice } from '../format';
 
 const clients = new Map<string, ReturnType<typeof loadStripe>>();
 function client(key: string) {
@@ -86,7 +86,7 @@ function Form({ id, amountMinor, refresh }: Pick<Props, 'id' | 'amountMinor' | '
         onLoadError={() => setLoadFailed(true)}
       />
       <Button type="submit" disabled={!stripe || !elements || !ready || busy}>
-        {busy ? 'Проверяем оплату…' : `Оплатить ${money(amountMinor)}`}
+        {busy ? 'Проверяем оплату…' : `Оплатить ${formatPrice(amountMinor)}`}
       </Button>
       {notice && <Alert>{notice}</Alert>}
       {loadFailed && (

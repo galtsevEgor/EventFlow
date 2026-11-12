@@ -5,6 +5,8 @@ import { findBoundaryViolations } from './boundaries.mjs';
 const packages = {
   '@eventflow/booking': 'services/booking',
   '@eventflow/event-contracts': 'packages/event-contracts',
+  '@eventflow/ui': 'packages/ui',
+  '@eventflow/ui/format': 'packages/ui',
 };
 test('rejects cross-service alias, relative imports and deep package implementation imports', () => {
   for (const statement of [
@@ -13,6 +15,8 @@ test('rejects cross-service alias, relative imports and deep package implementat
     "const x = import('@eventflow/booking');",
     "const x = require('@eventflow/booking');",
     "import x from '@eventflow/event-contracts/src/index';",
+    "import x from '@eventflow/ui/src/format';",
+    "import x from '@eventflow/ui/format/private';",
   ]) {
     assert.equal(
       findBoundaryViolations({ 'services/catalog/src/main.ts': statement }, packages).length,
@@ -25,6 +29,16 @@ test('permits public shared contracts and local implementation imports, ignoring
     "import x from '@eventflow/event-contracts'; import y from './orders'; // import z from '@eventflow/booking';";
   assert.deepEqual(
     findBoundaryViolations({ 'services/catalog/src/main.ts': source }, packages),
+    [],
+  );
+});
+
+test('permits an explicitly exported shared package subpath', () => {
+  assert.deepEqual(
+    findBoundaryViolations(
+      { 'apps/storefront/app/format.ts': "import { formatMoney } from '@eventflow/ui/format';" },
+      packages,
+    ),
     [],
   );
 });

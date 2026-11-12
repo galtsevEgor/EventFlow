@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
-import { money } from './client';
+import { formatPrice } from '../format';
 import type { BuyerApi } from './payment-panel';
 
 type Outcome = 'success' | 'decline' | 'processing';
@@ -52,7 +52,7 @@ export function FakePayment({
         </select>
       </label>
       <Button disabled={awaiting} onClick={() => confirm.mutate(outcome)}>
-        {awaiting ? 'Ожидаем результат…' : `Оплатить ${money(amountMinor)} в демо`}
+        {awaiting ? 'Ожидаем результат…' : `Оплатить ${formatPrice(amountMinor)} в демо`}
       </Button>
       {confirm.isSuccess && confirm.data === 'decline' && (
         <Alert>Демо-платёж отклонён. Деньги не списаны; можно повторить оплату.</Alert>

@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiRequestError, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
-import { BookingProvider, money, orderLabels, SignIn, useBuyer } from './client';
+import { BookingProvider, orderLabels, SignIn, useBuyer } from './client';
+import { formatPrice } from '../format';
 import { PaymentPanel } from './payment-panel';
 import { TicketsPanel } from './tickets-panel';
 import { RefundPanel } from './refund-panel';
@@ -136,11 +137,11 @@ function Details({ id }: { id: string }) {
               Ряд {item.row}, место {item.number}
               <small>{item.categoryName}</small>
             </span>
-            <strong>{money(item.priceMinor)}</strong>
+            <strong>{formatPrice(item.priceMinor)}</strong>
           </li>
         ))}
       </ul>
-      <p className="order-total">Итого: {money(data.totalMinor)}</p>
+      <p className="order-total">Итого: {formatPrice(data.totalMinor)}</p>
       {data.refund && (
         <RefundPanel
           refund={data.refund}

@@ -6,6 +6,7 @@ import { Alert, Button } from '@eventflow/ui';
 import { SeatPicker } from './booking/seat-picker';
 import { EventWaitlist } from './booking/waitlist';
 import { useLiveUpdates } from './booking/use-live-updates';
+import { formatEventDateTime, formatPrice } from './format';
 
 const labels = {
   SCHEDULED: 'Продажи ещё не начались',
@@ -88,14 +89,7 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
         {labels[data.state]}
       </p>
       {data.state === 'SCHEDULED' && (
-        <p>
-          Начало:{' '}
-          {new Intl.DateTimeFormat('ru', {
-            dateStyle: 'long',
-            timeStyle: 'short',
-            timeZone,
-          }).format(new Date(data.salesStartsAt))}
-        </p>
+        <p>Начало: {formatEventDateTime(data.salesStartsAt, timeZone)}</p>
       )}
       <ul className="price-list">
         {[...categories.entries()].map(([key, category]) => (
@@ -104,11 +98,7 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
               {category.name}
               <small>{category.count} мест</small>
             </span>
-            <strong>
-              {new Intl.NumberFormat('ru', { style: 'currency', currency: 'EUR' }).format(
-                category.price / 100,
-              )}
-            </strong>
+            <strong>{formatPrice(category.price)}</strong>
           </li>
         ))}
       </ul>

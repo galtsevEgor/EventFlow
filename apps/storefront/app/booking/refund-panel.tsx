@@ -1,7 +1,7 @@
 'use client';
 import type { Schemas } from '@eventflow/api-client';
 import { Button } from '@eventflow/ui';
-import { money } from './client';
+import { formatPrice } from '../format';
 
 const labels = {
   FENCING: 'Проверяем билеты перед возвратом',
@@ -27,7 +27,7 @@ export function RefundPanel({
     <section className="payment-panel" aria-label="Возврат оплаты">
       <h2>Возврат оплаты</h2>
       <p role="status">{labels[refund.state]}</p>
-      <p>Сумма {money(totalMinor)} · полный возврат</p>
+      <p>Сумма {formatPrice(totalMinor)} · полный возврат</p>
       <p>Причина {refund.reason}</p>
       {active && (
         <p>Билеты недоступны на время проверки возврата. Повторно оплачивать заказ не нужно.</p>

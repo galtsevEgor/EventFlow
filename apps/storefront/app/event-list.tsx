@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Schemas } from '@eventflow/api-client';
 import { pageLink, type Search } from './catalog-api';
-import { formatDate, formatPrice } from './format';
+import { formatEventDateTime, formatPrice } from './format';
 
 export function EventList({
   result,
@@ -42,7 +42,7 @@ export function EventList({
                   <p className="event-city">{event.city}</p>
                   <h3>{event.title}</h3>
                   <time dateTime={event.startsAt}>
-                    {formatDate(event.startsAt, event.timeZone)}
+                    {formatEventDateTime(event.startsAt, event.timeZone)}
                   </time>
                   <p className="event-price">от {formatPrice(event.minPriceMinor)}</p>
                 </div>

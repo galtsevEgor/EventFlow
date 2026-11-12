@@ -1,17 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Button, Loading } from '@eventflow/ui';
+import { formatLocalDateTime, formatMoney } from '@eventflow/ui/format';
+import { EVENT_CURRENCY } from '@eventflow/event-contracts';
 import { api, unwrap } from '../api';
 import { ErrorMessage } from '../feedback';
-import {
-  formatDate,
-  formatMoney,
-  isWorking,
-  kindNames,
-  sourceNames,
-  stateName,
-  type Target,
-} from './model';
+import { isWorking, kindNames, sourceNames, stateName, type Target } from './model';
 import { RecoveryControl } from './recovery';
 import { readPending, recoveryKey } from './pending';
 
@@ -78,7 +72,7 @@ export function OperatorCase({
           <dl className="ops-facts">
             <div>
               <dt>Дата записи</dt>
-              <dd>{formatDate(data.issue.recordedAt)}</dd>
+              <dd>{formatLocalDateTime(data.issue.recordedAt)}</dd>
             </div>
             <div>
               <dt>Попытки обработки</dt>
@@ -87,7 +81,9 @@ export function OperatorCase({
             {data.facts.amountMinor !== undefined && (
               <div>
                 <dt>Сумма операции</dt>
-                <dd>{formatMoney(data.facts.amountMinor, data.facts.currency)}</dd>
+                <dd>
+                  {formatMoney(data.facts.amountMinor, data.facts.currency ?? EVENT_CURRENCY)}
+                </dd>
               </div>
             )}
             {data.issue.code && (
@@ -105,7 +101,7 @@ export function OperatorCase({
             {data.facts.nextRunAt && isWorking(data.issue.state) && (
               <div>
                 <dt>План обработки</dt>
-                <dd>{formatDate(data.facts.nextRunAt)}</dd>
+                <dd>{formatLocalDateTime(data.facts.nextRunAt)}</dd>
               </div>
             )}
           </dl>
@@ -160,7 +156,8 @@ export function OperatorCase({
                     <strong>
                       {action.actorType === 'HUMAN' ? 'Оператор' : 'Служебная операция'}
                     </strong>{' '}
-                    · <time dateTime={action.createdAt}>{formatDate(action.createdAt)}</time>
+                    ·{' '}
+                    <time dateTime={action.createdAt}>{formatLocalDateTime(action.createdAt)}</time>
                     <p className="ops-id">Учётная запись: {action.actor}</p>
                     {action.reason && <p>{action.reason}</p>}
                     <small className="ops-id">{action.key}</small>

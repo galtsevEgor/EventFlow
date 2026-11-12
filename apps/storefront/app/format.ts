@@ -1,11 +1,13 @@
-const priceFormatter = new Intl.NumberFormat('ru', { style: 'currency', currency: 'EUR' });
+import { EVENT_CURRENCY } from '@eventflow/event-contracts';
+import { DISPLAY_LOCALE, formatMoney } from '@eventflow/ui/format';
+
 const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 const maximumCachedTimeZones = 32;
 
-export function formatDate(instant: string, timeZone: string) {
+export function formatEventDateTime(instant: string, timeZone: string) {
   let formatter = dateFormatters.get(timeZone);
   if (!formatter) {
-    formatter = new Intl.DateTimeFormat('ru', {
+    formatter = new Intl.DateTimeFormat(DISPLAY_LOCALE, {
       dateStyle: 'long',
       timeStyle: 'short',
       timeZone,
@@ -18,5 +20,5 @@ export function formatDate(instant: string, timeZone: string) {
 }
 
 export function formatPrice(minor: number) {
-  return priceFormatter.format(minor / 100);
+  return formatMoney(minor, EVENT_CURRENCY);
 }

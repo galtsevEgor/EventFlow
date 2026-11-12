@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiRequestError, unwrap, type Schemas } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
-import { money, SignIn, useBuyer } from './client';
+import { SignIn, useBuyer } from './client';
+import { formatPrice } from '../format';
 import { SaleSeats } from './sale-seats';
 
 type Pending = { key: string; seatIds: string[] };
@@ -147,7 +148,8 @@ function Selection({
       <p className="muted">Выберите от 1 до 6 мест. Бронь действует до 10 минут.</p>
       <SaleSeats sale={sale} selectedIds={chosenIds} disabled={disabled} onSelect={select} />
       <p aria-live="polite">
-        Выбрано: {chosen.length} · {money(chosen.reduce((sum, seat) => sum + seat.priceMinor, 0))}
+        Выбрано: {chosen.length} ·{' '}
+        {formatPrice(chosen.reduce((sum, seat) => sum + seat.priceMinor, 0))}
       </p>
       {pending && (
         <Alert>

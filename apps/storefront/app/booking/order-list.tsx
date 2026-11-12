@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
-import { BookingProvider, money, orderLabels, SignIn, useBuyer } from './client';
+import { BookingProvider, orderLabels, SignIn, useBuyer } from './client';
+import { formatPrice } from '../format';
 import { BuyerWaitlist } from './waitlist';
 
 function List() {
@@ -47,7 +48,7 @@ function List() {
             <strong>{order.title}</strong>
             <span>{orderLabels[order.state]}</span>
             <span>
-              {order.items.length} мест · {money(order.totalMinor)}
+              {order.items.length} мест · {formatPrice(order.totalMinor)}
             </span>
           </a>
         ))}

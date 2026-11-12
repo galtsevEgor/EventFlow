@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Account } from '../../account';
 import { getEvent } from '../../catalog-api';
-import { formatDate } from '../../format';
+import { formatEventDateTime } from '../../format';
 import { SalePanel } from '../../sale-panel';
 import { Suspense } from 'react';
 import { SimilarEvents } from '../../recommendations/similar';
@@ -80,7 +80,9 @@ export default async function EventPage({ params }: Props) {
           <aside className="event-info" aria-label="Время, место и билеты">
             <h2>Когда и где</h2>
             <p>
-              <time dateTime={event.startsAt}>{formatDate(event.startsAt, event.timeZone)}</time>
+              <time dateTime={event.startsAt}>
+                {formatEventDateTime(event.startsAt, event.timeZone)}
+              </time>
             </p>
             <p className="muted">Часовой пояс: {event.timeZone}</p>
             <p>

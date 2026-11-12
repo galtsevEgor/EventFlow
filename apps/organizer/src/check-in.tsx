@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Alert, Button, Field, Loading } from '@eventflow/ui';
+import { formatLocalDateTime } from '@eventflow/ui/format';
 import { api, ApiRequestError, unwrap, type Schemas } from './api';
 
 const Camera = lazy(() =>
@@ -100,7 +101,7 @@ export function CheckIn({ organizationId, eventId }: { organizationId: string; e
             <p>
               Первый допуск{' '}
               <time dateTime={check.data.admittedAt}>
-                {new Date(check.data.admittedAt).toLocaleString('ru')}
+                {formatLocalDateTime(check.data.admittedAt)}
               </time>
             </p>
           )}

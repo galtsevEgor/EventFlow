@@ -25,19 +25,19 @@ export function findBoundaryViolations(files, packages) {
         specifier = node.arguments[0];
       if (specifier && ts.isStringLiteral(specifier)) {
         const value = specifier.text;
-        const entry = Object.entries(packages).find(
-          ([name]) => value === name || value.startsWith(`${name}/`),
-        );
+        const entry = Object.hasOwn(packages, value)
+          ? value
+          : Object.keys(packages).find((name) => value.startsWith(`${name}/`));
         const target = value.startsWith('.')
           ? owner(posix.normalize(posix.join(dirname(file).replaceAll('\\', '/'), value)))
-          : entry?.[1];
+          : entry && packages[entry];
         if (
           target &&
           source !== target &&
           (target.startsWith('apps/') || target.startsWith('services/') || value.startsWith('.'))
         ) {
           violations.push(`${file}: forbidden implementation import ${value}`);
-        } else if (entry && value !== entry[0]) {
+        } else if (entry && value !== entry) {
           violations.push(`${file}: use the public package entrypoint for ${value}`);
         }
       }
@@ -64,7 +64,12 @@ export function checkBoundaries() {
     for (const entry of readdirSync(group, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       const directory = `${group}/${entry.name}`;
-      packages[JSON.parse(readFileSync(`${directory}/package.json`, 'utf8')).name] = directory;
+      const manifest = JSON.parse(readFileSync(`${directory}/package.json`, 'utf8'));
+      packages[manifest.name] = directory;
+      for (const [path, target] of Object.entries(manifest.exports ?? {})) {
+        if (target && path.startsWith('./') && !path.includes('*'))
+          packages[manifest.name + path.slice(1)] = directory;
+      }
       collect(directory, files);
     }
   }

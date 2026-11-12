@@ -1,7 +1,7 @@
 'use client';
 import type { Schemas } from '@eventflow/api-client';
 import { VenueMapView } from '@eventflow/seat-map';
-import { money } from './client';
+import { formatPrice } from '../format';
 
 export function SaleSeats({
   sale,
@@ -64,7 +64,7 @@ export function SaleSeats({
                   type="button"
                   className="seat"
                   aria-pressed={pressed}
-                  aria-label={`Ряд ${row}, место ${seat.number}, ${seat.categoryName}, ${money(seat.priceMinor)}${seat.state !== 'AVAILABLE' ? ', занято' : ''}`}
+                  aria-label={`Ряд ${row}, место ${seat.number}, ${seat.categoryName}, ${formatPrice(seat.priceMinor)}${seat.state !== 'AVAILABLE' ? ', занято' : ''}`}
                   disabled={
                     disabled || seat.state !== 'AVAILABLE' || unavailable.includes(seat.seatId)
                   }

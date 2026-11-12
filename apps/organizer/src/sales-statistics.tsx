@@ -1,20 +1,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Loading } from '@eventflow/ui';
+import { DISPLAY_LOCALE, formatMoney } from '@eventflow/ui/format';
 import { api, unwrap, type Schemas } from './api';
 import { eventListOptions } from './event-queries';
 import { ErrorMessage } from './feedback';
 
-const euro = new Intl.NumberFormat('ru', { style: 'currency', currency: 'EUR' });
-const money = (minor: number) => euro.format(minor / 100);
-const instant = new Intl.DateTimeFormat('ru', {
+const utcReportTimestamp = new Intl.DateTimeFormat(DISPLAY_LOCALE, {
   dateStyle: 'short',
   timeStyle: 'medium',
   timeZone: 'UTC',
 });
 type Report = Schemas['SalesStatistics'];
 
-function SalesChart({ series }: Pick<Report, 'series'>) {
+function SalesChart({ series, currency }: Pick<Report, 'series' | 'currency'>) {
   const maximum = Math.max(...series.map((day) => day.revenueMinor));
   return (
     <figure className="sales-chart">
@@ -35,7 +34,8 @@ function SalesChart({ series }: Pick<Report, 'series'>) {
                 fill="currentColor"
               >
                 <title>
-                  {day.date} · {money(day.revenueMinor)} · заказов {day.confirmedOrders}
+                  {day.date} · {formatMoney(day.revenueMinor, currency)} · заказов{' '}
+                  {day.confirmedOrders}
                 </title>
               </rect>
             );
@@ -59,7 +59,7 @@ function SalesChart({ series }: Pick<Report, 'series'>) {
                 <tr key={day.date}>
                   <th scope="row">{day.date}</th>
                   <td>{day.confirmedOrders}</td>
-                  <td>{money(day.revenueMinor)}</td>
+                  <td>{formatMoney(day.revenueMinor, currency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -99,10 +99,10 @@ export function SalesStatistics({ id }: { id: string }) {
         ['Продано действующих мест', data.totals.soldSeats],
         ['Мест в действующих бронях', data.totals.heldSeats],
         ['Доступно мест', data.totals.availableSeats],
-        ['Подтверждённые продажи', money(data.totals.revenueMinor)],
-        ['Получено оплат', money(data.totals.paidMinor)],
-        ['Завершённые возвраты', money(data.totals.refundedMinor)],
-        ['Оплаты за вычетом возвратов', money(data.totals.netMinor)],
+        ['Подтверждённые продажи', formatMoney(data.totals.revenueMinor, data.currency)],
+        ['Получено оплат', formatMoney(data.totals.paidMinor, data.currency)],
+        ['Завершённые возвраты', formatMoney(data.totals.refundedMinor, data.currency)],
+        ['Оплаты за вычетом возвратов', formatMoney(data.totals.netMinor, data.currency)],
       ]
     : [];
   return (
@@ -180,9 +180,9 @@ export function SalesStatistics({ id }: { id: string }) {
             <p className="muted">
               События обработаны{' '}
               {data.lastUpdatedAt
-                ? instant.format(new Date(data.lastUpdatedAt)) + ' UTC'
+                ? utcReportTimestamp.format(new Date(data.lastUpdatedAt)) + ' UTC'
                 : '— ожидаются данные'}
-              . Отчёт сформирован {instant.format(new Date(data.asOf))} UTC.
+              . Отчёт сформирован {utcReportTimestamp.format(new Date(data.asOf))} UTC.
             </p>
             <dl className="sales-metrics">
               {cards.map(([label, value]) => (
@@ -192,7 +192,7 @@ export function SalesStatistics({ id }: { id: string }) {
                 </div>
               ))}
             </dl>
-            <SalesChart series={data.series} />
+            <SalesChart series={data.series} currency={data.currency} />
             {data.total === 0 ? (
               <EmptyState title="Опубликованных мероприятий пока нет">
                 Статистика появится после публикации мероприятия.
@@ -226,9 +226,9 @@ export function SalesStatistics({ id }: { id: string }) {
                         <td>{event.heldSeats}</td>
                         <td>{event.availableSeats}</td>
                         <td>{event.confirmedOrders}</td>
-                        <td>{money(event.revenueMinor)}</td>
-                        <td>{money(event.paidMinor)}</td>
-                        <td>{money(event.refundedMinor)}</td>
+                        <td>{formatMoney(event.revenueMinor, data.currency)}</td>
+                        <td>{formatMoney(event.paidMinor, data.currency)}</td>
+                        <td>{formatMoney(event.refundedMinor, data.currency)}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -3,8 +3,6 @@ import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { createApiClient } from '@eventflow/api-client';
 
-export const money = (minor: number) =>
-  new Intl.NumberFormat('ru', { style: 'currency', currency: 'EUR' }).format(minor / 100);
 export const orderLabels = {
   HELD: 'Места забронированы',
   EXPIRED: 'Срок брони истёк',

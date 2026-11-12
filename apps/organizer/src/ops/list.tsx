@@ -1,17 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Button, EmptyState, Field, Loading, Select } from '@eventflow/ui';
+import { formatLocalDateTime } from '@eventflow/ui/format';
 import { api, unwrap } from '../api';
 import { ErrorMessage } from '../feedback';
-import {
-  caseUrl,
-  formatDate,
-  kindNames,
-  sourceNames,
-  stateName,
-  type Kind,
-  type Source,
-} from './model';
+import { caseUrl, kindNames, sourceNames, stateName, type Kind, type Source } from './model';
 
 export function OperatorList({ actor }: { actor: string }) {
   const initial = new URLSearchParams(location.search),
@@ -164,7 +157,9 @@ export function OperatorList({ actor }: { actor: string }) {
                           {item.code && <div className="muted">{item.code}</div>}
                         </td>
                         <td>
-                          <time dateTime={item.recordedAt}>{formatDate(item.recordedAt)}</time>
+                          <time dateTime={item.recordedAt}>
+                            {formatLocalDateTime(item.recordedAt)}
+                          </time>
                         </td>
                         <td>
                           <a href={caseUrl({ service: source, kind: item.kind, id: item.id })}>

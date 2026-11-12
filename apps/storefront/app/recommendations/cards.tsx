@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { RecommendationPage } from '@eventflow/event-contracts';
-import { formatDate, formatPrice } from '../format';
+import { formatEventDateTime, formatPrice } from '../format';
 
 const reasons = {
   SIMILAR: 'Похоже на это мероприятие',
@@ -27,7 +27,9 @@ export function RecommendationCards({ items }: { items: RecommendationPage['item
               <p className="recommendation-reason">{reasons[reason]}</p>
               <p className="event-city">{event.city}</p>
               <h3>{event.title}</h3>
-              <time dateTime={event.startsAt}>{formatDate(event.startsAt, event.timeZone)}</time>
+              <time dateTime={event.startsAt}>
+                {formatEventDateTime(event.startsAt, event.timeZone)}
+              </time>
               <p className="event-price">от {formatPrice(event.minPriceMinor)}</p>
             </div>
           </Link>

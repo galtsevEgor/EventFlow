@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@eventflow/ui';
+import { formatLocalDateTime, formatPercent } from '@eventflow/ui/format';
 import { api, unwrap } from './api';
 import { ErrorMessage } from './feedback';
 export function WaitlistSettings({
@@ -84,7 +85,7 @@ export function WaitlistSettings({
               <ul>
                 {query.data.entries.map((e) => (
                   <li key={e.id}>
-                    {new Date(e.createdAt).toLocaleString('ru')} · {e.categoryId} ·{' '}
+                    {formatLocalDateTime(e.createdAt)} · {e.categoryId} ·{' '}
                     {(
                       {
                         WAITING: 'ожидает',
@@ -110,15 +111,7 @@ export function WaitlistSettings({
                 Подписались: {analytics.data.joined} · Получили предложение:{' '}
                 {analytics.data.offered} · Купили: {analytics.data.purchased}
               </p>
-              <p>
-                Конверсия предложения:{' '}
-                {analytics.data.offerConversion === null
-                  ? '—'
-                  : new Intl.NumberFormat('ru', {
-                      style: 'percent',
-                      maximumFractionDigits: 1,
-                    }).format(analytics.data.offerConversion)}
-              </p>
+              <p>Конверсия предложения: {formatPercent(analytics.data.offerConversion)}</p>
               <p className="muted">Покупки подписавшихся сегодня по мере поступления событий.</p>
             </div>
           )}

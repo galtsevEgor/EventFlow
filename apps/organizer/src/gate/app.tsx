@@ -2,6 +2,7 @@ import { Component, useCallback, useEffect, useState, type ReactNode } from 'rea
 import { useLiveQuery } from 'dexie-react-hooks';
 import { z } from 'zod';
 import { Alert, Button, Field } from '@eventflow/ui';
+import { formatLocalDateTime, formatLocalTime } from '@eventflow/ui/format';
 import { gateDatabase as db, type Scan } from './database';
 import { useGateIdentity } from './identity';
 import { useGate } from './use-gate';
@@ -41,7 +42,7 @@ function ScanResult({ scan }: { scan: Scan }) {
                 : 'Нет результата'}
       </strong>
       <small>
-        {new Date(scan.capturedAt).toLocaleString('ru')} · операция {scan.requestId.slice(0, 8)}
+        {formatLocalDateTime(scan.capturedAt)} · операция {scan.requestId.slice(0, 8)}
       </small>
     </li>
   );
@@ -139,7 +140,7 @@ function Gate({ organizationId, eventId }: { organizationId: string; eventId: st
           <p>
             В снимке: {gate.snapshot.manifest.hashes.length} билетов. Действует до{' '}
             <time dateTime={gate.snapshot.manifest.expiresAt}>
-              {new Date(gate.snapshot.manifest.expiresAt).toLocaleTimeString('ru')}
+              {formatLocalTime(gate.snapshot.manifest.expiresAt)}
             </time>
             .
           </p>

@@ -41,9 +41,6 @@ const states: Record<string, string> = {
 export const stateName = (state: string) => states[state] ?? state;
 export const isWorking = (state: string) =>
   ['NEEDS_RECONCILIATION', 'UNKNOWN', 'PENDING', 'PROCESSING', 'CREATED'].includes(state);
-export const formatDate = (value: string) => new Date(value).toLocaleString('ru');
-export const formatMoney = (value: number, currency = 'EUR') =>
-  new Intl.NumberFormat('ru', { style: 'currency', currency }).format(value / 100);
 export function caseUrl(target: Target) {
   return (
     '/organizer/ops?' +

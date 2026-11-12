@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge, Button, Loading, Select } from '@eventflow/ui';
+import { formatLocalDateTime } from '@eventflow/ui/format';
 import { api, queryClient, roles, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
 import { eventListOptions } from './event-queries';
@@ -163,7 +164,7 @@ function Audit({ id }: { id: string }) {
       <ul>
         {audit.data?.entries.map((entry) => (
           <li key={entry.id}>
-            <Badge>{new Date(entry.createdAt).toLocaleString('ru-RU')}</Badge>{' '}
+            <Badge>{formatLocalDateTime(entry.createdAt)}</Badge>{' '}
             {auditLabels[entry.action] ?? 'Доступ к организации изменён'}
           </li>
         ))}

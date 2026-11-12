@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { unwrap, type createApiClient, type Schemas } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
+import { formatEventDateTime } from '../format';
 
 type BuyerApi = ReturnType<typeof createApiClient>;
 
@@ -158,11 +159,7 @@ export function TicketsPanel({
       {event.data && (
         <p>
           <time dateTime={event.data.startsAt}>
-            {new Intl.DateTimeFormat('ru', {
-              dateStyle: 'long',
-              timeStyle: 'short',
-              timeZone: event.data.timeZone,
-            }).format(new Date(event.data.startsAt))}
+            {formatEventDateTime(event.data.startsAt, event.data.timeZone)}
           </time>
           {' · '}
           {event.data.city}, {event.data.address}

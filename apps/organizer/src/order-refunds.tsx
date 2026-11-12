@@ -1,14 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge, Button, Dialog, EmptyState, Field, Loading, Select } from '@eventflow/ui';
+import { formatLocalDateTime, formatMoney } from '@eventflow/ui/format';
 import { api, queryClient, unwrap, type Schemas } from './api';
 import { eventListOptions } from './event-queries';
 import { ErrorMessage } from './feedback';
 import { useLiveUpdates } from './use-live-updates';
 
-const money = (minor: number) =>
-  new Intl.NumberFormat('ru', { style: 'currency', currency: 'EUR' }).format(minor / 100);
-const date = (value: string) => new Date(value).toLocaleString('ru');
 const states = {
   FENCING: 'Проверяем билеты',
   PENDING: 'Возврат обрабатывается',
@@ -66,7 +64,8 @@ function RefundDialog({
       description="Полный возврат доступен до начала мероприятия, если ни один билет не использован."
     >
       <p>
-        К возврату <strong>{money(order.totalMinor)}</strong>. Все билеты заказа будут аннулированы.
+        К возврату <strong>{formatMoney(order.totalMinor, order.currency)}</strong>. Все билеты
+        заказа будут аннулированы.
       </p>
       <p className="muted">Заказ {order.id}</p>
       <form
@@ -93,7 +92,9 @@ function RefundDialog({
           variant="danger"
           disabled={refund.isPending || reason.trim().length < 2}
         >
-          {refund.isPending ? 'Отправляем…' : `Вернуть ${money(order.totalMinor)}`}
+          {refund.isPending
+            ? 'Отправляем…'
+            : `Вернуть ${formatMoney(order.totalMinor, order.currency)}`}
         </Button>
       </form>
     </Dialog>
@@ -188,10 +189,11 @@ function OrderList({ organizationId, eventId }: { organizationId: string; eventI
               <article className="refund-order" key={order.id} aria-label={`Заказ ${order.id}`}>
                 <h3>Заказ {order.id}</h3>
                 <p>
-                  {money(order.totalMinor)} · мест {order.items.length}
+                  {formatMoney(order.totalMinor, order.currency)} · мест {order.items.length}
                 </p>
                 <p className="muted">
-                  Создан {date(order.createdAt)} · возврат до {date(order.refundDeadline)}
+                  Создан {formatLocalDateTime(order.createdAt)} · возврат до{' '}
+                  {formatLocalDateTime(order.refundDeadline)}
                 </p>
                 <Badge>{order.refund ? states[order.refund.state] : 'Заказ подтверждён'}</Badge>
                 {order.refund && (
