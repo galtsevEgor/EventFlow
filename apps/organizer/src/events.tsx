@@ -7,6 +7,7 @@ import { Button, Dialog, EmptyState, Field, Loading } from '@eventflow/ui';
 import { api, queryClient, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
 import { EventCover } from './event-cover';
+import { eventListOptions, invalidateEventList } from './event-queries';
 import { EventPublication } from './event-publication';
 import { WaitlistSettings } from './waitlist';
 import { hasPendingCopy } from './collaboration/cache';
@@ -25,22 +26,7 @@ const input = z.object({
 export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
   const subject = queryClient.getQueryData<Schemas['Session']>(['session'])?.user?.sub ?? '';
   const [collaborating, setCollaborating] = useState<Schemas['Draft'] | null>(null);
-  const events = useQuery({
-    queryKey: ['events', id],
-    refetchInterval: (query) =>
-      query.state.data?.events.some(
-        (event) =>
-          event.publication?.state === 'PROVISIONING' ||
-          (!!event.publication &&
-            event.publication.commandVersion > event.publication.acknowledgedVersion),
-      )
-        ? 1000
-        : false,
-    queryFn: async () =>
-      unwrap(
-        await api.client.GET('/api/v1/organizations/{id}/events', { params: { path: { id } } }),
-      ),
-  });
+  const events = useQuery(eventListOptions(id));
   const [editing, setEditing] = useState<Schemas['Draft'] | 'new' | null>(null);
   const [configuring, setConfiguring] = useState<Schemas['Draft'] | null>(null);
   const [cover, setCover] = useState<Schemas['Draft'] | null>(null);
@@ -66,7 +52,7 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
           ),
     onSuccess: async () => {
       setEditing(null);
-      await queryClient.invalidateQueries({ queryKey: ['events', id] });
+      await invalidateEventList(id);
     },
   });
   const canEdit = role !== 'STAFF';
@@ -199,7 +185,7 @@ export function Events({ id, role }: { id: string; role: Schemas['Role'] }) {
         onOpenChange={(open) => {
           if (!open) {
             setCollaborating(null);
-            void queryClient.invalidateQueries({ queryKey: ['events', id] });
+            void invalidateEventList(id);
           }
         }}
         title="Совместный редактор"

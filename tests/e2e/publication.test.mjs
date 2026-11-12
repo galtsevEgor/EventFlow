@@ -38,6 +38,17 @@ test(
           data: { title: 'Концерт в саду', description: 'Живая музыка летним вечером.' },
         })
       ).json();
+      const otherOrg = await (
+        await page.request.post(stack.origin + '/api/v1/organizations', {
+          headers,
+          data: { name: 'Соседняя организация' },
+        })
+      ).json();
+      const other = await page.request.post(
+        `${stack.origin}/api/v1/organizations/${otherOrg.id}/events`,
+        { headers, data: { title: 'Другое мероприятие', description: '' } },
+      );
+      assert.equal(other.status(), 201);
       const path = `${stack.origin}/api/v1/organizations/${org.id}/events/${draft.id}`;
       const saved = await page.request.put(path + '/configuration', {
         headers,
@@ -74,7 +85,13 @@ test(
       });
       assert.equal(cover.status(), 201);
       const asset = (await cover.json()).coverId;
-      await page.reload();
+      await page.goto(`${stack.origin}/organizer/?org=${org.id}`);
+      await expect(page.getByRole('heading', { name: draft.title })).toBeVisible();
+      await page.getByRole('button', { name: /Соседняя организация/ }).click();
+      await expect(page.getByRole('heading', { name: 'Другое мероприятие' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: draft.title })).toHaveCount(0);
+      await page.getByRole('button', { name: /Команда публикации/ }).click();
+      await expect(page.getByRole('heading', { name: 'Другое мероприятие' })).toHaveCount(0);
       await page.getByRole('button', { name: 'Опубликовать', exact: true }).click();
       await expect(page.getByText('Готовится к публикации', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Настроить продажи' })).toBeDisabled();
@@ -84,7 +101,12 @@ test(
         (await page.request.get(`${stack.origin}/api/v1/covers/${asset}`)).status(),
         404,
       );
+      await page.getByRole('button', { name: 'Статистика', exact: true }).click();
+      const publishedOption = page.getByRole('option', { name: draft.title });
+      await expect(publishedOption).toHaveCount(0);
       const booking = await stack.startBooking();
+      await expect(publishedOption).toHaveCount(1, { timeout: 15000 });
+      await page.getByRole('button', { name: 'Мероприятия', exact: true }).click();
       await expect(page.getByText('Опубликовано', { exact: true })).toBeVisible({ timeout: 15000 });
       assert.equal(
         (await page.request.get(`${stack.origin}/api/v1/covers/${asset}`)).status(),

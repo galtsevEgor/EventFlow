@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Alert, Button, Field } from '@eventflow/ui';
-import { api, queryClient, unwrap, type Schemas } from './api';
+import { api, unwrap, type Schemas } from './api';
+import { invalidateEventList } from './event-queries';
 import { ErrorMessage } from './feedback';
 
 export function EventCover({
@@ -29,7 +30,7 @@ export function EventCover({
         }),
       ),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['events', id] });
+      await invalidateEventList(id);
       onSaved();
     },
   });

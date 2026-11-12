@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge, Button, Dialog, EmptyState, Field, Loading, Select } from '@eventflow/ui';
 import { api, queryClient, unwrap, type Schemas } from './api';
+import { eventListOptions } from './event-queries';
 import { ErrorMessage } from './feedback';
 import { useLiveUpdates } from './use-live-updates';
 
@@ -101,13 +102,7 @@ function RefundDialog({
 
 export function OrderRefunds({ id }: { id: string }) {
   const [eventId, setEventId] = useState('');
-  const events = useQuery({
-    queryKey: ['events', id],
-    queryFn: async () =>
-      unwrap(
-        await api.client.GET('/api/v1/organizations/{id}/events', { params: { path: { id } } }),
-      ),
-  });
+  const events = useQuery(eventListOptions(id));
   const published =
     events.data?.events.filter((event) => event.publication?.state === 'PUBLISHED') ?? [];
   const selected = eventId || published[0]?.id;

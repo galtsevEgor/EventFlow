@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, EmptyState, Loading } from '@eventflow/ui';
 import { api, unwrap, type Schemas } from './api';
+import { eventListOptions } from './event-queries';
 import { ErrorMessage } from './feedback';
 
 const euro = new Intl.NumberFormat('ru', { style: 'currency', currency: 'EUR' });
@@ -72,15 +73,7 @@ function SalesChart({ series }: Pick<Report, 'series'>) {
 export function SalesStatistics({ id }: { id: string }) {
   const [draft, setDraft] = useState({ from: '', to: '', eventId: '' });
   const [filters, setFilters] = useState({ ...draft, page: 1 });
-  const events = useQuery({
-    queryKey: ['events', id],
-    queryFn: async () =>
-      unwrap(
-        await api.client.GET('/api/v1/organizations/{id}/events', {
-          params: { path: { id } },
-        }),
-      ),
-  });
+  const events = useQuery(eventListOptions(id));
   const report = useQuery({
     queryKey: ['sales-statistics', id, filters],
     refetchInterval: 30000,

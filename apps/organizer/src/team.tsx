@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge, Button, Loading, Select } from '@eventflow/ui';
 import { api, queryClient, roles, unwrap, type Schemas } from './api';
 import { ErrorMessage } from './feedback';
+import { eventListOptions } from './event-queries';
 import { Invitations } from './invitations';
 
 export function Team({ id }: { id: string }) {
@@ -12,13 +13,7 @@ export function Team({ id }: { id: string }) {
         await api.client.GET('/api/v1/organizations/{id}/members', { params: { path: { id } } }),
       ),
   });
-  const events = useQuery({
-    queryKey: ['events', id],
-    queryFn: async () =>
-      unwrap(
-        await api.client.GET('/api/v1/organizations/{id}/events', { params: { path: { id } } }),
-      ),
-  });
+  const events = useQuery(eventListOptions(id));
   return (
     <>
       <h3>Участники команды</h3>

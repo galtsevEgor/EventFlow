@@ -5,7 +5,7 @@ import { defaultKeymap } from '@codemirror/commands';
 import { yCollab, yUndoManagerKeymap } from 'y-codemirror.next';
 import { MAX_DESCRIPTION_LENGTH } from '@eventflow/collaboration';
 import { Button } from '@eventflow/ui';
-import { queryClient } from '../api';
+import { invalidateEventList } from '../event-queries';
 import { DraftClient, type EditorStatus } from './client';
 const initial: EditorStatus = {
   ready: false,
@@ -53,7 +53,7 @@ export function CollaborativeEditor({
         }
       },
       () => {
-        void queryClient.invalidateQueries({ queryKey: ['events', organizationId] });
+        void invalidateEventList(organizationId);
       },
     );
     current.current = client;

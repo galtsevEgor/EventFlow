@@ -1,7 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { Badge, Button } from '@eventflow/ui';
-import { api, queryClient, unwrap, type Schemas } from './api';
+import { api, unwrap, type Schemas } from './api';
+import { invalidateEventList } from './event-queries';
 import { ErrorMessage } from './feedback';
 
 export function EventPublication({
@@ -23,9 +24,7 @@ export function EventPublication({
           body: { revision: event.revision },
         }),
       ),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['events', id] });
-    },
+    onSuccess: () => invalidateEventList(id),
   });
   const publication = event.publication;
   const retryKey = useRef<{ attempt: number; key: string } | null>(null);
@@ -44,9 +43,7 @@ export function EventPublication({
         }),
       );
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['events', id] });
-    },
+    onSuccess: () => invalidateEventList(id),
   });
   const availability = useMutation({
     mutationFn: async () =>
@@ -59,9 +56,7 @@ export function EventPublication({
           },
         }),
       ),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['events', id] });
-    },
+    onSuccess: () => invalidateEventList(id),
   });
   const pending = publication && publication.commandVersion > publication.acknowledgedVersion;
   return (

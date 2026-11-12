@@ -7,6 +7,7 @@ import {
   type AnalyticsReportData,
 } from '@eventflow/event-contracts';
 import { api, unwrap } from './api';
+import { eventListOptions } from './event-queries';
 import { ErrorMessage } from './feedback';
 import './product-analytics.css';
 
@@ -121,13 +122,7 @@ export function ProductAnalytics({ id }: { id: string }) {
     [source, setSource] = useState('');
   const query = { from, to, ...(eventId ? { eventId } : {}), ...(source ? { source } : {}) };
   const valid = analyticsPeriodSchema.safeParse(query);
-  const events = useQuery({
-    queryKey: ['analytics-events', id],
-    queryFn: async () =>
-      unwrap(
-        await api.client.GET('/api/v1/organizations/{id}/events', { params: { path: { id } } }),
-      ),
-  });
+  const events = useQuery(eventListOptions(id));
   const report = useQuery({
     queryKey: ['product-analytics', id, from, to, eventId, source],
     enabled: valid.success,
