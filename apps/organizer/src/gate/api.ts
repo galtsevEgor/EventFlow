@@ -1,5 +1,8 @@
 import { api } from '../api';
 import { GateSyncError } from './sync';
+
+const GATE_REQUEST_TIMEOUT_MS = 25_000;
+
 export async function gateRequest(
   path: 'keys' | 'sessions' | 'sync',
   csrf: string,
@@ -12,7 +15,7 @@ export async function gateRequest(
     redirect: 'error',
     headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
     ...(body ? { body: JSON.stringify(body) } : {}),
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(GATE_REQUEST_TIMEOUT_MS),
   });
   const result = (await response.json()) as { message?: string; code?: string };
   if (!response.ok)

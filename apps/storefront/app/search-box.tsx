@@ -2,6 +2,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Schemas } from '@eventflow/api-client';
+
+const SUGGESTIONS_DEBOUNCE_MS = 220;
+
 type Suggestion = Schemas['SearchSuggestions']['suggestions'][number];
 
 export function SearchBox({ initialValue }: { initialValue: string }) {
@@ -42,7 +45,7 @@ export function SearchBox({ initialValue }: { initialValue: string }) {
           setOpen(false);
         }
       }
-    }, 220);
+    }, SUGGESTIONS_DEBOUNCE_MS);
     return () => {
       current = false;
       clearTimeout(timer);

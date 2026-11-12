@@ -7,6 +7,8 @@ import { BookingProvider, orderLabels, SignIn, useBuyer } from './client';
 import { formatPrice } from '../format';
 import { BuyerWaitlist } from './waitlist';
 
+const HELD_ORDERS_POLL_INTERVAL_MS = 5_000;
+
 function List() {
   const { api, session } = useBuyer();
   const [page, setPage] = useState(1);
@@ -16,7 +18,9 @@ function List() {
     queryFn: async ({ signal }) =>
       unwrap(await api.client.GET('/api/v1/orders', { params: { query: { page } }, signal })),
     refetchInterval: (query) =>
-      query.state.data?.items.some((item) => item.state === 'HELD') ? 5000 : false,
+      query.state.data?.items.some((item) => item.state === 'HELD')
+        ? HELD_ORDERS_POLL_INTERVAL_MS
+        : false,
   });
   if (session.isPending) return <p role="status">Проверяем аккаунт…</p>;
   if (session.isError)

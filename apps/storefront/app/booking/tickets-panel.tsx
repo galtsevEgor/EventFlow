@@ -2,9 +2,16 @@
 
 import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { unwrap, type createApiClient, type Schemas } from '@eventflow/api-client';
+import {
+  LIVE_QUERY_RECHECK_INTERVAL_MS,
+  unwrap,
+  type createApiClient,
+  type Schemas,
+} from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { formatEventDateTime } from '../format';
+
+const TICKET_ISSUANCE_POLL_INTERVAL_MS = 3_000;
 
 type BuyerApi = ReturnType<typeof createApiClient>;
 
@@ -141,7 +148,11 @@ export function TicketsPanel({
       return response.data.tickets;
     },
     refetchInterval: (query) =>
-      query.state.data === null && !query.state.error ? (live ? 30000 : 3000) : false,
+      query.state.data === null && !query.state.error
+        ? live
+          ? LIVE_QUERY_RECHECK_INTERVAL_MS
+          : TICKET_ISSUANCE_POLL_INTERVAL_MS
+        : false,
   });
   const event = useQuery({
     queryKey: ['ticket-event', order.saleId],

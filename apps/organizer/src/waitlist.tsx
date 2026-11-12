@@ -4,6 +4,10 @@ import { Button } from '@eventflow/ui';
 import { formatLocalDateTime, formatPercent } from '@eventflow/ui/format';
 import { api, unwrap } from './api';
 import { ErrorMessage } from './feedback';
+
+const WAITLIST_ANALYTICS_POLL_INTERVAL_MS = 15_000;
+const WAITLIST_QUEUE_POLL_INTERVAL_MS = 5_000;
+
 export function WaitlistSettings({
   organizationId,
   eventId,
@@ -23,7 +27,7 @@ export function WaitlistSettings({
           params: { path: { id: organizationId }, query: { from: today, to: today, eventId } },
         }),
       ),
-    refetchInterval: open ? 15000 : false,
+    refetchInterval: open ? WAITLIST_ANALYTICS_POLL_INTERVAL_MS : false,
   });
   const query = useQuery({
     queryKey: ['organizer-waitlist', eventId],
@@ -34,7 +38,7 @@ export function WaitlistSettings({
           params: { path },
         }),
       ),
-    refetchInterval: open ? 5000 : false,
+    refetchInterval: open ? WAITLIST_QUEUE_POLL_INTERVAL_MS : false,
   });
   const change = useMutation({
     mutationFn: async () =>

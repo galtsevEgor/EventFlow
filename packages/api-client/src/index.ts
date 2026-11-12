@@ -4,7 +4,9 @@ import type { paths, components } from './schema';
 
 export type Schemas = components['schemas'];
 export type { paths } from './schema';
-export { watchUpdates } from './updates.js';
+export { LIVE_QUERY_RECHECK_INTERVAL_MS, liveQueryPollInterval, watchUpdates } from './updates.js';
+
+export const AUTH_SESSION_POLL_INTERVAL_MS = 60_000;
 
 export const sessionSchema = z.union([
   z.strictObject({ user: z.null() }),

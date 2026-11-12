@@ -2,6 +2,8 @@ import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import { createApiClient, unwrap } from '@eventflow/api-client';
 
+const CATALOG_REQUEST_TIMEOUT_MS = 5_000;
+
 export type Search = Record<string, string | string[] | undefined>;
 export const filterKeys = [
   'q',
@@ -25,7 +27,7 @@ export async function listEvents(search: Search) {
   return unwrap(
     await client().GET('/api/v1/events', {
       cache: 'no-store',
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS),
       params: {
         query: {
           q: text('q'),
@@ -44,7 +46,7 @@ export const getEvent = cache(async (id: string) => {
   const result = await client().GET('/api/v1/events/{id}', {
     params: { path: { id } },
     cache: 'no-store',
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS),
   });
   if (result.response.status === 404 || result.response.status === 422) notFound();
   return unwrap(result);

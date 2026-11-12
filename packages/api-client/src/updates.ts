@@ -1,6 +1,19 @@
 import { z } from 'zod';
 import type { components } from './schema';
 
+export const LIVE_QUERY_RECHECK_INTERVAL_MS = 30_000;
+const LIVE_QUERY_FALLBACK_INTERVAL_MS = 5_000;
+const UPDATE_DEBOUNCE_MS = 100;
+const STREAM_IDLE_TIMEOUT_MS = 20_000;
+const RECONNECT_INITIAL_DELAY_MS = 1_000;
+const RECONNECT_MAX_DELAY_MS = 10_000;
+const RECONNECT_MAX_EXPONENT = 4;
+const RECONNECT_JITTER_MS = 250;
+
+export function liveQueryPollInterval(connected: boolean) {
+  return connected ? LIVE_QUERY_RECHECK_INTERVAL_MS : LIVE_QUERY_FALLBACK_INTERVAL_MS;
+}
+
 const frame = z.strictObject({
   kind: z.enum(['ready', 'changed', 'heartbeat']),
 }) satisfies z.ZodType<components['schemas']['UpdateFrame']>;
@@ -43,7 +56,7 @@ export function watchUpdates(path: string, options: Options) {
           refreshing = false;
           if (dirty && !stopped) refresh();
         });
-    }, 100);
+    }, UPDATE_DEBOUNCE_MS);
   };
   const connect = () => {
     if (stopped) return;
@@ -57,12 +70,15 @@ export function watchUpdates(path: string, options: Options) {
       clearTimeout(watchdog);
       options.onConnection(false);
       const delay =
-        Math.min(10000, 1000 * 2 ** Math.min(attempt++, 4)) + Math.floor(Math.random() * 250);
+        Math.min(
+          RECONNECT_MAX_DELAY_MS,
+          RECONNECT_INITIAL_DELAY_MS * 2 ** Math.min(attempt++, RECONNECT_MAX_EXPONENT),
+        ) + Math.floor(Math.random() * RECONNECT_JITTER_MS);
       retry = setTimeout(connect, delay);
     };
     const alive = () => {
       clearTimeout(watchdog);
-      watchdog = setTimeout(lost, 20000);
+      watchdog = setTimeout(lost, STREAM_IDLE_TIMEOUT_MS);
     };
     try {
       source = create(path);

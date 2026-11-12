@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider, useMutation, useQuery } from '@tanstack/react-query';
-import { createApiClient, unwrap } from '@eventflow/api-client';
+import { AUTH_SESSION_POLL_INTERVAL_MS, createApiClient, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 
 function AccountControls() {
@@ -14,7 +14,7 @@ function AccountControls() {
       api.setCsrfToken(data.user ? data.csrfToken : '');
       return data;
     },
-    refetchInterval: 60_000,
+    refetchInterval: AUTH_SESSION_POLL_INTERVAL_MS,
   });
   const logout = useMutation({
     mutationFn: async () => {

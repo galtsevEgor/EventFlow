@@ -9,6 +9,9 @@ import { isWorking, kindNames, sourceNames, stateName, type Target } from './mod
 import { RecoveryControl } from './recovery';
 import { readPending, recoveryKey } from './pending';
 
+const ACTIVE_CASE_POLL_WINDOW_MS = 120_000;
+const ACTIVE_CASE_POLL_INTERVAL_MS = 3_000;
+
 export function OperatorCase({
   actor,
   target,
@@ -18,7 +21,7 @@ export function OperatorCase({
   target: Target;
   canRecover: boolean;
 }) {
-  const [pollUntil, setPollUntil] = useState(() => Date.now() + 120000),
+  const [pollUntil, setPollUntil] = useState(() => Date.now() + ACTIVE_CASE_POLL_WINDOW_MS),
     button = useRef<HTMLButtonElement>(null);
   const detail = useQuery({
     queryKey: ['ops', actor, 'case', target.service, target.kind, target.id],
@@ -32,13 +35,13 @@ export function OperatorCase({
       query.state.data &&
       (isWorking(query.state.data.issue.state) || readPending(recoveryKey(actor, target))) &&
       Date.now() < pollUntil
-        ? 3000
+        ? ACTIVE_CASE_POLL_INTERVAL_MS
         : false,
   });
   const refetch = detail.refetch;
   const refresh = useCallback(
     (focus = false) => {
-      setPollUntil(Date.now() + 120000);
+      setPollUntil(Date.now() + ACTIVE_CASE_POLL_WINDOW_MS);
       void refetch();
       if (focus) requestAnimationFrame(() => button.current?.focus());
     },

@@ -1,12 +1,15 @@
 'use client';
 import { useCallback, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createApiClient, unwrap } from '@eventflow/api-client';
+import { liveQueryPollInterval, createApiClient, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { SeatPicker } from './booking/seat-picker';
 import { EventWaitlist } from './booking/waitlist';
 import { useLiveUpdates } from './booking/use-live-updates';
 import { formatEventDateTime, formatPrice } from './format';
+
+const MIN_SALE_BOUNDARY_POLL_INTERVAL_MS = 100;
+const SALE_BOUNDARY_CLOCK_MARGIN_MS = 50;
 
 const labels = {
   SCHEDULED: 'Продажи ещё не начались',
@@ -38,9 +41,9 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
       return { data, observedAt };
     },
     refetchInterval: (query) => {
-      if (query.state.error) return 5000;
+      if (query.state.error) return liveQueryPollInterval(false);
       const snapshot = query.state.data;
-      const normal = live && !query.state.error ? 30000 : 5000;
+      const normal = liveQueryPollInterval(live);
       if (!snapshot) return normal;
       const boundary =
         snapshot.data.state === 'SCHEDULED'
@@ -50,13 +53,13 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
             : snapshot.data.salesEndsAt;
       return boundary
         ? Math.max(
-            100,
+            MIN_SALE_BOUNDARY_POLL_INTERVAL_MS,
             Math.min(
               normal,
               Date.parse(boundary) -
                 Date.parse(snapshot.data.serverNow) -
                 (performance.now() - snapshot.observedAt) +
-                50,
+                SALE_BOUNDARY_CLOCK_MARGIN_MS,
             ),
           )
         : normal;

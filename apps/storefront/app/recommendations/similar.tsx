@@ -3,13 +3,15 @@ import { createApiClient } from '@eventflow/api-client';
 import { recommendationPageSchema, type RecommendationPage } from '@eventflow/event-contracts';
 import { RecommendationCards } from './cards';
 
+const SIMILAR_EVENTS_REQUEST_TIMEOUT_MS = 1_800;
+
 export async function similarEvents(id: string): Promise<RecommendationPage | null> {
   try {
     const client = createApiClient(process.env.BFF_URL ?? 'http://127.0.0.1:4000').client;
     const result = await client.GET('/api/v1/events/{id}/similar', {
       params: { path: { id }, query: { limit: 6 } },
       cache: 'no-store',
-      signal: AbortSignal.timeout(1800),
+      signal: AbortSignal.timeout(SIMILAR_EVENTS_REQUEST_TIMEOUT_MS),
     });
     if (result.response.status === 404) return null;
     if (!result.response.ok) throw new Error('Recommendations unavailable');

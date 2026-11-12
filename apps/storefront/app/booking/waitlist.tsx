@@ -1,10 +1,15 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { unwrap, type Schemas } from '@eventflow/api-client';
+import { liveQueryPollInterval, unwrap, type Schemas } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { useBuyer } from './client';
 import { useLiveUpdates } from './use-live-updates';
+
+const WAITLIST_ENTRIES_POLL_INTERVAL_MS = 5_000;
+const WAITLIST_AVAILABILITY_POLL_INTERVAL_MS = 30_000;
+const OFFER_COUNTDOWN_TICK_MS = 1_000;
+
 const labels: Record<Schemas['WaitlistEntry']['state'], string> = {
   WAITING: 'Ожидаем свободное место',
   RESERVING: 'Готовим предложение',
@@ -33,7 +38,7 @@ function Entry({ entry }: { entry: Schemas['WaitlistEntry'] }) {
     initialData: entry,
     queryFn: async () =>
       unwrap(await api.client.GET('/api/v1/waitlist/{id}', { params: { path: { id: entry.id } } })),
-    refetchInterval: live ? 30000 : 5000,
+    refetchInterval: liveQueryPollInterval(live),
   });
   const cancel = useMutation({
     mutationFn: async () =>
@@ -47,7 +52,7 @@ function Entry({ entry }: { entry: Schemas['WaitlistEntry'] }) {
   });
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const timer = setInterval(() => setNow(Date.now()), OFFER_COUNTDOWN_TICK_MS);
     return () => clearInterval(timer);
   }, []);
   const d = query.data,
@@ -90,7 +95,7 @@ export function BuyerWaitlist() {
     queryKey: ['waitlist'],
     enabled: !!session.data?.user?.emailVerified,
     queryFn: async () => unwrap(await api.client.GET('/api/v1/waitlist')),
-    refetchInterval: 5000,
+    refetchInterval: WAITLIST_ENTRIES_POLL_INTERVAL_MS,
   });
   if (!session.data?.user?.emailVerified) return null;
   return (
@@ -116,13 +121,13 @@ export function EventWaitlist({ saleId }: { saleId: string }) {
       unwrap(
         await api.client.GET('/api/v1/events/{id}/waitlist', { params: { path: { id: saleId } } }),
       ),
-    refetchInterval: 30000,
+    refetchInterval: WAITLIST_AVAILABILITY_POLL_INTERVAL_MS,
   });
   const entries = useQuery({
     queryKey: ['waitlist'],
     enabled: !!session.data?.user?.emailVerified,
     queryFn: async () => unwrap(await api.client.GET('/api/v1/waitlist')),
-    refetchInterval: 5000,
+    refetchInterval: WAITLIST_ENTRIES_POLL_INTERVAL_MS,
   });
   const join = useMutation({
     mutationFn: async () =>

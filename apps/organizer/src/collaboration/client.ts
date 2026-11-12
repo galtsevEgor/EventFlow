@@ -10,6 +10,14 @@ import { Awareness } from 'y-protocols/awareness';
 import { cacheKey, loadCopy, saveCopy, copyGeneration, type CachedDraft } from './cache';
 import { PeerAwareness, REMOTE } from './awareness';
 
+const DOCUMENT_SEND_DEBOUNCE_MS = 300;
+const PRESENCE_SEND_DEBOUNCE_MS = 150;
+const COLLABORATION_JOIN_TIMEOUT_MS = 7_000;
+const DOCUMENT_ACK_TIMEOUT_MS = 5_000;
+const RECONNECT_INITIAL_DELAY_MS = 500;
+const RECONNECT_MAX_DELAY_MS = 10_000;
+const RECONNECT_MAX_EXPONENT = 5;
+
 export type EditorStatus = {
   ready: boolean;
   canEdit: boolean;
@@ -89,7 +97,7 @@ export class DraftClient {
       this.persist();
       this.emit();
       clearTimeout(this.sending);
-      this.sending = setTimeout(() => this.flush(), 300);
+      this.sending = setTimeout(() => this.flush(), DOCUMENT_SEND_DEBOUNCE_MS);
     });
     this.awareness.on('update', (_change: unknown, origin: unknown) => {
       if (origin === REMOTE || this.stopped) return;
@@ -97,7 +105,7 @@ export class DraftClient {
       this.cursorTimer = setTimeout(() => {
         const cursor = cursorSchema.safeParse(this.awareness.getLocalState()?.cursor ?? null);
         if (cursor.success && this.received) this.send({ type: 'presence', cursor: cursor.data });
-      }, 150);
+      }, PRESENCE_SEND_DEBOUNCE_MS);
     });
     window.addEventListener('online', this.reconnect);
     window.addEventListener('beforeunload', this.beforeUnload);
@@ -156,7 +164,7 @@ export class DraftClient {
     clearTimeout(this.connectDeadline);
     this.connectDeadline = setTimeout(() => {
       if (!this.received && this.socket === socket) socket.close();
-    }, 7000);
+    }, COLLABORATION_JOIN_TIMEOUT_MS);
     socket.onopen = () => this.send({ type: 'join', clientId: this.doc.clientID });
     socket.onmessage = (event) => {
       if (this.stopped || this.socket !== socket) return;
@@ -215,7 +223,10 @@ export class DraftClient {
       this.emit();
       this.retry = setTimeout(
         this.reconnect,
-        Math.min(10000, 500 * 2 ** Math.min(this.attempts++, 5)),
+        Math.min(
+          RECONNECT_MAX_DELAY_MS,
+          RECONNECT_INITIAL_DELAY_MS * 2 ** Math.min(this.attempts++, RECONNECT_MAX_EXPONENT),
+        ),
       );
     };
   }
@@ -271,7 +282,7 @@ export class DraftClient {
       this.acknowledgementTimer = setTimeout(() => {
         this.sentId = '';
         this.flush();
-      }, 5000);
+      }, DOCUMENT_ACK_TIMEOUT_MS);
     }
   }
   destroy() {

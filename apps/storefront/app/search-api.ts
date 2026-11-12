@@ -1,6 +1,8 @@
 import { createApiClient, unwrap } from '@eventflow/api-client';
 import type { Search } from './catalog-api';
 
+const SEARCH_REQUEST_TIMEOUT_MS = 6_000;
+
 export class SearchInputError extends Error {}
 export function priceMinor(value: string | string[] | undefined) {
   if (value === undefined || value === '') return undefined;
@@ -25,7 +27,7 @@ export async function searchEvents(search: Search) {
   return unwrap(
     await client.GET('/api/v1/search/events', {
       cache: 'no-store',
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(SEARCH_REQUEST_TIMEOUT_MS),
       params: {
         query: {
           q: text('q'),

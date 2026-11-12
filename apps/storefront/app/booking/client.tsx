@@ -1,7 +1,7 @@
 'use client';
 import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { createApiClient } from '@eventflow/api-client';
+import { AUTH_SESSION_POLL_INTERVAL_MS, createApiClient } from '@eventflow/api-client';
 
 export const orderLabels = {
   HELD: 'Места забронированы',
@@ -30,7 +30,7 @@ export function useBuyer() {
       api.setActor(result.user?.sub ?? '');
       return result;
     },
-    refetchInterval: 60000,
+    refetchInterval: AUTH_SESSION_POLL_INTERVAL_MS,
   });
   if (session.data) {
     api.setCsrfToken(session.data.user ? session.data.csrfToken : '');

@@ -6,6 +6,7 @@ import { api, queryClient, unwrap, type Schemas } from './api';
 import { eventListOptions } from './event-queries';
 import { ErrorMessage } from './feedback';
 import { useLiveUpdates } from './use-live-updates';
+import { liveQueryPollInterval } from '@eventflow/api-client';
 
 const states = {
   FENCING: 'Проверяем билеты',
@@ -161,7 +162,7 @@ function OrderList({ organizationId, eventId }: { organizationId: string; eventI
   const [selected, setSelected] = useState<Schemas['OrganizerOrder'] | null>(null);
   const list = useQuery({
     queryKey: ['organizer-orders', organizationId, eventId, page],
-    refetchInterval: (query) => (live && !query.state.error ? 30000 : 5000),
+    refetchInterval: (query) => liveQueryPollInterval(live && !query.state.error),
     queryFn: async () =>
       unwrap(
         await api.client.GET('/api/v1/organizations/{organizationId}/events/{eventId}/orders', {

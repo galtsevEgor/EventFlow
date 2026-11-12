@@ -1,5 +1,8 @@
 import { offlineManifestSchema, type OfflineBundle } from '@eventflow/event-contracts';
 import { type GateContext } from './crypto';
+
+const SCANNER_WORKER_REPLY_TIMEOUT_MS = 15_000;
+
 export class ScannerWorker {
   private readonly worker = new Worker(new URL('./scanner.worker.ts', import.meta.url), {
     type: 'module',
@@ -36,7 +39,7 @@ export class ScannerWorker {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error('Проверка не ответила. Откройте сканер заново.'));
-      }, 15000);
+      }, SCANNER_WORKER_REPLY_TIMEOUT_MS);
       this.pending.set(id, { resolve, reject, timer });
       try {
         this.worker.postMessage({ id, ...data }, transfer);

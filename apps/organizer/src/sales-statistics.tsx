@@ -6,6 +6,8 @@ import { api, unwrap, type Schemas } from './api';
 import { eventListOptions } from './event-queries';
 import { ErrorMessage } from './feedback';
 
+const SALES_REPORT_POLL_INTERVAL_MS = 30_000;
+
 const utcReportTimestamp = new Intl.DateTimeFormat(DISPLAY_LOCALE, {
   dateStyle: 'short',
   timeStyle: 'medium',
@@ -76,7 +78,7 @@ export function SalesStatistics({ id }: { id: string }) {
   const events = useQuery(eventListOptions(id));
   const report = useQuery({
     queryKey: ['sales-statistics', id, filters],
-    refetchInterval: 30000,
+    refetchInterval: SALES_REPORT_POLL_INTERVAL_MS,
     queryFn: async () =>
       unwrap(
         await api.client.GET('/api/v1/organizations/{id}/statistics', {

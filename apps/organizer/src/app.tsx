@@ -7,13 +7,14 @@ import { Organizations } from './organizations';
 import { useOperatorAccess } from './ops/access';
 import { clearOperatorRequests } from './ops/pending';
 import { clearDraftCopies } from './collaboration/cache';
+import { AUTH_SESSION_POLL_INTERVAL_MS } from '@eventflow/api-client';
 const OperatorPage = lazy(() => import('./ops/page'));
 
 export function App() {
   const session = useQuery({
     queryKey: ['session'],
     queryFn: loadSession,
-    refetchInterval: 60_000,
+    refetchInterval: AUTH_SESSION_POLL_INTERVAL_MS,
   });
   const [invite, setInvite] = useState(() => new URLSearchParams(location.search).get('invite'));
   const [selected, setSelected] = useState(() => new URLSearchParams(location.search).get('org'));

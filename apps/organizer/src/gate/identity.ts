@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { gateDatabase as db } from './database';
 import { gateSession } from './api';
+import { AUTH_SESSION_POLL_INTERVAL_MS } from '@eventflow/api-client';
 
 class GateStorageError extends Error {}
 
@@ -9,7 +10,7 @@ export function useGateIdentity(online: boolean) {
   const session = useQuery({
     queryKey: ['gate-session'],
     retry: false,
-    refetchInterval: 60000,
+    refetchInterval: AUTH_SESSION_POLL_INTERVAL_MS,
     queryFn: async () => {
       const value = await gateSession();
       try {

@@ -1,7 +1,12 @@
 'use client';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiRequestError, unwrap, type Schemas } from '@eventflow/api-client';
+import {
+  liveQueryPollInterval,
+  ApiRequestError,
+  unwrap,
+  type Schemas,
+} from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { SignIn, useBuyer } from './client';
 import { formatPrice } from '../format';
@@ -79,7 +84,7 @@ function Selection({
       unwrap(
         await api.client.GET('/api/v1/orders', { params: { query: { saleId: sale.id } }, signal }),
       ),
-    refetchInterval: (query) => (live && !query.state.error ? 30000 : 5000),
+    refetchInterval: (query) => liveQueryPollInterval(live && !query.state.error),
   });
   const active = orders.data?.items.find((order) => order.state === 'HELD');
   const chosen = sale.seats.filter(

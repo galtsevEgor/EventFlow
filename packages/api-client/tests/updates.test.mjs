@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { setImmediate } from 'node:timers/promises';
 import test from 'node:test';
-import { watchUpdates } from '../dist/index.js';
+import { liveQueryPollInterval, watchUpdates } from '../dist/index.js';
 
 class Source extends EventTarget {
   closed = false;
@@ -87,7 +87,10 @@ test('lost connections and silent streams fall back and reconnect with a fresh s
   sources[0].emit('ready');
   context.mock.timers.tick(100);
   await setImmediate();
-  context.mock.timers.tick(20000);
+  context.mock.timers.tick(19_899);
+  assert.equal(states.at(-1), true);
+  assert.equal(sources[0].closed, false);
+  context.mock.timers.tick(1);
   assert.equal(states.at(-1), false);
   assert.equal(sources[0].closed, true);
   context.mock.timers.tick(1300);
@@ -102,6 +105,11 @@ test('lost connections and silent streams fall back and reconnect with a fresh s
   stop();
   context.mock.timers.tick(60000);
   assert.equal(sources.length, 2);
+});
+
+test('live queries recheck periodically and use faster polling during fallback', () => {
+  assert.equal(liveQueryPollInterval(true), 30_000);
+  assert.equal(liveQueryPollInterval(false), 5_000);
 });
 
 test('untrusted routes and malformed frames cannot open an external stream or expose a live state', async (context) => {

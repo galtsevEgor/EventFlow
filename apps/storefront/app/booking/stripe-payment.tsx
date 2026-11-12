@@ -5,6 +5,8 @@ import { loadStripe } from '@stripe/stripe-js/pure';
 import { Alert, Button } from '@eventflow/ui';
 import { formatPrice } from '../format';
 
+const STRIPE_FORM_LOAD_TIMEOUT_MS = 15_000;
+
 const clients = new Map<string, ReturnType<typeof loadStripe>>();
 function client(key: string) {
   let value = clients.get(key);
@@ -49,7 +51,7 @@ function Form({ id, amountMinor, refresh }: Pick<Props, 'id' | 'amountMinor' | '
   const [loadFailed, setLoadFailed] = useState(false);
   useEffect(() => {
     if (ready) return;
-    const timer = setTimeout(() => setLoadFailed(true), 15000);
+    const timer = setTimeout(() => setLoadFailed(true), STRIPE_FORM_LOAD_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, [ready]);
   async function submit(event: FormEvent) {

@@ -3,6 +3,9 @@ import { analyticsBatch, restoreAnalyticsQueue } from './analytics-queue';
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import type { BrowserAnalyticsEvent as Event } from '@eventflow/event-contracts';
+
+const ANALYTICS_FLUSH_INTERVAL_MS = 4_000;
+
 const storageKey = 'eventflow.analytics.queue.v1';
 let queue: Event[] = [];
 let enabled = false,
@@ -145,7 +148,7 @@ export function AnalyticsCollector() {
     }
     void setup();
     document.addEventListener('click', click, true);
-    const timer = setInterval(() => void flush(), 4000);
+    const timer = setInterval(() => void flush(), ANALYTICS_FLUSH_INTERVAL_MS);
     const hide = () => void flush();
     window.addEventListener('pagehide', hide);
     return () => {

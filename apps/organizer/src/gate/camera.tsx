@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from '@eventflow/ui';
 import { type ScannerWorker } from './worker-client';
+
+const OFFLINE_CAMERA_SCAN_INTERVAL_MS = 160;
+
 export function GateCamera({
   worker,
   onCode,
@@ -72,7 +75,7 @@ export function GateCamera({
             .finally(() => {
               busy = false;
             });
-        }, 160);
+        }, OFFLINE_CAMERA_SCAN_INTERVAL_MS);
       } catch {
         if (!stopped) {
           stop();

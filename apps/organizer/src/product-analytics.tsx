@@ -12,6 +12,8 @@ import { eventListOptions } from './event-queries';
 import { ErrorMessage } from './feedback';
 import './product-analytics.css';
 
+const PRODUCT_ANALYTICS_POLL_INTERVAL_MS = 10_000;
+
 const day = (date: Date) => date.toISOString().slice(0, 10);
 const labels = {
   impressions: 'Показы',
@@ -139,7 +141,7 @@ export function ProductAnalytics({ id }: { id: string }) {
           }),
         ),
       ),
-    refetchInterval: 10000,
+    refetchInterval: PRODUCT_ANALYTICS_POLL_INTERVAL_MS,
   });
   const data = report.data;
   return (

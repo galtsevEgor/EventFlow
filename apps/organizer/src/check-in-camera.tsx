@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert } from '@eventflow/ui';
 import jsQR from 'jsqr';
 
+const ONLINE_CAMERA_SCAN_INTERVAL_MS = 160;
+
 export function CheckInCamera({ onCode }: { onCode: (code: string) => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<'STARTING' | 'READY' | 'FAILED'>('STARTING');
@@ -52,7 +54,7 @@ export function CheckInCamera({ onCode }: { onCode: (code: string) => void }) {
             stop();
             onCode(result.data);
           }
-        }, 160);
+        }, ONLINE_CAMERA_SCAN_INTERVAL_MS);
       } catch {
         fail();
       }

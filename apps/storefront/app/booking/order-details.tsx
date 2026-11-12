@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiRequestError, unwrap } from '@eventflow/api-client';
+import { LIVE_QUERY_RECHECK_INTERVAL_MS, ApiRequestError, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 import { BookingProvider, orderLabels, SignIn, useBuyer } from './client';
 import { formatPrice } from '../format';
@@ -9,6 +9,11 @@ import { PaymentPanel } from './payment-panel';
 import { TicketsPanel } from './tickets-panel';
 import { RefundPanel } from './refund-panel';
 import { useLiveUpdates } from './use-live-updates';
+
+const HOLD_COUNTDOWN_TICK_MS = 250;
+const HELD_ORDER_POLL_INTERVAL_MS = 3_000;
+const CONFIRMED_ORDER_POLL_INTERVAL_MS = 5_000;
+const REFUND_REVIEW_POLL_INTERVAL_MS = 15_000;
 
 function Countdown({
   expiresAt,
@@ -21,7 +26,7 @@ function Countdown({
 }) {
   const [tick, setTick] = useState(() => performance.now());
   useEffect(() => {
-    const timer = setInterval(() => setTick(performance.now()), 250);
+    const timer = setInterval(() => setTick(performance.now()), HOLD_COUNTDOWN_TICK_MS);
     return () => clearInterval(timer);
   }, []);
   // Subtract the full request duration conservatively; device wall-clock changes have no effect.
@@ -81,10 +86,12 @@ function Details({ id }: { id: string }) {
     },
     refetchInterval: (query) => {
       const data = query.state.data?.data;
-      if (live && data && !query.state.error) return 30000;
-      if (data?.state === 'HELD') return 3000;
+      if (live && data && !query.state.error) return LIVE_QUERY_RECHECK_INTERVAL_MS;
+      if (data?.state === 'HELD') return HELD_ORDER_POLL_INTERVAL_MS;
       if (data?.state === 'CONFIRMED')
-        return data.refund?.state === 'REQUIRES_REVIEW' ? 15000 : 5000;
+        return data.refund?.state === 'REQUIRES_REVIEW'
+          ? REFUND_REVIEW_POLL_INTERVAL_MS
+          : CONFIRMED_ORDER_POLL_INTERVAL_MS;
       return false;
     },
   });

@@ -9,6 +9,9 @@ import { gateRequest } from './api';
 import { useGateIdentity } from './identity';
 import { synchronize, GateSyncError } from './sync';
 import { ScannerWorker } from './worker-client';
+
+const GATE_AUTO_SYNC_INTERVAL_MS = 15_000;
+
 export function useGate(organizationId: string, eventId: string) {
   const [online, setOnline] = useState(navigator.onLine),
     [worker, setWorker] = useState<ScannerWorker | null>(null);
@@ -158,7 +161,7 @@ export function useGate(organizationId: string, eventId: string) {
         sync.error.status < 500
       ) &&
       !sync.isPending &&
-      Date.now() - lastAutomatic.current > 15000
+      Date.now() - lastAutomatic.current > GATE_AUTO_SYNC_INTERVAL_MS
     ) {
       lastAutomatic.current = Date.now();
       sync.mutate();
@@ -166,7 +169,7 @@ export function useGate(organizationId: string, eventId: string) {
   }, [verifiedUser, actor, pending, sync.isPending, sync.error, sync.mutate]);
   useEffect(() => {
     automatic();
-    const timer = setInterval(automatic, 15000);
+    const timer = setInterval(automatic, GATE_AUTO_SYNC_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [automatic]);
   const discard = useMutation({
