@@ -1,0 +1,344 @@
+.event-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  align-items: center;
+  gap: clamp(22px, 5vw, 62px);
+  padding: clamp(22px, 4vw, 50px);
+  border-radius: var(--site-radius);
+  color: white;
+  background: radial-gradient(ellipse at 80% 25%, #553764 0%, transparent 65%), var(--site-dark);
+}
+
+.event-hero-copy:only-child {
+  grid-column: 1 / -1;
+}
+
+.event-hero-location {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 16px;
+  padding: 6px 11px;
+  border: 1px solid #ffffff3d;
+  border-radius: 999px;
+  color: var(--site-dark-muted);
+  font-size: 13px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.event-hero h1 {
+  margin: 0;
+  font-size: clamp(32px, 4.8vw, 67px);
+  line-height: 1.04;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.event-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin: 24px 0;
+}
+
+.event-info dt {
+  color: var(--site-dark-muted);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.event-info dd {
+  margin: 5px 0 0;
+  color: white;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.event-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+}
+
+.event-hero-actions p {
+  margin: 0;
+  color: var(--site-dark-muted);
+  font-size: 14px;
+}
+
+.event-hero-actions strong {
+  color: white;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.event-hero-art {
+  padding: clamp(5px, 1vw, 10px);
+  border: 1px solid #ffffff2e;
+  border-radius: 20px;
+  background: #ffffff16;
+}
+
+.detail-cover {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 10 / 7;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #1a1425;
+  animation: cover-appear 420ms ease-out both;
+}
+
+@keyframes cover-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.event-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(270px, 0.45fr);
+  align-items: start;
+  gap: clamp(16px, 3vw, 28px);
+  margin-top: clamp(16px, 3vw, 30px);
+}
+
+.event-content > section {
+  min-width: 0;
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid var(--site-line);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  box-shadow: var(--site-shadow);
+}
+
+.event-content h2 {
+  margin: 0 0 16px;
+  font-size: clamp(21px, 3vw, 30px);
+  letter-spacing: -0.04em;
+}
+
+.event-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  margin-block: 0 16px;
+}
+
+#tickets {
+  scroll-margin-top: 20px;
+}
+
+.sale-loading {
+  min-height: 88px;
+  color: var(--site-muted);
+}
+
+.event-ticket-panel .sale-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #51406d;
+  background: #f1eaf8;
+  font-size: 13px;
+}
+
+.event-ticket-panel .sale-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.event-ticket-panel .sale-open {
+  color: #195d40;
+  background: #e7f4ec;
+}
+
+.event-ticket-panel :is(.sale-closed, .sale-paused) {
+  color: #804914;
+  background: #fff0de;
+}
+
+.event-ticket-panel .price-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  gap: 8px;
+  margin-block: 16px;
+}
+
+.event-ticket-panel .price-list li {
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--site-line);
+  border-radius: 10px;
+  background: var(--site-paper);
+}
+
+.event-ticket-panel .price-list small {
+  color: var(--site-muted);
+}
+
+.booking-sign-in {
+  margin-block: 16px;
+}
+
+.buyer-venue-map {
+  padding: 12px;
+  border: 1px solid var(--site-line);
+  border-radius: 16px;
+  background: #f7f4fa;
+  --venue-map-height: clamp(260px, 52svh, 470px);
+}
+
+.buyer-venue-map > section {
+  padding: 0;
+}
+
+.buyer-venue-map button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--site-line);
+  color: var(--site-ink);
+  background: var(--site-panel);
+  font-size: 13px;
+  font-weight: 650;
+  transition:
+    background-color var(--site-motion),
+    border-color var(--site-motion);
+}
+
+.buyer-venue-map button:hover:not(:disabled) {
+  border-color: var(--site-link);
+}
+
+.buyer-venue-map button[aria-pressed='true'] {
+  color: var(--site-ink);
+  background: var(--site-accent);
+}
+
+.buyer-venue-map button:disabled {
+  color: #6f6778;
+  background: #ede8ee;
+  cursor: default;
+}
+
+.buyer-venue-map .venue-map-controls button:last-child {
+  margin-inline-start: auto;
+}
+
+.buyer-venue-map .venue-map-canvas {
+  background: var(--site-panel);
+}
+
+.seat-checkout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  color: white;
+  background: var(--site-dark);
+}
+
+.seat-checkout p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.seat-checkout strong {
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.seat-checkout .ef-button {
+  color: var(--site-ink);
+  background: var(--site-accent);
+  font-size: 14px;
+}
+
+.seat-selection .seat {
+  min-height: 44px;
+  border-color: #9f85b7;
+  color: var(--site-ink);
+  background: #f2eaf9;
+}
+
+.seat-selection .seat[aria-pressed='true'] {
+  border-color: var(--site-link);
+  background: var(--site-link);
+  color: white;
+}
+
+.seat-selection .seat:disabled:not([aria-pressed='true']) {
+  border-color: var(--site-line);
+  background: #ede8ee;
+  color: #6f6778;
+}
+
+.event-ticket-panel section[aria-label='Лист ожидания'] {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--site-line);
+  border-radius: 12px;
+}
+
+@media (max-width: 790px) {
+  .event-hero,
+  .event-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .event-hero h1 {
+    font-size: clamp(30px, 7vw, 49px);
+  }
+
+  .event-info {
+    font-size: 14px;
+    margin-block: 16px;
+  }
+
+  .event-hero-art {
+    max-width: 100%;
+  }
+
+  .buyer-venue-map {
+    padding: 8px;
+    --venue-map-height: clamp(235px, 36svh, 320px);
+  }
+
+  .buyer-venue-map .venue-map-controls button:last-child {
+    margin-inline-start: 0;
+  }
+
+  .seat-checkout {
+    position: sticky;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    z-index: 2;
+    box-shadow: 0 10px 28px #251a3740;
+  }
+
+  .seat-selection {
+    scroll-margin-bottom: 92px;
+  }
+
+  .seat-selection button:focus-visible {
+    scroll-margin-bottom: 92px;
+  }
+}

@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider, useMutation, useQuery } from '@tansta
 import { AUTH_SESSION_POLL_INTERVAL_MS, createApiClient, unwrap } from '@eventflow/api-client';
 import { Alert, Button } from '@eventflow/ui';
 
-function AccountControls() {
+function AccountControls({ returnTo }: { returnTo: string }) {
   const [api] = useState(createApiClient);
   const session = useQuery({
     queryKey: ['session'],
@@ -41,7 +41,12 @@ function AccountControls() {
             </Button>
           </>
         ) : (
-          <a href="/api/v1/auth/login?returnTo=%2F">Войти</a>
+          <a
+            className="account-sign-in"
+            href={`/api/v1/auth/login?returnTo=${encodeURIComponent(returnTo)}`}
+          >
+            Войти
+          </a>
         )}
       </div>
       {(session.error || logout.error) && (
@@ -51,7 +56,7 @@ function AccountControls() {
   );
 }
 
-export function Account() {
+export function Account({ returnTo = '/' }: { returnTo?: string } = {}) {
   const [client] = useState(
     () =>
       new QueryClient({
@@ -60,7 +65,7 @@ export function Account() {
   );
   return (
     <QueryClientProvider client={client}>
-      <AccountControls />
+      <AccountControls returnTo={returnTo} />
     </QueryClientProvider>
   );
 }

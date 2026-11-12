@@ -20,15 +20,17 @@ export function SaleSeats({
       : [];
   if (sale.seatMap)
     return (
-      <VenueMapView
-        map={sale.seatMap}
-        seats={sale.seats}
-        selectedIds={selectedIds}
-        disabled={disabled}
-        disabledIds={unavailable}
-        onSelect={(id) => onSelect(id)}
-        currency={sale.currency}
-      />
+      <div className="buyer-venue-map">
+        <VenueMapView
+          map={sale.seatMap}
+          seats={sale.seats}
+          selectedIds={selectedIds}
+          disabled={disabled}
+          disabledIds={unavailable}
+          onSelect={onSelect}
+          currency={sale.currency}
+        />
+      </div>
     );
   const columns = Math.max(...sale.seats.map((seat) => seat.number));
   const rows = [...new Set(sale.seats.map((seat) => seat.row))];
@@ -51,7 +53,7 @@ export function SaleSeats({
           <div
             className="seat-row"
             key={row}
-            style={{ gridTemplateColumns: `44px repeat(${columns}, 42px)` }}
+            style={{ gridTemplateColumns: `44px repeat(${columns}, 44px)` }}
           >
             <span className="row-label">Ряд {row}</span>
             {Array.from({ length: columns }, (_, i) => {

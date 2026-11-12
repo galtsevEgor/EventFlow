@@ -15,7 +15,11 @@ test(
     const stack = await fullStack({ booking: true }),
       browser = await chromium.launch({ args: webglArgs });
     try {
-      const buyer = await browser.newPage({ viewport: { width: 1280, height: 1000 } }),
+      const buyer = await browser.newPage({
+          viewport: { width: 390, height: 844 },
+          isMobile: true,
+          hasTouch: true,
+        }),
         rival = await browser.newPage(),
         anonymous = await browser.newPage();
       const errors = [];
@@ -31,6 +35,10 @@ test(
       const snapshot = await (await buyer.request.get(salePath)).json();
       assert.deepEqual(snapshot.seatMap, map);
       for (const page of [buyer, rival, anonymous]) await page.goto(`${stack.origin}/events/${id}`);
+      const ticketLink = buyer.getByRole('link', { name: 'К билетам' });
+      await expect(ticketLink).toBeInViewport();
+      await ticketLink.tap();
+      await expect(buyer.getByRole('heading', { name: 'Билеты и места' })).toBeInViewport();
       await expect(anonymous.locator('canvas')).toHaveCount(1);
       await expect(
         anonymous.getByRole('link', { name: 'Войдите, чтобы забронировать места' }),
@@ -38,9 +46,18 @@ test(
       await expect(buyer.locator('[data-live="true"]')).toBeVisible();
       const canvas = buyer.locator('canvas');
       await expect(canvas).toHaveCount(1);
+      await canvas.scrollIntoViewIfNeeded();
+      const checkout = buyer.getByRole('button', { name: 'Забронировать', exact: true });
+      await expect(checkout).toBeInViewport();
+      await expect(checkout).toBeDisabled();
       const point = await mappedSeatPoint(buyer, map, 'r1-s1');
-      await buyer.mouse.click(point.x, point.y);
+      await buyer.touchscreen.tap(point.x, point.y);
       await expect(buyer.getByText(/Выбрано: 1 ·/)).toBeVisible();
+      await expect(checkout).toBeEnabled();
+      assert.equal(
+        await buyer.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        true,
+      );
       await buyer.route('**/api/v1/sales/' + id, (route) => route.fulfill({ json: snapshot }));
       const held = await rival.request.post(stack.origin + '/api/v1/orders', {
         headers: { ...rivalHeaders, 'idempotency-key': randomUUID() },

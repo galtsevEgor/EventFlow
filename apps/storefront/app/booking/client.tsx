@@ -40,8 +40,11 @@ export function useBuyer() {
 }
 export function SignIn({ returnTo }: { returnTo: string }) {
   return (
-    <p>
-      <a className="back-link" href={`/api/v1/auth/login?returnTo=${encodeURIComponent(returnTo)}`}>
+    <p className="booking-sign-in">
+      <a
+        className="site-action"
+        href={`/api/v1/auth/login?returnTo=${encodeURIComponent(returnTo)}`}
+      >
         Войдите, чтобы забронировать места
       </a>
     </p>

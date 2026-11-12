@@ -1,0 +1,189 @@
+:root {
+  --site-ink: #21192d;
+  --site-muted: #61596c;
+  --site-paper: #f7f4f2;
+  --site-panel: #fffdfc;
+  --site-line: #e7dfe5;
+  --site-dark: #251a37;
+  --site-dark-muted: #ddd1e9;
+  --site-accent: #ff9f82;
+  --site-accent-hover: #ffb59f;
+  --site-link: #674186;
+  --site-radius: 24px;
+  --site-shadow: 0 12px 36px #291a3410;
+  --site-motion: 180ms ease;
+  font-family: 'Inter Variable', 'Segoe UI', sans-serif;
+  color: var(--site-ink);
+  background: var(--site-paper);
+}
+
+.storefront-page {
+  max-width: 1312px;
+  padding: 0 clamp(16px, 4vw, 56px) 32px;
+  --ef-ink: var(--site-ink);
+  --ef-green: var(--site-dark);
+  --ef-muted: var(--site-muted);
+  --ef-border: var(--site-line);
+}
+
+.storefront-page :is(a, button, input, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid #a35cbd;
+  outline-offset: 3px;
+}
+
+.site-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 76px;
+  gap: clamp(16px, 4vw, 52px);
+  border-bottom: 1px solid var(--site-line);
+}
+
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--site-ink);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  text-decoration: none;
+  width: max-content;
+}
+
+.site-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 24px;
+  color: var(--site-dark);
+  background: var(--site-accent);
+  border-radius: 7px;
+  mask-image:
+    radial-gradient(circle at 0 50%, transparent 3px, #000 3.5px),
+    radial-gradient(circle at 100% 50%, transparent 3px, #000 3.5px);
+  mask-composite: intersect;
+}
+
+.site-brand-mark::after {
+  content: '↗';
+  font-size: 16px;
+  line-height: 1;
+}
+
+.site-header .account {
+  padding: 0;
+  gap: 8px 16px;
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.site-header .account a {
+  color: var(--site-link);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.site-header .account a:hover {
+  text-decoration: underline;
+}
+
+.site-header .account-sign-in {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding-inline: 16px;
+  border: 1px solid var(--site-line);
+  border-radius: 999px;
+  background: var(--site-panel);
+}
+
+.site-footer {
+  color: var(--site-muted);
+  border-color: var(--site-line);
+  margin-top: clamp(32px, 7vw, 76px);
+}
+
+.page-breadcrumb {
+  padding-block: clamp(16px, 3vw, 30px);
+}
+
+.storefront-page .back-link {
+  color: var(--site-link);
+}
+
+.site-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 20px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--site-ink);
+  background: var(--site-accent);
+  font-weight: 750;
+  line-height: 1.3;
+  text-decoration: none;
+  transition:
+    background-color var(--site-motion),
+    transform var(--site-motion);
+}
+
+.site-action:hover {
+  background-color: var(--site-accent-hover);
+}
+
+.site-action:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 940px) {
+  .site-header .account-email {
+    display: none;
+  }
+}
+
+@media (max-width: 650px) {
+  .site-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-block: 12px 6px;
+  }
+
+  .site-header .account {
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .site-header .account-controls {
+    gap: 8px;
+  }
+
+  .site-header .account .ef-button {
+    padding-inline: 9px;
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 365px) {
+  .site-header .account {
+    font-size: 11px;
+  }
+
+  .site-header .account-controls {
+    gap: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storefront-page *,
+  .storefront-page *::before,
+  .storefront-page *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

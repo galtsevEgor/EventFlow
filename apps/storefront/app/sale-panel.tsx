@@ -65,7 +65,12 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
         : normal;
     },
   });
-  if (sale.isPending) return <p role="status">Уточняем состояние продаж…</p>;
+  if (sale.isPending)
+    return (
+      <p className="sale-loading" role="status">
+        Уточняем состояние продаж…
+      </p>
+    );
   if (sale.isError)
     return (
       <Alert>
@@ -99,7 +104,7 @@ function SaleDetails({ id, timeZone }: { id: string; timeZone: string }) {
           <li key={key}>
             <span>
               {category.name}
-              <small>{category.count} мест</small>
+              <small>Мест: {category.count}</small>
             </span>
             <strong>{formatPrice(category.price)}</strong>
           </li>

@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Account } from '../../account';
+import { SiteHeader } from '../../site-header';
 import { getEvent } from '../../catalog-api';
-import { formatEventDateTime } from '../../format';
+import { formatEventDateTime, formatPrice } from '../../format';
 import { SalePanel } from '../../sale-panel';
 import { Suspense } from 'react';
 import { SimilarEvents } from '../../recommendations/similar';
 import { FavoriteButton } from '../../recommendations/favorite';
+import './event-page.css';
 
 export const dynamic = 'force-dynamic';
 type Props = { params: Promise<{ id: string }> };
@@ -49,50 +50,67 @@ export default async function EventPage({ params }: Props) {
     url: new URL(`/events/${event.id}`, origin).href,
   };
   return (
-    <main>
-      <Link className="brand" href="/">
-        EventFlow<span aria-hidden="true">↗</span>
-      </Link>
-      <Account />
-      <section className="event-detail">
+    <main className="storefront-page event-page">
+      <SiteHeader returnTo={`/events/${event.id}`} />
+      <div className="page-breadcrumb">
         <Link href="/" className="back-link">
           ← Все мероприятия
         </Link>
-        <p className="eyebrow">
-          {event.city} · {event.capacity} мест
-        </p>
-        <h1>{event.title}</h1>
-        <FavoriteButton id={event.id} />
-        <div className="detail-grid">
-          <div>
-            {event.coverId && (
-              <img
-                className="detail-cover"
-                src={`/api/v1/covers/${event.coverId}`}
-                alt={`Афиша: ${event.title}`}
-                width={1000}
-                height={700}
-              />
-            )}
-            <h2>О мероприятии</h2>
-            <p className="event-description">{event.description}</p>
+      </div>
+      <section className="event-hero" aria-labelledby="event-title">
+        <div className="event-hero-copy">
+          <p className="event-hero-location">{event.city}</p>
+          <h1 id="event-title">{event.title}</h1>
+          <dl className="event-info">
+            <div>
+              <dt>Дата и время</dt>
+              <dd>
+                <time dateTime={event.startsAt}>
+                  {formatEventDateTime(event.startsAt, event.timeZone)}
+                </time>
+              </dd>
+            </div>
+            <div>
+              <dt>Адрес</dt>
+              <dd>{event.address}</dd>
+            </div>
+          </dl>
+          <div className="event-hero-actions">
+            <a className="site-action" href="#tickets">
+              К билетам <span aria-hidden="true">↓</span>
+            </a>
+            <p>
+              от <strong>{formatPrice(event.minPriceMinor)}</strong>
+            </p>
           </div>
-          <aside className="event-info" aria-label="Время, место и билеты">
-            <h2>Когда и где</h2>
-            <p>
-              <time dateTime={event.startsAt}>
-                {formatEventDateTime(event.startsAt, event.timeZone)}
-              </time>
-            </p>
-            <p className="muted">Часовой пояс: {event.timeZone}</p>
-            <p>
-              {event.city}, {event.address}
-            </p>
-            <h2>Билеты</h2>
-            <SalePanel id={event.id} timeZone={event.timeZone} />
-          </aside>
         </div>
+        {event.coverId && (
+          <div className="event-hero-art">
+            <img
+              className="detail-cover"
+              src={`/api/v1/covers/${event.coverId}`}
+              alt={`Афиша: ${event.title}`}
+              width={1000}
+              height={700}
+              fetchPriority="high"
+            />
+          </div>
+        )}
       </section>
+      <div className="event-content">
+        <section className="event-ticket-panel" aria-labelledby="tickets">
+          <h2 id="tickets" tabIndex={-1}>
+            Билеты и места
+          </h2>
+          <SalePanel id={event.id} timeZone={event.timeZone} />
+        </section>
+        <section className="event-about-panel" aria-labelledby="about-event">
+          <h2 id="about-event">О мероприятии</h2>
+          <p className="event-description">{event.description}</p>
+          <p className="muted">Часовой пояс: {event.timeZone}</p>
+          <FavoriteButton id={event.id} />
+        </section>
+      </div>
       <Suspense
         fallback={
           <section className="recommendations-section" aria-busy="true">
@@ -102,7 +120,7 @@ export default async function EventPage({ params }: Props) {
       >
         <SimilarEvents id={event.id} />
       </Suspense>
-      <footer>EventFlow · События, которые объединяют</footer>
+      <footer className="site-footer">EventFlow</footer>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, '\\u003c') }}

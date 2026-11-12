@@ -47,8 +47,8 @@ export function SeatPicker({ sale, live }: { sale: Schemas['PublicSale']; live: 
   if (!session.data.user)
     return (
       <>
-        {sale.seatMap && <SaleSeats sale={sale} selectedIds={[]} disabled onSelect={() => {}} />}
         <SignIn returnTo={`/events/${sale.id}`} />
+        {sale.seatMap && <SaleSeats sale={sale} selectedIds={[]} disabled onSelect={() => {}} />}
       </>
     );
   if (!session.data.user.emailVerified)
@@ -152,10 +152,6 @@ function Selection({
       )}
       <p className="muted">Выберите от 1 до 6 мест. Бронь действует до 10 минут.</p>
       <SaleSeats sale={sale} selectedIds={chosenIds} disabled={disabled} onSelect={select} />
-      <p aria-live="polite">
-        Выбрано: {chosen.length} ·{' '}
-        {formatPrice(chosen.reduce((sum, seat) => sum + seat.priceMinor, 0))}
-      </p>
       {pending && (
         <Alert>
           Сохранили запрос. Повторите его, чтобы узнать результат; новая бронь не создастся.
@@ -170,12 +166,18 @@ function Selection({
               : 'Не удалось сохранить запрос в браузере. Разрешите хранение данных для этого сайта.'}
         </Alert>
       )}
-      <Button
-        disabled={reserve.isPending || (!pending && (disabled || !chosen.length))}
-        onClick={() => reserve.mutate()}
-      >
-        {reserve.isPending ? 'Бронируем…' : pending ? 'Повторить запрос' : 'Забронировать'}
-      </Button>
+      <div className="seat-checkout">
+        <p aria-live="polite">
+          Выбрано: {chosen.length} ·{' '}
+          <strong>{formatPrice(chosen.reduce((sum, seat) => sum + seat.priceMinor, 0))}</strong>
+        </p>
+        <Button
+          disabled={reserve.isPending || (!pending && (disabled || !chosen.length))}
+          onClick={() => reserve.mutate()}
+        >
+          {reserve.isPending ? 'Бронируем…' : pending ? 'Повторить запрос' : 'Забронировать'}
+        </Button>
+      </div>
     </section>
   );
 }

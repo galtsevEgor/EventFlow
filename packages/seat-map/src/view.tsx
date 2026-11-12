@@ -78,7 +78,7 @@ export function VenueMapView(props: VenueMapViewProps) {
       aria-label={props.edit ? 'Редактор плана зала' : 'Выбор мест в зале'}
       style={{ minWidth: 0, width: '100%' }}
     >
-      <div style={toolbarStyle}>
+      <div className="venue-map-controls" style={toolbarStyle}>
         <button
           type="button"
           aria-label="Увеличить план"
@@ -115,9 +115,10 @@ export function VenueMapView(props: VenueMapViewProps) {
       {!fallback && !ready && <p role="status">Загрузка плана…</p>}
       <div
         ref={host}
+        className="venue-map-canvas"
         aria-label="План зала. Для выбора с клавиатуры откройте список мест."
         style={{
-          height: 'clamp(280px,55vh,580px)',
+          height: 'var(--venue-map-height, clamp(280px, 55vh, 580px))',
           width: '100%',
           display: listVisible ? 'none' : 'block',
           touchAction: 'none',

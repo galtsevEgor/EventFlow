@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import '@fontsource-variable/inter';
 import './styles.css';
+import './theme.css';
 import { AnalyticsCollector } from './analytics';
 
 export const metadata: Metadata = {
